@@ -1,0 +1,38 @@
+{
+	"name": "jokoteko",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"remoteUser": "bun",
+	"forwardPorts": [4321, 8080],
+	"portsAttributes": {
+		"8080": {
+			"label": "Caw Server",
+			"onAutoForward": "notify"
+		}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"oven.bun-vscode",
+				"biomejs.biome",
+				"bradlc.vscode-tailwindcss",
+				"qwtel.sqlite-viewer"
+			],
+			"settings": {
+				"files.eol": "\n",
+				"css.lint.unknownAtRules": "ignore",
+				"[css]": {
+					"editor.defaultFormatter": "bradlc.vscode-tailwindcss"
+				},
+				"biome.lsp.bin": "node_modules/@biomejs/biome/bin/biome",
+				"biome.configurationPath": "biome.json",
+				"editor.defaultFormatter": "biomejs.biome",
+				"editor.formatOnSave": true,
+				"editor.codeActionsOnSave": {
+					"source.fixAll.biome": "explicit"
+				}
+			}
+		}
+	}
+}
