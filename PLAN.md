@@ -514,7 +514,7 @@ flowchart TD
     - `BoardStateSchema`
   - Infer TypeScript types from schemas: `Task`, `Milestone`, `Strategy`, `GlossaryTerm`, `Column`, `Snapshot`, `BoardState`
 
-- [ ] **10.3 Single-Bundle Snapshot Loader & Error Boundary**
+- [x] **10.3 Single-Bundle Snapshot Loader & Error Boundary**
   - File: `web/src/state/bootstrap.ts`
   - Implementation:
     - Check `<script id="jokateko-data">`

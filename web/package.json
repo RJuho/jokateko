@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@preact/signals": "^2.11.1",
     "@tailwindcss/typography": "^0.5.20",
     "bun-plugin-tailwind": "latest",
     "daisyui": "^5",
