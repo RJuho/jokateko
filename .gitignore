@@ -10,6 +10,8 @@
 *.dll
 *.so
 *.dylib
+bin/
+dist-kanban/
 
 # Test binary, built with `go test -c`
 *.test

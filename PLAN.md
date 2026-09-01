@@ -37,13 +37,13 @@ flowchart TD
 
 ## Phase 0: Project Initialization & Tooling Setup
 
-- [ ] **0.1 Initialize Go Module**
+- [x] **0.1 Initialize Go Module**
   - Target: `go.mod`
   - Module path: `github.com/RJuho/jokateko`
   - Go version: `1.27.0` (or `1.23+`)
   - Verification: `go env` shows module active.
 
-- [ ] **0.2 Declare Locked Backend Dependencies**
+- [x] **0.2 Declare Locked Backend Dependencies**
   - `github.com/pelletier/go-toml/v2` (TOML configuration)
   - `modernc.org/sqlite` (Pure Go in-memory SQLite, CGO-free)
   - `github.com/fsnotify/fsnotify` (Cross-platform file watcher)
@@ -51,7 +51,7 @@ flowchart TD
   - `github.com/modelcontextprotocol/go-sdk` (Official MCP Go SDK)
   - Verification: `go mod tidy` passes cleanly; zero CGO requirements.
 
-- [ ] **0.3 Scaffold Base Directory Structure**
+- [x] **0.3 Scaffold Base Directory Structure**
   - Create directories:
     - `cmd/jokateko/`
     - `internal/config/`
@@ -77,7 +77,7 @@ flowchart TD
     ```
   - Create `web/embed.go` with `//go:embed dist/*` to allow early Go compilation.
 
-- [ ] **0.4 Create Root Makefile & Code Generation Setup**
+- [x] **0.4 Create Root Makefile & Code Generation Setup**
   - Makefile variables:
     - `VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")`
     - `COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")`
