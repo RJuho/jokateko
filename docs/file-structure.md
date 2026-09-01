@@ -7,7 +7,7 @@ This document details both the **Source Repository Layout** (where Jokateko itse
 ## 1. Source Repository Layout
 
 ```text
-/workspaces/jokoteko/
+/workspaces/jokateko/
 ├── cmd/
 │   └── jokateko/
 │       ├── main.go                     # Root CLI dispatcher & signal handling

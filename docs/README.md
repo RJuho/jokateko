@@ -40,12 +40,12 @@ Jokateko operates on a strict **"Tasks-as-Code"** and **"Spec-First"** philosoph
 
 The detailed plans are organized into focused specifications:
 
-- **[Module Structure](file:///workspaces/jokoteko/docs/module-structure.md):** Go packages, domain boundaries, data flow, and interfaces.
-- **[File Structure](file:///workspaces/jokoteko/docs/file-structure.md):** Source repository layout and target project `.jokateko/` workspace layout.
-- **[Configuration Specification](file:///workspaces/jokoteko/docs/config-specification.md):** TOML schema, default configuration, environment overrides, and path resolution.
-- **[MCP Specification](file:///workspaces/jokoteko/docs/mcp-specification.md):** MCP tools, resources, prompts, stdio daemon proxy, and JSON schemas.
-- **[Web UI Architecture](file:///workspaces/jokoteko/docs/web-ui-architecture.md):** Preact SPA, single-bundle snapshot injection, SSE synchronization, and Playwright testing.
-- **[Validation & Linting Engine](file:///workspaces/jokoteko/docs/validation-and-linting.md):** Rules, YAML frontmatter schemas, dependency cycle detection, and CLI error formatting for `jokateko parse`.
+- **[Module Structure](file:///workspaces/jokateko/docs/module-structure.md):** Go packages, domain boundaries, data flow, and interfaces.
+- **[File Structure](file:///workspaces/jokateko/docs/file-structure.md):** Source repository layout and target project `.jokateko/` workspace layout.
+- **[Configuration Specification](file:///workspaces/jokateko/docs/config-specification.md):** TOML schema, default configuration, environment overrides, and path resolution.
+- **[MCP Specification](file:///workspaces/jokateko/docs/mcp-specification.md):** MCP tools, resources, prompts, stdio daemon proxy, and JSON schemas.
+- **[Web UI Architecture](file:///workspaces/jokateko/docs/web-ui-architecture.md):** Preact SPA, single-bundle snapshot injection, SSE synchronization, and Playwright testing.
+- **[Validation & Linting Engine](file:///workspaces/jokateko/docs/validation-and-linting.md):** Rules, YAML frontmatter schemas, dependency cycle detection, and CLI error formatting for `jokateko parse`.
 
 ---
 
