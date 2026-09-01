@@ -6,6 +6,10 @@
 		},
 		"Valibot": {
 			"serverUrl": "https://valibot.dev/mcp"
+		},
+		"Go": {
+			"command": "gopls",
+			"args": ["mcp"]
 		}
 	}
 }
