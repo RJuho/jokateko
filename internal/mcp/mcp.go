@@ -58,6 +58,10 @@ func New(cfg *config.Config, workspaceDir string, st *store.Store, wr *writer.Wr
 	server.registerTagTools()
 	server.registerBoardTools()
 
+	// Register resources & prompts
+	server.registerResources()
+	server.registerPrompts()
+
 	return server
 }
 

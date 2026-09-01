@@ -444,7 +444,7 @@ flowchart TD
     - `internal/mcp/tools_tag.go`: `list_tags` (controlled tag vocabulary with usage counts)
     - `internal/mcp/tools_board.go`: `get_board_state` (column summary and counts)
 
-- [ ] **8.6 Implement MCP Resources & Prompts**
+- [x] **8.6 Implement MCP Resources & Prompts**
   - Files:
     - `internal/mcp/resources.go`: `jokateko://board`, `jokateko://strategies/tier1`, `jokateko://glossary`
     - `internal/mcp/prompts.go`: `next_task` prompt template recommending ready task with unblocked dependencies and relevant Tier-1 strategies
