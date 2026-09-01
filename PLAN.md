@@ -491,17 +491,18 @@ flowchart TD
 
 ## Phase 10: Bun Web UI (`web/`)
 
-- [ ] **10.1 Frontend Project Initialization**
+- [x] **10.1 Frontend Project Initialization**
   - Path: `web/package.json`
   - Dependencies:
-    - `preact`: `^10.26.0`
-    - `valibot`: `^1.1.0`
-  - Dev dependencies:
-    - Tailwind CSS Standalone CLI
-    - Bun 1.4+ native bundler
-  - TypeScript config: `web/tsconfig.json`
+    - `preact`: latest (`10.29.8`)
+    - `valibot`: latest (`1.4.2`)
+    - `tailwindcss`: `^4` (`4.3.3`)
+    - `bun-plugin-tailwind`: `latest` (`0.1.2`)
+    - `daisyui`: `latest` (`5.7.25`)
+  - Config: `bunfig.toml` (`[serve.static] plugins = ["bun-plugin-tailwind"]`)
+  - TypeScript config: `web/tsconfig.json` (`strict: true`)
 
-- [ ] **10.2 Valibot Runtime Schemas & Type Contracts**
+- [x] **10.2 Valibot Runtime Schemas & Type Contracts**
   - File: `web/src/schemas/models.ts`
   - Schemas:
     - `TaskSchema`
@@ -510,7 +511,8 @@ flowchart TD
     - `GlossaryTermSchema`
     - `ColumnSchema`
     - `SnapshotSchema`
-  - Infer TypeScript types from schemas: `Task`, `Milestone`, `Strategy`, `GlossaryTerm`, `Column`, `Snapshot`
+    - `BoardStateSchema`
+  - Infer TypeScript types from schemas: `Task`, `Milestone`, `Strategy`, `GlossaryTerm`, `Column`, `Snapshot`, `BoardState`
 
 - [ ] **10.3 Single-Bundle Snapshot Loader & Error Boundary**
   - File: `web/src/state/bootstrap.ts`

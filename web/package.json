@@ -1,0 +1,23 @@
+{
+  "name": "jokateko-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun run scripts/bundle.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tailwindcss/typography": "^0.5.20",
+    "bun-plugin-tailwind": "latest",
+    "daisyui": "^5",
+    "preact": "latest",
+    "tailwindcss": "^4",
+    "valibot": "latest"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.0",
+    "@types/node": "latest",
+    "typescript": "latest"
+  }
+}
