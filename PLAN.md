@@ -247,7 +247,7 @@ flowchart TD
 
 ## Phase 4: Atomic Writer & Filesystem Watcher (`internal/writer`, `internal/watcher`)
 
-- [ ] **4.1 Safe Atomic File Persistence**
+- [x] **4.1 Safe Atomic File Persistence**
   - File: `internal/writer/writer.go`
   - Implementation:
     - Write to temporary file in destination folder (`.filename.tmp`)
@@ -255,13 +255,13 @@ flowchart TD
     - Atomically rename temporary file over target file (`os.Rename`)
     - Provide deletion helper (`os.Remove`)
 
-- [ ] **4.2 Watcher Suppression Cache (Echo Prevention)**
+- [x] **4.2 Watcher Suppression Cache (Echo Prevention)**
   - File: `internal/writer/suppress.go`
   - Implementation:
     - In-memory thread-safe LRU/cache of recent writer touches (filepath + hash + timestamp)
     - Prevents `fsnotify` event loopback when Jokateko writes files itself
 
-- [ ] **4.3 Filesystem Watcher & Debounce Loop**
+- [x] **4.3 Filesystem Watcher & Debounce Loop**
   - File: `internal/watcher/watcher.go`
   - Implementation:
     - Initialize `fsnotify.NewWatcher()`
@@ -270,7 +270,7 @@ flowchart TD
     - Debounce timer (50ms) to coalesce rapid write flushes
     - Emit typed change events (`Create`, `Update`, `Delete`) to ingestion handler
 
-- [ ] **4.4 Watcher Ingestion Pipeline**
+- [x] **4.4 Watcher Ingestion Pipeline**
   - File: `internal/watcher/ingest.go`
   - Implementation:
     - On file event: read file, parse frontmatter & body, update in-memory store
@@ -278,7 +278,7 @@ flowchart TD
     - On delete event: remove entity from in-memory store
     - Broadcast entity change event to SSE channel
 
-- [ ] **4.5 Unit Tests for Writer & Watcher**
+- [x] **4.5 Unit Tests for Writer & Watcher**
   - Files: `internal/writer/writer_test.go`, `internal/watcher/watcher_test.go`
   - Test cases: atomic write integrity, watcher debounce coalescing, suppression cache hit/miss, corrupted file handling.
 
