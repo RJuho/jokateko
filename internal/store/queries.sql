@@ -96,7 +96,7 @@ DELETE FROM milestones WHERE id = ?;
 -- name: GetMilestoneTaskMetrics :one
 SELECT
     COUNT(*) AS total_tasks,
-    COALESCE(SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END), 0) AS completed_tasks
+    COUNT(CASE WHEN status = 'done' THEN 1 END) AS completed_tasks
 FROM tasks
 WHERE milestone_id = ?;
 

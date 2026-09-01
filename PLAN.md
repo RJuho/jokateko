@@ -206,7 +206,7 @@ flowchart TD
     - `entity_tags` (entity_type, entity_id, tag)
     - FTS5 virtual tables for full-text search across all entities
 
-- [ ] **3.2 In-Memory Store Initialization with sqlc & modernc.org/sqlite**
+- [x] **3.2 In-Memory Store Initialization with sqlc & modernc.org/sqlite**
   - File: `internal/store/store.go`
   - Implementation:
     - Open pure Go SQLite in-memory database (`file::memory:?cache=shared`) using `modernc.org/sqlite` (no CGO)

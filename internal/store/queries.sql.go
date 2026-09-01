@@ -245,14 +245,14 @@ func (q *Queries) GetMilestone(ctx context.Context, id string) (Milestone, error
 const getMilestoneTaskMetrics = `-- name: GetMilestoneTaskMetrics :one
 SELECT
     COUNT(*) AS total_tasks,
-    COALESCE(SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END), 0) AS completed_tasks
+    COUNT(CASE WHEN status = 'done' THEN 1 END) AS completed_tasks
 FROM tasks
 WHERE milestone_id = ?
 `
 
 type GetMilestoneTaskMetricsRow struct {
-	TotalTasks     int64       `json:"total_tasks"`
-	CompletedTasks interface{} `json:"completed_tasks"`
+	TotalTasks     int64 `json:"total_tasks"`
+	CompletedTasks int64 `json:"completed_tasks"`
 }
 
 func (q *Queries) GetMilestoneTaskMetrics(ctx context.Context, milestoneID string) (GetMilestoneTaskMetricsRow, error) {
