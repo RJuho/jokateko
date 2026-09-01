@@ -1,130 +1,129 @@
-import { describe, expect, it } from "bun:test";
-import * as v from "valibot";
+import { describe, expect, it } from 'bun:test'
+import * as v from 'valibot'
 import {
-  BoardStateSchema,
-  SnapshotSchema,
-  TaskSchema,
-  type Snapshot,
-  type SnapshotInput,
-} from "./models";
+	BoardStateSchema,
+	type SnapshotInput,
+	SnapshotSchema,
+	TaskSchema,
+} from './models'
 
-describe("Valibot Models", () => {
-  it("validates a complete task and applies defaults", () => {
-    const rawTask = {
-      id: "260901-test-task",
-      title: "Test Task",
-      status: "in_progress",
-      summary: "A test summary",
-    };
+describe('Valibot Models', () => {
+	it('validates a complete task and applies defaults', () => {
+		const rawTask = {
+			id: '260901-test-task',
+			title: 'Test Task',
+			status: 'in_progress',
+			summary: 'A test summary',
+		}
 
-    const result = v.safeParse(TaskSchema, rawTask);
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.output.priority).toBe("medium");
-      expect(result.output.tags).toEqual([]);
-      expect(result.output.dependencies).toEqual([]);
-      expect(result.output.total_criteria).toBe(0);
-    }
-  });
+		const result = v.safeParse(TaskSchema, rawTask)
+		expect(result.success).toBe(true)
+		if (result.success) {
+			expect(result.output.priority).toBe('medium')
+			expect(result.output.tags).toEqual([])
+			expect(result.output.dependencies).toEqual([])
+			expect(result.output.total_criteria).toBe(0)
+		}
+	})
 
-  it("fails validation on invalid priority", () => {
-    const rawTask = {
-      id: "task-bad",
-      title: "Bad Task",
-      status: "backlog",
-      priority: "ultra-high", // invalid
-    };
+	it('fails validation on invalid priority', () => {
+		const rawTask = {
+			id: 'task-bad',
+			title: 'Bad Task',
+			status: 'backlog',
+			priority: 'ultra-high', // invalid
+		}
 
-    const result = v.safeParse(TaskSchema, rawTask);
-    expect(result.success).toBe(false);
-  });
+		const result = v.safeParse(TaskSchema, rawTask)
+		expect(result.success).toBe(false)
+	})
 
-  it("validates an entire Snapshot payload", () => {
-    const rawSnapshot: SnapshotInput = {
-      config: {
-        project: {
-          name: "Jokateko",
-          description: "Markdown Kanban",
-        },
-        board: {
-          columns: [
-            { id: "backlog", name: "Backlog", color: "#64748b" },
-            { id: "ready", name: "Ready", color: "#3b82f6" },
-          ],
-        },
-      },
-      tasks: [
-        {
-          id: "task-1",
-          title: "First",
-          status: "ready",
-          priority: "high",
-          tags: ["core"],
-          summary: "Initial",
-          dependencies: [],
-        },
-      ],
-      milestones: [
-        {
-          id: "m1",
-          title: "Milestone 1",
-          status: "open",
-          is_archived: false,
-          tags: [],
-          summary: "Target 1",
-          total_tasks: 1,
-          completed_tasks: 0,
-          progress_percentage: 0,
-        },
-      ],
-      strategies: [
-        {
-          id: "s1",
-          title: "Architecture",
-          tier: 1,
-          tags: [],
-          summary: "Core design",
-        },
-      ],
-      glossary: [
-        {
-          id: "g1",
-          title: "Task",
-          tags: [],
-          summary: "A unit of work",
-        },
-      ],
-    };
+	it('validates an entire Snapshot payload', () => {
+		const rawSnapshot: SnapshotInput = {
+			config: {
+				project: {
+					name: 'Jokateko',
+					description: 'Markdown Kanban',
+				},
+				board: {
+					columns: [
+						{ id: 'backlog', name: 'Backlog', color: '#64748b' },
+						{ id: 'ready', name: 'Ready', color: '#3b82f6' },
+					],
+				},
+			},
+			tasks: [
+				{
+					id: 'task-1',
+					title: 'First',
+					status: 'ready',
+					priority: 'high',
+					tags: ['core'],
+					summary: 'Initial',
+					dependencies: [],
+				},
+			],
+			milestones: [
+				{
+					id: 'm1',
+					title: 'Milestone 1',
+					status: 'open',
+					is_archived: false,
+					tags: [],
+					summary: 'Target 1',
+					total_tasks: 1,
+					completed_tasks: 0,
+					progress_percentage: 0,
+				},
+			],
+			strategies: [
+				{
+					id: 's1',
+					title: 'Architecture',
+					tier: 1,
+					tags: [],
+					summary: 'Core design',
+				},
+			],
+			glossary: [
+				{
+					id: 'g1',
+					title: 'Task',
+					tags: [],
+					summary: 'A unit of work',
+				},
+			],
+		}
 
-    const result = v.safeParse(SnapshotSchema, rawSnapshot);
-    expect(result.success).toBe(true);
-  });
+		const result = v.safeParse(SnapshotSchema, rawSnapshot)
+		expect(result.success).toBe(true)
+	})
 
-  it("validates live REST BoardState payload", () => {
-    const rawBoard = {
-      project_name: "Jokateko Live",
-      columns: [
-        {
-          id: "ready",
-          name: "Ready",
-          color: "#3b82f6",
-          tasks: [
-            {
-              id: "task-2",
-              title: "Second",
-              status: "ready",
-              priority: "low",
-            },
-          ],
-          count: 1,
-        },
-      ],
-    };
+	it('validates live REST BoardState payload', () => {
+		const rawBoard = {
+			project_name: 'Jokateko Live',
+			columns: [
+				{
+					id: 'ready',
+					name: 'Ready',
+					color: '#3b82f6',
+					tasks: [
+						{
+							id: 'task-2',
+							title: 'Second',
+							status: 'ready',
+							priority: 'low',
+						},
+					],
+					count: 1,
+				},
+			],
+		}
 
-    const result = v.safeParse(BoardStateSchema, rawBoard);
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.output.columns[0].tasks[0].priority).toBe("low");
-    }
-  });
-});
+		const result = v.safeParse(BoardStateSchema, rawBoard)
+		expect(result.success).toBe(true)
+		if (result.success) {
+			expect(result.output.columns[0].tasks[0].priority).toBe('low')
+		}
+	})
+})
