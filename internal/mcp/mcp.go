@@ -51,6 +51,12 @@ func New(cfg *config.Config, workspaceDir string, st *store.Store, wr *writer.Wr
 
 	// Register tools
 	server.registerTaskTools()
+	server.registerMilestoneTools()
+	server.registerStrategyTools()
+	server.registerGlossaryTools()
+	server.registerSearchTools()
+	server.registerTagTools()
+	server.registerBoardTools()
 
 	return server
 }

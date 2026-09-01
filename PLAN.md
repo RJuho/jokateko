@@ -425,7 +425,7 @@ flowchart TD
     - `complete_task`: Enforces dependencies are done + **Strict Open Checkbox Guard** (strictly rejects if uncompleted checkboxes exist, guiding AI to use `list_task_items` and `update_task_item`) + appends `## Completion Summary` (`what_done`, `why_done`) + marks `done` + returns unblocked tasks
     - `update_task_content`: Edits title, summary, priority, milestone, tags, body
 
-- [ ] **8.3 Implement MCP Milestone Tools**
+- [x] **8.3 Implement MCP Milestone Tools**
   - File: `internal/mcp/tools_milestone.go`
   - Tools:
     - `list_milestones`: Auto-archive calculation (hidden if 100% complete unless `include_archived=true`)
@@ -433,12 +433,12 @@ flowchart TD
     - `create_milestone`: Creates `YYMMDD-<slug>.md`
     - `update_milestone`: Updates target date, status, summary, body
 
-- [ ] **8.4 Implement MCP Strategy & Glossary Tools**
+- [x] **8.4 Implement MCP Strategy & Glossary Tools**
   - Files:
     - `internal/mcp/tools_strategy.go`: `list_strategies` (Progressive Disclosure summary & tier discovery), `get_strategy` (full document)
     - `internal/mcp/tools_glossary.go`: `lookup_glossary` (term lookup or full dictionary)
 
-- [ ] **8.5 Implement MCP Search & Tag Tools**
+- [x] **8.5 Implement MCP Search & Tag Tools**
   - Files:
     - `internal/mcp/tools_search.go`: `search_tasks`, `search_milestones`, `search_strategies`, `search_glossary`, `search_all`
     - `internal/mcp/tools_tag.go`: `list_tags` (controlled tag vocabulary with usage counts)
