@@ -224,7 +224,7 @@ flowchart TD
     - `internal/store/tags.go`: List allowed tags with usage count aggregation across tasks, milestones, strategies
     - `internal/store/board.go`: Aggregate board state (columns and task counts)
 
-- [ ] **3.4 Full-Text Search Queries**
+- [x] **3.4 Full-Text Search Queries**
   - File: `internal/store/search.go`
   - Operations:
     - `SearchTasks(query, tag, limit)`
