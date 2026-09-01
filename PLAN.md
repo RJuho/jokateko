@@ -523,7 +523,7 @@ flowchart TD
     - If empty: activate **Live Mode** (fetch `/api/board`)
     - If malformed: display non-fatal diagnostic warning banner with schema issues and render available data
 
-- [ ] **10.4 State Management & SSE Real-Time Listener**
+- [x] **10.4 State Management & SSE Real-Time Listener**
   - Files:
     - `web/src/state/store.ts`: Preact signals store (`mode`, `activeTab`, `tasks`, `milestones`, `strategies`, `glossary`, `filters`, `activeModal`)
     - `web/src/state/sse.ts`: `EventSource` listener for live updates (`task.created`, `task.updated`, `task.deleted`, `board.refreshed`) with automatic reconnect
