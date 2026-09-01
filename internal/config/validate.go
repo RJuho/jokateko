@@ -1,0 +1,158 @@
+package config
+
+import (
+	"errors"
+	"fmt"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
+)
+
+var (
+	tagRegex   = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+	hexColorRe = regexp.MustCompile(`^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
+)
+
+// Validate validates the configuration against all invariants and specification rules.
+// rootPath is used to ensure configured directory paths do not escape the workspace.
+func Validate(cfg *Config, rootPath string) error {
+	if cfg == nil {
+		return errors.New("configuration is nil")
+	}
+
+	var errs []error
+
+	// CFG-000: Configuration Version
+	if cfg.Version != CurrentVersion {
+		errs = append(errs, fmt.Errorf("CFG-000: unsupported config version %q; expected %q", cfg.Version, CurrentVersion))
+	}
+
+	// CFG-004: Port range
+	if cfg.Server.Port < 1024 || cfg.Server.Port > 65535 {
+		errs = append(errs, fmt.Errorf("CFG-004: server.port must be between 1024 and 65535; got %d", cfg.Server.Port))
+	}
+
+	// CFG-002: Minimum columns
+	if len(cfg.Board.Columns) < 2 {
+		errs = append(errs, errors.New("CFG-002: at least two board columns must be defined"))
+	}
+
+	// CFG-003: Unique and non-empty column IDs
+	seenColumns := make(map[string]bool, len(cfg.Board.Columns))
+	for i, col := range cfg.Board.Columns {
+		trimmedID := strings.TrimSpace(col.ID)
+		if trimmedID == "" {
+			errs = append(errs, fmt.Errorf("CFG-003: board column at index %d has an empty id", i))
+			continue
+		}
+		if seenColumns[trimmedID] {
+			errs = append(errs, fmt.Errorf("CFG-003: duplicate board column id %q", trimmedID))
+		}
+		seenColumns[trimmedID] = true
+
+		if col.Color != "" && !hexColorRe.MatchString(col.Color) {
+			errs = append(errs, fmt.Errorf("invalid color hex %q for column %q; expected format #rgb or #rrggbb", col.Color, trimmedID))
+		}
+	}
+
+	// CFG-005: Path traversal verification
+	cleanRoot := filepath.Clean(rootPath)
+	pathChecks := []struct {
+		name string
+		path string
+	}{
+		{"paths.tasks", cfg.Paths.Tasks},
+		{"paths.milestones", cfg.Paths.Milestones},
+		{"paths.strategies", cfg.Paths.Strategies},
+		{"paths.glossary", cfg.Paths.Glossary},
+		{"paths.export", cfg.Paths.Export},
+	}
+
+	for _, pc := range pathChecks {
+		if strings.TrimSpace(pc.path) == "" {
+			errs = append(errs, fmt.Errorf("%s must not be empty", pc.name))
+			continue
+		}
+		if err := validatePathWithinRoot(cleanRoot, pc.path); err != nil {
+			errs = append(errs, fmt.Errorf("CFG-005: %s (%q) invalid: %w", pc.name, pc.path, err))
+		}
+	}
+
+	// TAG-001 & TAG-002: Tag vocabulary rules
+	if cfg.Tags.EnforceAllowed {
+		if len(cfg.Tags.Allowed) == 0 {
+			errs = append(errs, errors.New("TAG-001: tags.allowed must contain at least one tag when enforce_allowed is true"))
+		}
+
+		seenTags := make(map[string]bool, len(cfg.Tags.Allowed))
+		for _, tag := range cfg.Tags.Allowed {
+			if !tagRegex.MatchString(tag) {
+				errs = append(errs, fmt.Errorf("TAG-001: tag %q must be lowercase kebab-case (^[a-z0-9]+(-[a-z0-9]+)*$)", tag))
+			}
+			if seenTags[tag] {
+				errs = append(errs, fmt.Errorf("TAG-002: duplicate tag %q in tags.allowed", tag))
+			}
+			seenTags[tag] = true
+		}
+	}
+
+	// Security / CSP checks
+	if cfg.Server.Security.CSP.Enabled {
+		if len(cfg.Server.Security.CSP.DefaultSrc) == 0 {
+			errs = append(errs, errors.New("server.security.csp.default_src must not be empty when CSP is enabled"))
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+// validatePathWithinRoot checks that a given path does not escape the workspace root.
+func validatePathWithinRoot(root, target string) error {
+	var fullPath string
+	if filepath.IsAbs(target) {
+		fullPath = filepath.Clean(target)
+	} else {
+		fullPath = filepath.Clean(filepath.Join(root, target))
+	}
+
+	// If root is empty or relative current dir, resolve absolute comparison
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	absTarget, err := filepath.Abs(fullPath)
+	if err != nil {
+		return err
+	}
+
+	// Target must have absRoot as prefix (or be equal)
+	rel, err := filepath.Rel(absRoot, absTarget)
+	if err != nil {
+		return err
+	}
+
+	if strings.HasPrefix(rel, "..") || strings.HasPrefix(rel, "/..") {
+		return fmt.Errorf("path escapes workspace root %q", root)
+	}
+
+	return nil
+}
+
+// IsAllowedTag checks whether a given tag is permitted under the configuration rules.
+func (c *Config) IsAllowedTag(tag string) bool {
+	if !c.Tags.EnforceAllowed {
+		return true
+	}
+	return slices.Contains(c.Tags.Allowed, tag)
+}
+
+// HasColumn checks if a given column ID is defined in the board configuration.
+func (c *Config) HasColumn(columnID string) bool {
+	for _, col := range c.Board.Columns {
+		if col.ID == columnID {
+			return true
+		}
+	}
+	return false
+}

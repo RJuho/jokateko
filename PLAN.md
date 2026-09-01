@@ -95,7 +95,7 @@ flowchart TD
 
 ## Phase 1: Configuration Engine (`internal/config`)
 
-- [ ] **1.1 Define Configuration Structs & Versioning**
+- [x] **1.1 Define Configuration Structs & Versioning**
   - File: `internal/config/config.go`
   - Versioning: Top-level `version = "0"` to support future configuration migrations
   - Structs:
@@ -109,7 +109,7 @@ flowchart TD
     - `TagsConfig`: `allowed`, `enforce_allowed`
     - `MCPConfig`: `enabled`, `timeout_seconds`, `allow_mutations`
 
-- [ ] **1.2 Implement Default Configuration Generator**
+- [x] **1.2 Implement Default Configuration Generator**
   - File: `internal/config/defaults.go`
   - Function: `config.Default(baseDir string) *Config`
   - Defaults:
@@ -121,7 +121,7 @@ flowchart TD
     - Tags: 11 standard tags (`backend`, `frontend`, `database`, `security`, `ui`, `auth`, `api`, `docs`, `testing`, `release`, `infra`), `enforce_allowed = true`
     - MCP: `enabled = true`, `allow_mutations = true`, `timeout_seconds = 30`
 
-- [ ] **1.3 Implement TOML File Loader & Environment Overrides**
+- [x] **1.3 Implement TOML File Loader & Environment Overrides**
   - File: `internal/config/load.go`
   - Function: `config.Load(rootPath string) (*Config, error)`
   - Environment variable overrides:
@@ -130,7 +130,7 @@ flowchart TD
     - `JOKATEKO_PORT`: Port number override
   - Graceful fallback: If `.jokateko/config.toml` is absent, returns built-in defaults (version `"0"`) without error.
 
-- [ ] **1.4 Implement Configuration Invariant Validation**
+- [x] **1.4 Implement Configuration Invariant Validation**
   - File: `internal/config/validate.go`
   - Validation rules:
     - `CFG-000`: `config-version`: Configuration `version` must match a supported version string (initially `"0"`).
@@ -143,7 +143,7 @@ flowchart TD
     - `TAG-002`: Tag names are unique
   - Hex color validation (`#rgb` or `#rrggbb`)
 
-- [ ] **1.5 Unit Tests for Configuration Engine**
+- [x] **1.5 Unit Tests for Configuration Engine**
   - File: `internal/config/config_test.go`
   - Test cases: default generation (verifying `version == "0"`), valid TOML parsing, unsupported version rejection, missing file fallback, environment overrides, invalid port, duplicate columns, path traversal attempts, and tag format validation.
 
