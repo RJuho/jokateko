@@ -449,19 +449,19 @@ flowchart TD
     - `internal/mcp/resources.go`: `jokateko://board`, `jokateko://strategies/tier1`, `jokateko://glossary`
     - `internal/mcp/prompts.go`: `next_task` prompt template recommending ready task with unblocked dependencies and relevant Tier-1 strategies
 
-- [ ] **8.7 Implement Stdio-to-HTTP Proxy & Standalone Runner**
+- [x] **8.7 Implement Stdio-to-HTTP Proxy & Standalone Runner**
   - File: `internal/proxy/proxy.go`
   - Logic:
     1. Probe `GET http://127.0.0.1:<port>/api/health`
     2. If active: Bridge stdio JSON-RPC messages to running daemon's MCP endpoint
     3. If inactive: Initialize internal in-memory store, watcher, and run MCP server over stdio in-process
 
-- [ ] **8.8 `mcp` Subcommand Implementation**
+- [x] **8.8 `mcp` Subcommand Implementation**
   - File: `cmd/jokateko/mcp.go`
   - Runs the proxy / standalone handler
 
-- [ ] **8.9 Unit & Integration Tests for MCP Server**
-  - Files: `internal/mcp/mcp_test.go`, `internal/proxy/proxy_test.go`
+- [x] **8.9 Unit & Integration Tests for MCP Server**
+  - Files: `internal/mcp/tools_task_test.go`, `internal/mcp/tools_all_test.go`, `internal/mcp/resources_prompts_test.go`, `internal/proxy/proxy_test.go`
   - Test cases: tool execution, strict done guard rejection, complete task unblocking, search execution, resource reads, prompt generation, proxy mode fallback.
 
 ---

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -12,10 +13,12 @@ import (
 	"time"
 
 	"github.com/RJuho/jokateko/internal/config"
+	"github.com/RJuho/jokateko/internal/mcp"
 	"github.com/RJuho/jokateko/internal/server"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/internal/watcher"
 	"github.com/RJuho/jokateko/internal/writer"
+	sdk_mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func cmdServe(args []string, stdout, stderr io.Writer) int {
@@ -125,8 +128,13 @@ func cmdServe(args []string, stdout, stderr io.Writer) int {
 		}()
 	}
 
-	// 7. Start HTTP Server
+	// 7. Start HTTP Server with MCP support
 	srv := server.New(cfg, workspaceDir, st, wr, sse)
+	mcpSrv := mcp.New(cfg, workspaceDir, st, wr)
+	srv.SetMCPHandler(sdk_mcp.NewSSEHandler(func(req *http.Request) *sdk_mcp.Server {
+		return mcpSrv.MCPServer()
+	}, nil))
+
 	if err := srv.Start(); err != nil {
 		fmt.Fprintf(stderr, "failed to start HTTP server: %v\n", err)
 		return 1

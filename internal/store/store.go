@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -89,9 +90,13 @@ func Open(dsn ...string) (*Store, error) {
 	}, nil
 }
 
+var memCounter atomic.Uint64
+
 // OpenMemory is a convenience wrapper that opens an isolated, in-memory SQLite store.
 func OpenMemory() (*Store, error) {
-	return Open()
+	id := memCounter.Add(1)
+	dsn := fmt.Sprintf("file:mem_%d_%d?mode=memory&cache=shared&_pragma=busy_timeout(10000)&_pragma=journal_mode(MEMORY)&_pragma=synchronous(OFF)", id, time.Now().UnixNano())
+	return Open(dsn)
 }
 
 // Queries returns the underlying sqlc Queries instance.

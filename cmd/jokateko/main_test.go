@@ -103,7 +103,7 @@ func TestCLI_InitAndParseCycle(t *testing.T) {
 }
 
 func TestCLI_Placeholders(t *testing.T) {
-	for _, cmd := range []string{"build", "mcp"} {
+	for _, cmd := range []string{"build"} {
 		var stdout, stderr bytes.Buffer
 		code := run([]string{cmd}, &stdout, &stderr)
 		if code != 0 {
@@ -132,6 +132,29 @@ func TestCLI_Serve(t *testing.T) {
 
 	if !strings.Contains(stdout.String(), "Jokateko daemon active") {
 		t.Errorf("expected daemon active output, got:\n%s", stdout.String())
+	}
+}
+
+func TestCLI_MCP(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Initialize workspace first
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"init", "-dir", tempDir}, &stdout, &stderr); code != 0 {
+		t.Fatalf("failed to init workspace: %s", stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+
+	// Run mcp with 150ms timeout (standalone fallback)
+	code := runMCP([]string{"-dir", tempDir, "-timeout", "150ms"}, strings.NewReader(""), &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("runMCP failed with exit code %d. stderr: %s", code, stderr.String())
+	}
+
+	if !strings.Contains(stderr.String(), "standalone") {
+		t.Errorf("expected standalone mode notice in stderr, got:\n%s", stderr.String())
 	}
 }
 

@@ -55,14 +55,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func cmdBuild(_ []string, stdout, _ io.Writer) int {
-	// Placeholder until Phase 8 (Self-Contained Static HTML Exporter)
-	fmt.Fprintln(stdout, "Jokateko build: exporting static HTML offline snapshot (activated in Phase 8)")
-	return 0
-}
-
-func cmdMCP(_ []string, stdout, _ io.Writer) int {
-	// Placeholder until Phase 9 (Model Context Protocol Integration)
-	fmt.Fprintln(stdout, "Jokateko mcp: stdio protocol server (activated in Phase 9)")
+	// Placeholder until Phase 9 (Self-Contained Static HTML Exporter)
+	fmt.Fprintln(stdout, "Jokateko build: exporting static HTML offline snapshot (activated in Phase 9)")
 	return 0
 }
 

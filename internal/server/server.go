@@ -30,6 +30,12 @@ type Server struct {
 	httpServer   *http.Server
 	listener     net.Listener
 	handler      http.Handler
+	mcpHandler   http.Handler
+}
+
+// SetMCPHandler configures an optional Model Context Protocol HTTP/SSE handler mounted at /api/mcp.
+func (s *Server) SetMCPHandler(h http.Handler) {
+	s.mcpHandler = h
 }
 
 // New creates and configures a new Server instance.
@@ -62,6 +68,17 @@ func New(cfg *config.Config, workspaceDir string, st *store.Store, wr *writer.Wr
 	// Health & System
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/version", s.handleVersion)
+
+	// Model Context Protocol (MCP) Endpoint
+	mcpHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		if s.mcpHandler != nil {
+			s.mcpHandler.ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "MCP endpoint not configured", http.StatusNotFound)
+	}
+	mux.HandleFunc("GET /api/mcp", mcpHandlerFunc)
+	mux.HandleFunc("POST /api/mcp", mcpHandlerFunc)
 
 	// Server-Sent Events
 	mux.HandleFunc("GET /api/events", s.sseHub.ServeHTTP)
@@ -239,6 +256,16 @@ func (s *Server) Addr() string {
 		return s.listener.Addr().String()
 	}
 	return fmt.Sprintf("%s:%d", s.cfg.Server.Host, s.cfg.Server.Port)
+}
+
+// Port returns the bound TCP port of the running server.
+func (s *Server) Port() int {
+	if s.listener != nil {
+		if tcpAddr, ok := s.listener.Addr().(*net.TCPAddr); ok {
+			return tcpAddr.Port
+		}
+	}
+	return s.cfg.Server.Port
 }
 
 // Handler returns the HTTP request handler (useful for testing).
