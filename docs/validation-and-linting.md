@@ -38,6 +38,7 @@ flowchart TD
 
 | Rule ID | Name | Severity | Description |
 |---|---|---|---|
+| `CFG-000` | `config-version` | Error | Configuration `version` must match a supported schema version (e.g. `"0"`). |
 | `CFG-001` | `toml-syntax` | Error | File is valid TOML and conforms to the `Config` schema. |
 | `CFG-002` | `column-min` | Error | At least two columns must be defined under `[[board.columns]]`. |
 | `CFG-003` | `column-unique-id` | Error | Every column must have a unique, non-empty `id`. |

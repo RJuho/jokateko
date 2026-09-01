@@ -23,6 +23,8 @@ Below is the complete reference `.jokateko/config.toml` file with all available 
 # Jokateko Project Configuration
 # ==============================================================================
 
+version = "0"
+
 [project]
 name = "My Project"
 description = "Markdown-driven task management and Kanban"
@@ -178,6 +180,7 @@ package config
 import "time"
 
 type Config struct {
+	Version string        `toml:"version"`
 	Project ProjectConfig `toml:"project"`
 	Paths   PathsConfig   `toml:"paths"`
 	Server  ServerConfig  `toml:"server"`
@@ -288,10 +291,11 @@ Jokateko supports runtime environment variables to override critical settings wi
 
 During `jokateko parse`, the configuration is validated against the following invariants:
 
-1. **Port Range:** `server.port` must be between `1024` and `65535`.
-2. **Column Uniqueness:** Each column in `board.columns` must have a non-empty, unique `id`.
-3. **Column Minimum:** At least 2 columns must be defined (e.g. Backlog and Done).
-4. **Path Sanitization:** Paths must not resolve outside the workspace root (no `../../` path traversal).
-5. **Color Format:** If `color` is provided, it must be a valid hex code (`#rrggbb` or `#rgb`).
-6. **CSP Directives:** If `csp.enabled` is true, source lists must contain valid CSP tokens (e.g. `'self'`, `data:`, or valid host origins).
-7. **Tags Allowed List:** If `tags.enforce_allowed` is true, `tags.allowed` must contain at least 1 tag, and tag names must follow kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`).
+1. **Version Format (`CFG-000`):** `version` must match a supported schema version (initially `"0"`).
+2. **Port Range (`CFG-004`):** `server.port` must be between `1024` and `65535`.
+3. **Column Uniqueness (`CFG-003`):** Each column in `board.columns` must have a non-empty, unique `id`.
+4. **Column Minimum (`CFG-002`):** At least 2 columns must be defined (e.g. Backlog and Done).
+5. **Path Sanitization (`CFG-005`):** Paths must not resolve outside the workspace root (no `../../` path traversal).
+6. **Color Format:** If `color` is provided, it must be a valid hex code (`#rrggbb` or `#rgb`).
+7. **CSP Directives:** If `csp.enabled` is true, source lists must contain valid CSP tokens (e.g. `'self'`, `data:`, or valid host origins).
+8. **Tags Allowed List (`TAG-001`, `TAG-002`):** If `tags.enforce_allowed` is true, `tags.allowed` must contain at least 1 tag, and tag names must follow kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`).
