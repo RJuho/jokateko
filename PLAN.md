@@ -160,15 +160,15 @@ flowchart TD
     - `internal/model/board.go`: `BoardState`, `ColumnState`, `FilterCriteria`
     - `internal/model/tag.go`: `TagCount`
 
-- [ ] **2.2 Frontmatter Parser & Delimiter Splitter**
+- [x] **2.2 Frontmatter Parser & Delimiter Splitter (TOML)**
   - File: `internal/parser/frontmatter.go`
   - Responsibilities:
-    - Split markdown file on `---` delimiters
-    - Parse YAML frontmatter into target structs
+    - Split markdown file on required `+++` frontmatter delimiter (strict Hugo standard)
+    - Parse TOML frontmatter using `github.com/pelletier/go-toml/v2` into target domain models (`TaskFrontmatter`, `MilestoneFrontmatter`, `StrategyFrontmatter`, `GlossaryFrontmatter`)
     - Extract body text and line numbers for precise diagnostic errors
     - Validate required fields (`title`, `summary`, etc.)
 
-- [ ] **2.3 Markdown Parser & Acceptance Criteria Extractor**
+- [ ] **2.3 Markdown Parser & Acceptance Criteria Extractor (Goldmark)**
   - File: `internal/parser/markdown.go`
   - Responsibilities:
     - Use `github.com/yuin/goldmark` to parse markdown AST
@@ -184,7 +184,7 @@ flowchart TD
 
 - [ ] **2.5 Unit Tests for Parsing Engine**
   - File: `internal/parser/parser_test.go`
-  - Test cases: valid task markdown, missing frontmatter delimiters, malformed YAML, acceptance criteria extraction, checkbox checking, completion summary injection.
+  - Test cases: valid task markdown with TOML frontmatter (`+++`), missing frontmatter delimiters, malformed TOML, acceptance criteria extraction, checkbox checking, completion summary injection.
 
 ---
 
