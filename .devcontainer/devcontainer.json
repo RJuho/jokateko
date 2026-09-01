@@ -17,7 +17,8 @@
 				"oven.bun-vscode",
 				"biomejs.biome",
 				"bradlc.vscode-tailwindcss",
-				"qwtel.sqlite-viewer"
+				"qwtel.sqlite-viewer",
+				"golang.Go"
 			],
 			"settings": {
 				"files.eol": "\n",
