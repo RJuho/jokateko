@@ -250,7 +250,7 @@ export function resetFilters(): void {
 }
 
 // REST Fetch for Live Mode
-export async function fetchLiveBoard(): Promise<void> {
+export async function fetchLiveBoard(): Promise<boolean> {
 	try {
 		const res = await fetch('/api/board')
 		if (!res.ok) {
@@ -280,9 +280,12 @@ export async function fetchLiveBoard(): Promise<void> {
 				allBoardTasks.push(...col.tasks)
 			}
 			tasks.value = allBoardTasks
+			return true
 		}
+		return false
 	} catch (err) {
 		console.warn('Failed to fetch live board state:', err)
+		return false
 	}
 }
 

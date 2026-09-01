@@ -528,25 +528,26 @@ flowchart TD
     - `web/src/state/store.ts`: Preact signals store (`mode`, `activeTab`, `tasks`, `milestones`, `strategies`, `glossary`, `filters`, `activeModal`)
     - `web/src/state/sse.ts`: `EventSource` listener for live updates (`task.created`, `task.updated`, `task.deleted`, `board.refreshed`) with automatic reconnect
 
-- [ ] **10.5 Core UI Layout Components**
+- [x] **10.5 Core UI Layout Components**
   - Files:
     - `web/src/components/common/Header.tsx`: Project title, mode indicator badge (`data-testid="mode-indicator-live"`, `data-testid="mode-indicator-static"`), tab navigation (`data-testid="tab-board"`, `data-testid="tab-milestones"`, `data-testid="tab-strategies"`, `data-testid="tab-glossary"`)
     - `web/src/components/common/FilterBar.tsx`: Real-time text search (`data-testid="search-input"`), tag multi-select, milestone filter, priority dropdown
     - `web/src/components/common/Badge.tsx`: Reusable priority and tag badges
     - `web/src/components/common/ValidationBanner.tsx`: Warning banner for schema issues (`data-testid="validation-error-banner"`)
 
-- [ ] **10.6 Kanban Board Components**
+- [x] **10.6 Kanban Board Components**
   - Files:
     - `web/src/components/board/KanbanBoard.tsx`: Columns container
     - `web/src/components/board/Column.tsx`: Individual column (`data-testid="column-<column-id>"`) with task count and color bar
     - `web/src/components/board/TaskCard.tsx`: Card item (`data-testid="task-card-<task-id>"`) with drag-and-drop support (disabled in static mode), title, summary, priority, and tags
 
-- [ ] **10.7 Detail & Edit Modals**
+- [x] **10.7 Detail & Edit Modals**
   - Files:
     - `web/src/components/modal/TaskDetailModal.tsx`: Task preview (`data-testid="task-detail-modal"`), markdown body renderer, acceptance criteria checkboxes, completion summary
     - `web/src/components/modal/TaskEditModal.tsx`: Card editing form (disabled/hidden in static export mode)
+    - `web/src/components/modal/CreateTaskModal.tsx`: New task creation form (disabled in static export mode)
 
-- [ ] **10.8 Milestones, Strategies & Glossary Views**
+- [x] **10.8 Milestones, Strategies & Glossary Views**
   - Files:
     - `web/src/components/milestones/MilestonesView.tsx`: Milestone cards with progress bar and completed task counter
     - `web/src/components/strategies/StrategiesView.tsx`: Progressive disclosure view (Tier 1/2/3 filter, expandable markdown specs)

@@ -13,6 +13,7 @@
 			"!src/types/generated.ts",
 			"scripts/**/*",
 			"biome.json",
+			"index.html",
 			"package.json",
 			"tsconfig.json"
 		]
