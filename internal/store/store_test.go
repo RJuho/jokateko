@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/RJuho/jokateko/internal/model"
 	"github.com/RJuho/jokateko/internal/store"
 )
 
@@ -308,4 +309,259 @@ func TestConcurrency(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestEntityCRUD(t *testing.T) {
+	st, err := store.OpenMemory()
+	if err != nil {
+		t.Fatalf("failed to open store: %v", err)
+	}
+	defer func() {
+		_ = st.Close()
+	}()
+
+	ctx := context.Background()
+
+	// 1. Tasks
+	task := model.Task{
+		ID:           "260901-task-crud",
+		Title:        "CRUD Task",
+		Status:       "ready",
+		Priority:     model.PriorityHigh,
+		Milestone:    "260915-crud-ms",
+		Tags:         []string{"backend", "db"},
+		Summary:      "Task summary",
+		Dependencies: []string{"260900-init"},
+		Body:         "## Details",
+	}
+	if err := st.UpsertTask(ctx, task); err != nil {
+		t.Fatalf("UpsertTask failed: %v", err)
+	}
+
+	gotTask, err := st.GetTask(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("GetTask failed: %v", err)
+	}
+	if gotTask.Title != task.Title || len(gotTask.Tags) != 2 || len(gotTask.Dependencies) != 1 {
+		t.Errorf("unexpected task: %+v", gotTask)
+	}
+
+	// Update status
+	if err := st.UpdateTaskStatus(ctx, task.ID, "done"); err != nil {
+		t.Fatalf("UpdateTaskStatus failed: %v", err)
+	}
+	// Update criteria
+	if err := st.UpdateTaskCriteria(ctx, task.ID, 3, 3, "## Details updated"); err != nil {
+		t.Fatalf("UpdateTaskCriteria failed: %v", err)
+	}
+	gotTask, _ = st.GetTask(ctx, task.ID)
+	if gotTask.Status != "done" || gotTask.TotalCriteria != 3 || gotTask.CompletedCriteria != 3 {
+		t.Errorf("unexpected updated task: %+v", gotTask)
+	}
+
+	// Filter tasks
+	filtered, err := st.ListTasks(ctx, model.FilterCriteria{Status: "done", Tag: "backend"})
+	if err != nil {
+		t.Fatalf("ListTasks failed: %v", err)
+	}
+	if len(filtered) != 1 {
+		t.Errorf("expected 1 task matching filter, got %d", len(filtered))
+	}
+
+	filteredNone, _ := st.ListTasks(ctx, model.FilterCriteria{Status: "ready"})
+	if len(filteredNone) != 0 {
+		t.Errorf("expected 0 tasks, got %d", len(filteredNone))
+	}
+
+	// 2. Milestones
+	ms := model.Milestone{
+		ID:         "260915-crud-ms",
+		Title:      "CRUD Milestone",
+		Status:     model.MilestoneStatusOpen,
+		TargetDate: "2026-09-15",
+		Tags:       []string{"release"},
+		Summary:    "Milestone summary",
+		Body:       "Body text",
+	}
+	if err := st.UpsertMilestone(ctx, ms); err != nil {
+		t.Fatalf("UpsertMilestone failed: %v", err)
+	}
+
+	gotMS, err := st.GetMilestone(ctx, ms.ID)
+	if err != nil {
+		t.Fatalf("GetMilestone failed: %v", err)
+	}
+	// TotalTasks should be 1 (task above), CompletedTasks should be 1, Progress 100%, IsArchived true
+	if gotMS.TotalTasks != 1 || gotMS.CompletedTasks != 1 || gotMS.ProgressPercentage != 100.0 || !gotMS.IsArchived {
+		t.Errorf("unexpected milestone metrics: %+v", gotMS)
+	}
+
+	allMS, err := st.ListMilestones(ctx)
+	if err != nil || len(allMS) != 1 {
+		t.Errorf("ListMilestones failed: %v, len=%d", err, len(allMS))
+	}
+
+	// 3. Strategies
+	strat := model.Strategy{
+		ID:      "strat-cgo-free",
+		Title:   "Zero CGO Invariant",
+		Tier:    model.TierCore,
+		Tags:    []string{"architecture", "backend"},
+		Summary: "Pure Go without C dependencies",
+		Body:    "Strictly enforce pure Go.",
+	}
+	if err := st.UpsertStrategy(ctx, strat); err != nil {
+		t.Fatalf("UpsertStrategy failed: %v", err)
+	}
+
+	gotStrat, err := st.GetStrategy(ctx, strat.ID)
+	if err != nil {
+		t.Fatalf("GetStrategy failed: %v", err)
+	}
+	if gotStrat.Tier != model.TierCore || len(gotStrat.Tags) != 2 {
+		t.Errorf("unexpected strategy: %+v", gotStrat)
+	}
+
+	tier1Strats, err := st.ListStrategies(ctx, model.TierCore)
+	if err != nil || len(tier1Strats) != 1 {
+		t.Errorf("ListStrategies tier 1 failed: %v, count=%d", err, len(tier1Strats))
+	}
+	tier2Strats, _ := st.ListStrategies(ctx, model.TierDomain)
+	if len(tier2Strats) != 0 {
+		t.Errorf("expected 0 tier 2 strategies, got %d", len(tier2Strats))
+	}
+
+	// 4. Glossary
+	term := model.GlossaryTerm{
+		ID:      "term-task-as-code",
+		Title:   "Tasks-as-Code",
+		Tags:    []string{"concept"},
+		Summary: "Markdown files as the source of truth for work items",
+		Body:    "Each markdown file represents an actionable ticket.",
+	}
+	if err := st.UpsertGlossaryTerm(ctx, term); err != nil {
+		t.Fatalf("UpsertGlossaryTerm failed: %v", err)
+	}
+
+	gotTerm, err := st.GetGlossaryTerm(ctx, term.ID)
+	if err != nil {
+		t.Fatalf("GetGlossaryTerm failed: %v", err)
+	}
+	if gotTerm.Title != term.Title || len(gotTerm.Tags) != 1 {
+		t.Errorf("unexpected term: %+v", gotTerm)
+	}
+
+	allTerms, err := st.ListGlossaryTerms(ctx)
+	if err != nil || len(allTerms) != 1 {
+		t.Errorf("ListGlossaryTerms failed: %v, count=%d", err, len(allTerms))
+	}
+
+	// 5. Tags Aggregation
+	tagCounts, err := st.GetTagCounts(ctx)
+	if err != nil {
+		t.Fatalf("GetTagCounts failed: %v", err)
+	}
+	var foundBackend bool
+	for _, tc := range tagCounts {
+		if tc.Tag == "backend" {
+			foundBackend = true
+			if tc.TaskCount != 1 || tc.StrategyCount != 1 {
+				t.Errorf("unexpected counts for 'backend': %+v", tc)
+			}
+		}
+	}
+	if !foundBackend {
+		t.Errorf("tag 'backend' not found in tagCounts: %+v", tagCounts)
+	}
+
+	// 6. Delete operations
+	if err := st.DeleteTask(ctx, task.ID); err != nil {
+		t.Fatalf("DeleteTask failed: %v", err)
+	}
+	if _, err := st.GetTask(ctx, task.ID); !errors.Is(err, store.ErrNotFound) {
+		t.Errorf("expected ErrNotFound for deleted task, got %v", err)
+	}
+
+	if err := st.DeleteMilestone(ctx, ms.ID); err != nil {
+		t.Fatalf("DeleteMilestone failed: %v", err)
+	}
+	if _, err := st.GetMilestone(ctx, ms.ID); !errors.Is(err, store.ErrNotFound) {
+		t.Errorf("expected ErrNotFound for deleted milestone, got %v", err)
+	}
+
+	if err := st.DeleteStrategy(ctx, strat.ID); err != nil {
+		t.Fatalf("DeleteStrategy failed: %v", err)
+	}
+	if _, err := st.GetStrategy(ctx, strat.ID); !errors.Is(err, store.ErrNotFound) {
+		t.Errorf("expected ErrNotFound for deleted strategy, got %v", err)
+	}
+
+	if err := st.DeleteGlossaryTerm(ctx, term.ID); err != nil {
+		t.Fatalf("DeleteGlossaryTerm failed: %v", err)
+	}
+	if _, err := st.GetGlossaryTerm(ctx, term.ID); !errors.Is(err, store.ErrNotFound) {
+		t.Errorf("expected ErrNotFound for deleted glossary term, got %v", err)
+	}
+}
+
+func TestBoardState(t *testing.T) {
+	st, err := store.OpenMemory()
+	if err != nil {
+		t.Fatalf("failed to open store: %v", err)
+	}
+	defer func() {
+		_ = st.Close()
+	}()
+
+	ctx := context.Background()
+
+	_ = st.UpsertTask(ctx, model.Task{
+		ID:       "task-ready-1",
+		Title:    "Ready Task 1",
+		Status:   "ready",
+		Priority: model.PriorityMedium,
+		Summary:  "Summary",
+	})
+	_ = st.UpsertTask(ctx, model.Task{
+		ID:       "task-ready-2",
+		Title:    "Ready Task 2",
+		Status:   "ready",
+		Priority: model.PriorityHigh,
+		Summary:  "Summary",
+	})
+	_ = st.UpsertTask(ctx, model.Task{
+		ID:       "task-in-prog",
+		Title:    "Progress Task",
+		Status:   "in_progress",
+		Priority: model.PriorityLow,
+		Summary:  "Summary",
+	})
+
+	cols := []model.Column{
+		{ID: "backlog", Name: "Backlog", Color: "slate"},
+		{ID: "ready", Name: "Ready", Color: "blue"},
+		{ID: "in_progress", Name: "In Progress", Color: "amber"},
+		{ID: "done", Name: "Done", Color: "emerald"},
+	}
+
+	board, err := st.GetBoardState(ctx, "Test Project", cols)
+	if err != nil {
+		t.Fatalf("GetBoardState failed: %v", err)
+	}
+
+	if board.ProjectName != "Test Project" || len(board.Columns) != 4 {
+		t.Fatalf("unexpected board: %+v", board)
+	}
+
+	expectedCounts := map[string]int{
+		"backlog":     0,
+		"ready":       2,
+		"in_progress": 1,
+		"done":        0,
+	}
+	for _, col := range board.Columns {
+		if col.Count != expectedCounts[col.ID] {
+			t.Errorf("col %q expected count %d, got %d", col.ID, expectedCounts[col.ID], col.Count)
+		}
+	}
 }

@@ -215,7 +215,7 @@ flowchart TD
     - Concurrency protection via `sync.RWMutex` across all goroutines
     - Helper transactions for atomic upserts and deletes
 
-- [ ] **3.3 Entity CRUD & Query Operations**
+- [x] **3.3 Entity CRUD & Query Operations**
   - Files:
     - `internal/store/tasks.go`: Insert/Update/Delete task, List tasks with filters (status, milestone, tag, priority), Get task by ID
     - `internal/store/milestones.go`: Insert/Update/Delete milestone, List milestones with computed task completion metrics

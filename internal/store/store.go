@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	_ "embed"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -22,6 +23,9 @@ var ddlSchema string
 // - journal_mode(MEMORY): stores rollback journal entirely in RAM for zero disk I/O while preserving atomic transaction rollback
 // - synchronous(OFF): disables file-sync overhead for pure in-memory execution
 const DefaultMemoryDSN = "file::memory:?cache=shared&mode=memory&_pragma=busy_timeout(10000)&_pragma=journal_mode(MEMORY)&_pragma=synchronous(OFF)"
+
+// ErrNotFound indicates an entity was not found in the store.
+var ErrNotFound = errors.New("entity not found")
 
 // Store wraps an in-memory SQLite database connection and sqlc Queries
 // with thread-safe concurrency controls and transaction helpers.
