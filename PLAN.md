@@ -468,22 +468,22 @@ flowchart TD
 
 ## Phase 9: Static Build Exporter (`internal/exporter`)
 
-- [ ] **9.1 Snapshot Serializer**
+- [x] **9.1 Snapshot Serializer**
   - File: `internal/exporter/snapshot.go`
   - Gathers all entities from in-memory store and serializes into minified JSON matching `SnapshotSchema`
 
-- [ ] **9.2 HTML Snapshot Injector**
+- [x] **9.2 HTML Snapshot Injector**
   - File: `internal/exporter/exporter.go`
   - Reads embedded `web/dist/index.html`
   - Replaces `/* JOKATEKO_PAYLOAD_PLACEHOLDER */` with serialized JSON snapshot
   - Writes single self-contained output file (`dist-kanban/index.html` or custom flag path)
 
-- [ ] **9.3 `build` Subcommand Implementation**
+- [x] **9.3 `build` Subcommand Implementation**
   - File: `cmd/jokateko/build.go`
   - Flags: `--out` (default from `config.toml` `paths.export`)
   - Ingests project, builds snapshot, writes HTML export, prints file size and status
 
-- [ ] **9.4 Unit Tests for Exporter**
+- [x] **9.4 Unit Tests for Exporter**
   - File: `internal/exporter/exporter_test.go`
   - Test cases: valid HTML replacement, special character escaping in JSON, export file generation.
 

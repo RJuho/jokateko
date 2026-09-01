@@ -7,6 +7,10 @@ export type MilestoneStatus = "open" | "closed";
 
 export type Tier = 1 | 2 | 3;
 
+export interface BoardConfig {
+  columns: Column[];
+}
+
 export interface BoardState {
   project_name: string;
   columns: ColumnState[];
@@ -74,6 +78,11 @@ export interface MilestoneFrontmatter {
   summary: string;
 }
 
+export interface ProjectConfig {
+  name: string;
+  description?: string;
+}
+
 export interface SearchResult {
   id: string;
   type?: string;
@@ -85,6 +94,20 @@ export interface SearchResult {
   priority?: Priority;
   target_date?: string;
   tier?: Tier;
+}
+
+export interface Snapshot {
+  config: SnapshotConfig;
+  tasks: Task[];
+  milestones: Milestone[];
+  strategies: Strategy[];
+  glossary: GlossaryTerm[];
+}
+
+export interface SnapshotConfig {
+  project: ProjectConfig;
+  board: BoardConfig;
+  tags?: TagsConfig;
 }
 
 export interface Strategy {
@@ -115,6 +138,11 @@ export interface TagCount {
 export interface TagList {
   enforced: boolean;
   tags: TagCount[];
+}
+
+export interface TagsConfig {
+  allowed?: string[];
+  enforce_allowed: boolean;
 }
 
 export interface Task {

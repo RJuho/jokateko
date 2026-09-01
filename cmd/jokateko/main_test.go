@@ -102,13 +102,30 @@ func TestCLI_InitAndParseCycle(t *testing.T) {
 	}
 }
 
-func TestCLI_Placeholders(t *testing.T) {
-	for _, cmd := range []string{"build"} {
-		var stdout, stderr bytes.Buffer
-		code := run([]string{cmd}, &stdout, &stderr)
-		if code != 0 {
-			t.Errorf("command %q failed with exit code %d: %s", cmd, code, stderr.String())
-		}
+func TestCLI_Build(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Initialize workspace first
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"init", "-dir", tempDir}, &stdout, &stderr); code != 0 {
+		t.Fatalf("failed to init workspace: %s", stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+
+	outFile := filepath.Join(tempDir, "dist", "index.html")
+	code := run([]string{"build", "-dir", tempDir, "-out", outFile}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("build failed with exit code %d. stderr: %s", code, stderr.String())
+	}
+
+	if !strings.Contains(stdout.String(), "Exported self-contained Kanban snapshot") {
+		t.Errorf("expected success message in stdout, got:\n%s", stdout.String())
+	}
+
+	if _, err := os.Stat(outFile); os.IsNotExist(err) {
+		t.Fatalf("expected output file to exist at %s", outFile)
 	}
 }
 

@@ -54,11 +54,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 }
 
-func cmdBuild(_ []string, stdout, _ io.Writer) int {
-	// Placeholder until Phase 9 (Self-Contained Static HTML Exporter)
-	fmt.Fprintln(stdout, "Jokateko build: exporting static HTML offline snapshot (activated in Phase 9)")
-	return 0
-}
+
 
 func printUsage(out io.Writer) {
 	fmt.Fprintf(out, `Jokateko - Markdown-driven Kanban & task management for developers and AI agents

@@ -204,10 +204,7 @@ func (s *Server) handleStaticUI(w http.ResponseWriter, r *http.Request) {
 
 	data, err := fs.ReadFile(web.Dist, "dist/index.html")
 	if err != nil {
-		// Fallback for dev environments before Web UI build
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		_, _ = fmt.Fprintf(w, "<!DOCTYPE html><html><head><title>%s</title></head><body><h1>%s</h1><p>Jokateko daemon active.</p></body></html>", s.cfg.Project.Name, s.cfg.Project.Name)
+		writeError(w, http.StatusInternalServerError, "failed to read embedded web UI")
 		return
 	}
 
