@@ -233,14 +233,14 @@ flowchart TD
     - `SearchGlossary(query, tag, limit)`
     - `SearchAll(query, tag, limit)`: Universal multi-entity search returning snippet and score
 
-- [ ] **3.5 Dependency & Unblocking Queries**
+- [x] **3.5 Dependency & Unblocking Queries**
   - File: `internal/store/dependencies.go`
   - Queries:
     - Check if all dependencies for a task are in `done` status
     - Find downstream unblocked tasks when a specific task transitions to `done`
 
-- [ ] **3.6 Unit Tests for In-Memory Store**
-  - File: `internal/store/store_test.go`
+- [x] **3.6 Unit Tests for In-Memory Store**
+  - File: `internal/store/store_test.go`, `internal/store/search_test.go`, and `internal/store/dependencies_test.go`
   - Test cases: concurrent reads/writes, transaction rollback, entity upserts, tag aggregation, milestone progress calculation, full-text search snippet matching, downstream unblock resolution.
 
 ---

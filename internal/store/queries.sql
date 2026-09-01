@@ -65,6 +65,13 @@ FROM task_dependencies td
 JOIN tasks t ON td.depends_on_task_id = t.id
 WHERE td.task_id = ? AND t.status != 'done';
 
+-- name: GetUnfinishedDependencies :many
+SELECT t.id, t.title, t.status
+FROM task_dependencies td
+JOIN tasks t ON td.depends_on_task_id = t.id
+WHERE td.task_id = ? AND t.status != 'done'
+ORDER BY t.id ASC;
+
 -- Milestones
 -- name: UpsertMilestone :exec
 INSERT INTO milestones (

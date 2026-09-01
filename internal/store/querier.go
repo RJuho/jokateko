@@ -30,6 +30,7 @@ type Querier interface {
 	GetTagCounts(ctx context.Context) ([]GetTagCountsRow, error)
 	GetTask(ctx context.Context, id string) (Task, error)
 	GetTaskDependencies(ctx context.Context, taskID string) ([]string, error)
+	GetUnfinishedDependencies(ctx context.Context, taskID string) ([]GetUnfinishedDependenciesRow, error)
 	// Full-Text Search (FTS5)
 	InsertFTSEntity(ctx context.Context, arg InsertFTSEntityParams) error
 	ListGlossaryTerms(ctx context.Context) ([]Glossary, error)

@@ -384,6 +384,43 @@ func (q *Queries) GetTaskDependencies(ctx context.Context, taskID string) ([]str
 	return items, nil
 }
 
+const getUnfinishedDependencies = `-- name: GetUnfinishedDependencies :many
+SELECT t.id, t.title, t.status
+FROM task_dependencies td
+JOIN tasks t ON td.depends_on_task_id = t.id
+WHERE td.task_id = ? AND t.status != 'done'
+ORDER BY t.id ASC
+`
+
+type GetUnfinishedDependenciesRow struct {
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	Status string `json:"status"`
+}
+
+func (q *Queries) GetUnfinishedDependencies(ctx context.Context, taskID string) ([]GetUnfinishedDependenciesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUnfinishedDependencies, taskID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetUnfinishedDependenciesRow{}
+	for rows.Next() {
+		var i GetUnfinishedDependenciesRow
+		if err := rows.Scan(&i.ID, &i.Title, &i.Status); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertFTSEntity = `-- name: InsertFTSEntity :exec
 INSERT INTO fts_entities (entity_type, entity_id, title, summary, body)
 VALUES (?, ?, ?, ?, ?)
