@@ -168,7 +168,7 @@ flowchart TD
     - Extract body text and line numbers for precise diagnostic errors
     - Validate required fields (`title`, `summary`, etc.)
 
-- [ ] **2.3 Markdown Parser & Acceptance Criteria Extractor (Goldmark)**
+- [x] **2.3 Markdown Parser & Acceptance Criteria Extractor (Goldmark)**
   - File: `internal/parser/markdown.go`
   - Responsibilities:
     - Use `github.com/yuin/goldmark` to parse markdown AST
@@ -176,15 +176,16 @@ flowchart TD
     - Extract headings, descriptions, and code blocks
     - Render HTML where necessary for static exports
 
-- [ ] **2.4 Checkbox Auto-Check & Completion Summary Formatter**
+- [x] **2.4 Checkbox Item Management & Completion Summary Formatter**
   - File: `internal/parser/complete.go`
   - Responsibilities:
-    - Transform all uncompleted checkboxes `- [ ]` into `- [x]` in markdown body
+    - `UpdateCheckboxByIndex(body string, targetIndex int, completed bool) (string, error)`: Toggles the 1-based `targetIndex`-th checkbox in markdown body between `- [ ]` and `- [x]`
+    - `VerifyAllCheckboxesCompleted(body string) error`: Rejects completion if any open `- [ ]` checkboxes remain, detailing remaining count and guiding AI to `list_task_items` / `update_task_item`
     - Format and append `## Completion Summary` section (`Completed At`, `### What Was Done`, `### Why / Rationale`)
 
-- [ ] **2.5 Unit Tests for Parsing Engine**
-  - File: `internal/parser/parser_test.go`
-  - Test cases: valid task markdown with TOML frontmatter (`+++`), missing frontmatter delimiters, malformed TOML, acceptance criteria extraction, checkbox checking, completion summary injection.
+- [x] **2.5 Unit Tests for Parsing Engine**
+  - File: `internal/parser/parser_test.go` and `internal/parser/markdown_test.go`
+  - Test cases: valid task markdown with TOML frontmatter (`+++`), missing frontmatter delimiters, malformed TOML, acceptance criteria extraction, 1-based checkbox toggling, open checkbox rejection guard, completion summary injection.
 
 ---
 
@@ -407,9 +408,11 @@ flowchart TD
   - Tools:
     - `list_tasks`: Compact summary list with filters (`status`, `milestone`, `tag`, `priority`)
     - `get_task`: Full specification, markdown body, acceptance criteria
+    - `list_task_items`: Lists all checklist items from markdown with 1-based `index`, `completed` state, and `text`
+    - `update_task_item`: Toggles a checklist item at 1-based `index` as done or undone (`completed: bool`)
     - `create_task`: Controlled tag validation + Closed Milestone Guard + atomic file creation
     - `update_task_status`: Column transition; **Strict 'Done' Guard** rejecting transitions to `done` directly
-    - `complete_task`: Enforces dependencies are done + auto-checks checkboxes + appends `## Completion Summary` (`what_done`, `why_done`) + marks `done` + returns unblocked tasks
+    - `complete_task`: Enforces dependencies are done + **Strict Open Checkbox Guard** (strictly rejects if uncompleted checkboxes exist, guiding AI to use `list_task_items` and `update_task_item`) + appends `## Completion Summary` (`what_done`, `why_done`) + marks `done` + returns unblocked tasks
     - `update_task_content`: Edits title, summary, priority, milestone, tags, body
 
 - [ ] **8.3 Implement MCP Milestone Tools**

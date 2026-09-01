@@ -145,8 +145,11 @@ Marks a task as completed while strictly enforcing documentation and dependency 
   1. **Dependency Safety Verification:**
      - Inspects all slugs in the task's `dependencies` list.
      - If any blocking task is not yet in `status: "done"`, rejects completion with an actionable error listing the unresolved blockers (unless `ignore_dependencies: true` is passed).
-  2. **Acceptance Criteria Auto-Check:**
-     - Scans the task Markdown body and automatically checks off all remaining `- [ ]` checkboxes to `- [x]`.
+  2. **Acceptance Criteria Verification (Strict Open Checkbox Guard):**
+     - Inspects all checklist items in the task Markdown body.
+     - If any uncompleted checkboxes (`- [ ]`) remain, completion is **strictly rejected** with an actionable error:
+       `"Cannot complete task: <N> acceptance criteria items remain uncompleted. Use list_task_items to view remaining items and update_task_item to mark them as completed before completing the task."`
+     - Tasks with 0 checkboxes pass this check immediately.
   3. **Structured Completion Documentation:**
      - Appends a standardized `## Completion Summary` section to the end of the Markdown body:
        ```markdown
@@ -180,6 +183,61 @@ Marks a task as completed while strictly enforcing documentation and dependency 
       }
     ],
     "message": "Task 260901-setup-database marked as done. 1 downstream task unblocked."
+  }
+  ```
+
+#### `list_task_items`
+Lists all acceptance criteria and checklist items from a task's Markdown body with their 1-based index and completion status.
+- **Input Parameters:**
+  - `id` (string, required): Task slug (e.g. `260901-setup-database`).
+- **Behavior:**
+  - Reads the task specification and parses all markdown checklist items.
+  - Returns each item with its 1-based `index`, `completed` state, and `text` label.
+- **Output:**
+  ```json
+  {
+    "id": "260901-setup-database",
+    "total": 3,
+    "completed": 1,
+    "items": [
+      {
+        "index": 1,
+        "text": "Pure Go modernc.org/sqlite implementation",
+        "completed": true
+      },
+      {
+        "index": 2,
+        "text": "In-memory database connection pool",
+        "completed": false
+      },
+      {
+        "index": 3,
+        "text": "sqlc schema and queries generated",
+        "completed": false
+      }
+    ]
+  }
+  ```
+
+#### `update_task_item`
+Updates the completion status of a specific checklist item in a task's Markdown body by its 1-based index.
+- **Input Parameters:**
+  - `id` (string, required): Task slug (e.g. `260901-setup-database`).
+  - `index` (integer, required): 1-based item index returned by `list_task_items`.
+  - `completed` (boolean, required): `true` to check the box (`- [x]`), `false` to uncheck (`- [ ]`).
+- **Behavior:**
+  - Validates that `index` is within the bounds of the task's checklist items (`1 <= index <= total`).
+  - Rewrites the target checkbox state in the markdown body without disturbing other content.
+  - Atomically saves the file and updates task criteria metrics in the database.
+- **Output:**
+  ```json
+  {
+    "id": "260901-setup-database",
+    "index": 2,
+    "text": "In-memory database connection pool",
+    "completed": true,
+    "total_items": 3,
+    "completed_items": 2
   }
   ```
 
