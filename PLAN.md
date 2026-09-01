@@ -286,7 +286,7 @@ flowchart TD
 
 ## Phase 5: Validation Engine & DAG Cycle Detection (`internal/validator`)
 
-- [ ] **5.1 Frontmatter Schema Rules Validator**
+- [x] **5.1 Frontmatter Schema Rules Validator**
   - File: `internal/validator/rules.go`
   - Implement rules:
     - Task rules: `TSK-001` (filename format), `TSK-002` (frontmatter valid), `TSK-003` (required fields), `TSK-004` (valid status), `TSK-005` (valid priority), `TSK-006` (milestone exists), `TSK-007` (dependencies exist), `TSK-008` (no self dependency), `TSK-009` (allowed tags)
@@ -294,7 +294,7 @@ flowchart TD
     - Strategy rules: `STR-001` (frontmatter), `STR-002` (required fields), `STR-003` (valid tier 1-3), `STR-004` (allowed tags)
     - Glossary rules: `GLS-001` (frontmatter), `GLS-002` (required fields), `GLS-003` (unique term title), `GLS-004` (allowed tags)
 
-- [ ] **5.2 Dependency Graph DAG & Cycle Detection (`DAG-001`)**
+- [x] **5.2 Dependency Graph DAG & Cycle Detection (`DAG-001`)**
   - File: `internal/validator/cycle.go`
   - Implementation:
     - Construct directed graph of task dependencies ($A \to B$)
@@ -302,7 +302,7 @@ flowchart TD
     - If a Gray node is encountered, extract exact cycle path (e.g., `A -> B -> C -> A`)
     - Produce detailed diagnostic error `DAG-001`
 
-- [ ] **5.3 Diagnostic Formatter & Engine Orchestrator**
+- [x] **5.3 Diagnostic Formatter & Engine Orchestrator**
   - File: `internal/validator/validator.go`
   - Implementation:
     - Scan all project files
@@ -310,7 +310,7 @@ flowchart TD
     - Format output matching compiler-style diagnostics (colored output if terminal)
     - Return exit status (Code `0` on success, Code `1` on error)
 
-- [ ] **5.4 Unit Tests for Validation Engine**
+- [x] **5.4 Unit Tests for Validation Engine**
   - File: `internal/validator/validator_test.go`
   - Test cases: valid project state, cyclic dependencies (2-node and multi-node cycles), missing dependencies, invalid status columns, unauthorized tags, dangling milestone references.
 

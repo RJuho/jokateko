@@ -68,7 +68,15 @@ func resolveConfigPath(rootPath string) string {
 	if envPath := strings.TrimSpace(os.Getenv(EnvConfigPath)); envPath != "" {
 		return envPath
 	}
-	return filepath.Join(rootPath, ".jokateko", "config.toml")
+	dotPath := filepath.Join(rootPath, ".jokateko", "config.toml")
+	if _, err := os.Stat(dotPath); err == nil {
+		return dotPath
+	}
+	rootConfig := filepath.Join(rootPath, "config.toml")
+	if _, err := os.Stat(rootConfig); err == nil {
+		return rootConfig
+	}
+	return dotPath
 }
 
 // applyEnvOverrides applies runtime environment variable overrides.
