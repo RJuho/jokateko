@@ -191,7 +191,7 @@ flowchart TD
 
 ## Phase 3: Storage & In-Memory Index (`internal/store`)
 
-- [ ] **3.1 SQLite DDL Schema & sqlc Code Generation Setup**
+- [x] **3.1 SQLite DDL Schema & sqlc Code Generation Setup**
   - References: [`sqlc` (https://github.com/sqlc-dev/sqlc)](https://github.com/sqlc-dev/sqlc)
   - Files:
     - `internal/store/schema.sql`: Table definitions and DDL migrations

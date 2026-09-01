@@ -1,4 +1,4 @@
-.PHONY: all build test clean generate ui-build lint
+.PHONY: all build test clean generate install-tools ui-build lint
 
 # Binary name and output directory
 BINARY_NAME := jokateko
@@ -16,9 +16,13 @@ LDFLAGS := -X 'github.com/RJuho/jokateko/internal/version.Version=$(VERSION)' \
 
 all: test build
 
+# Install development and code generation tools
+install-tools:
+	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+
 # Generate type-safe queries using sqlc (https://github.com/sqlc-dev/sqlc)
 generate:
-	go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.27.0 generate
+	sqlc generate -f internal/store/sqlc.yaml
 
 # Run all Go tests with CGO disabled
 test:
