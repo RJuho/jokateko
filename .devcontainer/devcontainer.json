@@ -18,7 +18,8 @@
 				"biomejs.biome",
 				"bradlc.vscode-tailwindcss",
 				"qwtel.sqlite-viewer",
-				"golang.Go"
+				"golang.Go",
+				"ms-vscode.makefile-tools"
 			],
 			"settings": {
 				"files.eol": "\n",
