@@ -349,7 +349,15 @@ flowchart TD
 
 ## Phase 7: HTTP Server, REST API & SSE Hub (`internal/server`)
 
-- [ ] **7.1 Server Configuration & Security Headers Middleware**
+- [x] **7.0 Pure Go TypeScript Type Generator (`cmd/gentypes`)**
+  - File: `cmd/gentypes/main.go`
+  - Implementation:
+    - Pure Go AST generator parsing `internal/model` structs and enums
+    - Emits TypeScript type definitions to `web/src/types/generated.ts`
+    - Integrated into `make generate` (zero external npm or protobuf dependencies)
+    - Generates: `Task`, `TaskFrontmatter`, `Priority`, `Milestone`, `MilestoneStatus`, `Strategy`, `Tier`, `GlossaryTerm`, `TagCount`, `BoardState`, `ColumnState`, `Column`, `FilterCriteria`, `SearchResult`, `SSEEvent`
+
+- [x] **7.1 Server Configuration & Security Headers Middleware**
   - File: `internal/server/server.go`
   - Middleware:
     - Content-Security-Policy (CSP) injection based on `config.toml`
@@ -357,42 +365,44 @@ flowchart TD
     - Request logging and panic recovery
   - Embedded static file handler serving `web/embed.go` at `/`
 
-- [ ] **7.2 Server-Sent Events (SSE) Hub**
+- [x] **7.2 Server-Sent Events (SSE) Hub**
   - File: `internal/server/sse.go`
   - Implementation:
     - Client subscriber registry with thread-safe subscribe/unsubscribe
-    - Event broadcaster channel (`task.created`, `task.updated`, `task.deleted`, `board.refreshed`)
+    - Granular event broadcaster (`task.created`, `task.updated`, `task.deleted`, `board.refreshed`)
     - Keepalive heartbeat ping (every 15-30s)
     - Endpoint: `GET /api/events`
 
-- [ ] **7.3 Health Check Endpoint**
+- [x] **7.3 Health Check & Version Endpoints**
   - File: `internal/server/handlers_health.go`
-  - Endpoint: `GET /api/health`
+  - Endpoints: `GET /api/health`, `GET /api/version`
   - Returns: JSON status, uptime, project name, version info from `internal/version.Get()`
   - Used by `jokateko mcp` CLI proxy to detect running daemon
 
-- [ ] **7.4 Board & Entity REST Endpoints**
+- [x] **7.4 Board & Entity REST Endpoints**
   - Files:
     - `internal/server/handlers_board.go`: `GET /api/board`
-    - `internal/server/handlers_tasks.go`: `GET /api/tasks`, `GET /api/tasks/{id}`, `POST /api/tasks`, `PATCH /api/tasks/{id}`
-    - `internal/server/handlers_milestones.go`: `GET /api/milestones`, `POST /api/milestones`, `PATCH /api/milestones/{id}`
-    - `internal/server/handlers_strategies.go`: `GET /api/strategies`, `GET /api/strategies/{id}`
-    - `internal/server/handlers_glossary.go`: `GET /api/glossary`, `GET /api/glossary/{id}`
-  - Mutations route through `internal/writer` for atomic disk writes
+    - `internal/server/handlers_tasks.go`: `GET /api/tasks`, `GET /api/tasks/{id}`, `POST /api/tasks`, `PUT /api/tasks/{id}`, `DELETE /api/tasks/{id}`
+    - `internal/server/handlers_milestones.go`: `GET /api/milestones`, `GET /api/milestones/{id}`, `POST /api/milestones`, `PUT /api/milestones/{id}`, `DELETE /api/milestones/{id}`
+    - `internal/server/handlers_strategies.go`: `GET /api/strategies`, `GET /api/strategies/{id}`, `POST /api/strategies`, `PUT /api/strategies/{id}`, `DELETE /api/strategies/{id}`
+    - `internal/server/handlers_glossary.go`: `GET /api/glossary`, `GET /api/glossary/{id}`, `POST /api/glossary`, `PUT /api/glossary/{id}`, `DELETE /api/glossary/{id}`
+    - `internal/server/handlers_tags.go`: `GET /api/tags`
+    - `internal/server/handlers_search.go`: `GET /api/search`
+  - Mutations route through `internal/writer` for atomic disk writes and trigger SSE broadcasts
 
-- [ ] **7.5 `serve` Subcommand Wiring**
+- [x] **7.5 `serve` Subcommand Wiring**
   - File: `cmd/jokateko/serve.go`
   - Lifecycle:
     1. Load config
     2. Initialize in-memory store
-    3. Perform initial scan of `.jokateko/` files
-    4. Start `fsnotify` file watcher
+    3. Ingest existing files via `watcher.Pipeline.ProcessAll`
+    4. Start `fsnotify` file watcher and ingestion loop
     5. Start HTTP server & SSE hub
-    6. Wait for interrupt signal -> graceful shutdown
+    6. Wait for interrupt signal (`SIGINT`, `SIGTERM`) -> graceful shutdown
 
-- [ ] **7.6 Integration Tests for HTTP Server & REST API**
+- [x] **7.6 Integration Tests for HTTP Server & REST API**
   - File: `internal/server/server_test.go`
-  - Test cases: health check response, board state retrieval, task creation via REST, task update via REST, SSE event receipt, CSP header presence.
+  - Test cases: health check response, board state retrieval, task creation via REST, task update via REST, SSE event receipt, CSP header presence, search endpoint.
 
 ---
 

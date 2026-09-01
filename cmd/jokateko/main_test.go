@@ -103,11 +103,35 @@ func TestCLI_InitAndParseCycle(t *testing.T) {
 }
 
 func TestCLI_Placeholders(t *testing.T) {
-	for _, cmd := range []string{"serve", "build", "mcp"} {
+	for _, cmd := range []string{"build", "mcp"} {
 		var stdout, stderr bytes.Buffer
 		code := run([]string{cmd}, &stdout, &stderr)
 		if code != 0 {
-			t.Errorf("command %q failed with exit code %d", cmd, code)
+			t.Errorf("command %q failed with exit code %d: %s", cmd, code, stderr.String())
 		}
 	}
 }
+
+func TestCLI_Serve(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Initialize workspace first
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"init", "-dir", tempDir}, &stdout, &stderr); code != 0 {
+		t.Fatalf("failed to init workspace: %s", stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+
+	// Run serve with port 0 (dynamic port) and 150ms timeout
+	code := run([]string{"serve", "-dir", tempDir, "-port", "0", "-timeout", "150ms"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("serve failed with exit code %d. stderr: %s", code, stderr.String())
+	}
+
+	if !strings.Contains(stdout.String(), "Jokateko daemon active") {
+		t.Errorf("expected daemon active output, got:\n%s", stdout.String())
+	}
+}
+

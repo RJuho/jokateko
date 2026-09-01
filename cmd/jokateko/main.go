@@ -54,12 +54,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 }
 
-func cmdServe(_ []string, stdout, _ io.Writer) int {
-	// Placeholder until Phase 7 (HTTP Server, REST API & SSE Hub) wires the full daemon
-	fmt.Fprintln(stdout, "Jokateko serve: daemon starting (HTTP server & SSE hub will be activated in Phase 7)")
-	return 0
-}
-
 func cmdBuild(_ []string, stdout, _ io.Writer) int {
 	// Placeholder until Phase 8 (Self-Contained Static HTML Exporter)
 	fmt.Fprintln(stdout, "Jokateko build: exporting static HTML offline snapshot (activated in Phase 8)")

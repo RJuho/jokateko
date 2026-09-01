@@ -1,0 +1,259 @@
+package server
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"log"
+	"net"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/RJuho/jokateko/internal/config"
+	"github.com/RJuho/jokateko/internal/model"
+	"github.com/RJuho/jokateko/internal/store"
+	"github.com/RJuho/jokateko/internal/writer"
+	"github.com/RJuho/jokateko/web"
+)
+
+// Server encapsulates the HTTP daemon, REST API endpoints, and live SSE event hub.
+type Server struct {
+	cfg          *config.Config
+	workspaceDir string
+	store        *store.Store
+	writer       *writer.Writer
+	sseHub       *SSEHub
+	columns      []model.Column
+	startTime    time.Time
+	httpServer   *http.Server
+	listener     net.Listener
+	handler      http.Handler
+}
+
+// New creates and configures a new Server instance.
+func New(cfg *config.Config, workspaceDir string, st *store.Store, wr *writer.Writer, sse *SSEHub) *Server {
+	if cfg == nil {
+		cfg = config.Default(workspaceDir)
+	}
+
+	cols := make([]model.Column, 0, len(cfg.Board.Columns))
+	for _, c := range cfg.Board.Columns {
+		cols = append(cols, model.Column{
+			ID:    c.ID,
+			Name:  c.Name,
+			Color: c.Color,
+		})
+	}
+
+	s := &Server{
+		cfg:          cfg,
+		workspaceDir: workspaceDir,
+		store:        st,
+		writer:       wr,
+		sseHub:       sse,
+		columns:      cols,
+		startTime:    time.Now(),
+	}
+
+	mux := http.NewServeMux()
+
+	// Health & System
+	mux.HandleFunc("GET /api/health", s.handleHealth)
+	mux.HandleFunc("GET /api/version", s.handleVersion)
+
+	// Server-Sent Events
+	mux.HandleFunc("GET /api/events", s.sseHub.ServeHTTP)
+
+	// Board & Tasks
+	mux.HandleFunc("GET /api/board", s.handleGetBoard)
+	mux.HandleFunc("GET /api/tasks", s.handleListTasks)
+	mux.HandleFunc("GET /api/tasks/{id}", s.handleGetTask)
+	mux.HandleFunc("POST /api/tasks", s.handleCreateTask)
+	mux.HandleFunc("PUT /api/tasks/{id}", s.handleUpdateTask)
+	mux.HandleFunc("DELETE /api/tasks/{id}", s.handleDeleteTask)
+
+	// Milestones
+	mux.HandleFunc("GET /api/milestones", s.handleListMilestones)
+	mux.HandleFunc("GET /api/milestones/{id}", s.handleGetMilestone)
+	mux.HandleFunc("POST /api/milestones", s.handleCreateMilestone)
+	mux.HandleFunc("DELETE /api/milestones/{id}", s.handleDeleteMilestone)
+
+	// Strategies
+	mux.HandleFunc("GET /api/strategies", s.handleListStrategies)
+	mux.HandleFunc("GET /api/strategies/{id}", s.handleGetStrategy)
+	mux.HandleFunc("POST /api/strategies", s.handleCreateStrategy)
+	mux.HandleFunc("DELETE /api/strategies/{id}", s.handleDeleteStrategy)
+
+	// Glossary
+	mux.HandleFunc("GET /api/glossary", s.handleListGlossary)
+	mux.HandleFunc("GET /api/glossary/{id}", s.handleGetGlossaryTerm)
+	mux.HandleFunc("POST /api/glossary", s.handleCreateGlossaryTerm)
+	mux.HandleFunc("DELETE /api/glossary/{id}", s.handleDeleteGlossaryTerm)
+
+	// Tags & Search
+	mux.HandleFunc("GET /api/tags", s.handleGetTags)
+	mux.HandleFunc("GET /api/search", s.handleSearch)
+
+	// Embedded Web UI Handler
+	mux.HandleFunc("GET /", s.handleStaticUI)
+
+	s.handler = s.wrapMiddleware(mux)
+
+	return s
+}
+
+func (s *Server) wrapMiddleware(next http.Handler) http.Handler {
+	cspHeader := s.buildCSP()
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Panic recovery
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Printf("[PANIC] %s %s: %v", r.Method, r.URL.Path, rec)
+				writeError(w, http.StatusInternalServerError, "internal server error")
+			}
+		}()
+
+		// Security headers
+		if cspHeader != "" {
+			w.Header().Set("Content-Security-Policy", cspHeader)
+		}
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+
+		// CORS Handling
+		if s.cfg.Server.Security.CORSEnabled {
+			origin := r.Header.Get("Origin")
+			if origin != "" {
+				allowed := false
+				if len(s.cfg.Server.Security.CORSAllowedOrigins) == 0 {
+					allowed = true
+				} else {
+					for _, o := range s.cfg.Server.Security.CORSAllowedOrigins {
+						if o == "*" || o == origin {
+							allowed = true
+							break
+						}
+					}
+				}
+				if allowed {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+				}
+			}
+
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) buildCSP() string {
+	csp := s.cfg.Server.Security.CSP
+	if !csp.Enabled {
+		return ""
+	}
+
+	var parts []string
+	addDirective := func(name string, values []string) {
+		if len(values) > 0 {
+			parts = append(parts, fmt.Sprintf("%s %s", name, strings.Join(values, " ")))
+		}
+	}
+
+	addDirective("default-src", csp.DefaultSrc)
+	addDirective("script-src", csp.ScriptSrc)
+	addDirective("style-src", csp.StyleSrc)
+	addDirective("img-src", csp.ImgSrc)
+	addDirective("connect-src", csp.ConnectSrc)
+	addDirective("font-src", csp.FontSrc)
+
+	return strings.Join(parts, "; ")
+}
+
+func (s *Server) handleStaticUI(w http.ResponseWriter, r *http.Request) {
+	// If path starts with /api/, return 404 (not handled by any API route)
+	if strings.HasPrefix(r.URL.Path, "/api/") {
+		writeError(w, http.StatusNotFound, "api endpoint not found")
+		return
+	}
+
+	data, err := fs.ReadFile(web.Dist, "dist/index.html")
+	if err != nil {
+		// Fallback for dev environments before Web UI build
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprintf(w, "<!DOCTYPE html><html><head><title>%s</title></head><body><h1>%s</h1><p>Jokateko daemon active.</p></body></html>", s.cfg.Project.Name, s.cfg.Project.Name)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
+}
+
+// Start launches the HTTP server listening on the configured address.
+func (s *Server) Start() error {
+	addr := fmt.Sprintf("%s:%d", s.cfg.Server.Host, s.cfg.Server.Port)
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("failed to bind server on %s: %w", addr, err)
+	}
+
+	s.listener = ln
+	s.httpServer = &http.Server{
+		Handler:      s.handler,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 0, // 0 for streaming SSE support
+		IdleTimeout:  120 * time.Second,
+	}
+
+	go func() {
+		_ = s.httpServer.Serve(ln)
+	}()
+
+	return nil
+}
+
+// Shutdown gracefully stops the HTTP server and SSE hub.
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.sseHub != nil {
+		s.sseHub.Stop()
+	}
+	if s.httpServer != nil {
+		return s.httpServer.Shutdown(ctx)
+	}
+	return nil
+}
+
+// Addr returns the bound network address of the running server.
+func (s *Server) Addr() string {
+	if s.listener != nil {
+		return s.listener.Addr().String()
+	}
+	return fmt.Sprintf("%s:%d", s.cfg.Server.Host, s.cfg.Server.Port)
+}
+
+// Handler returns the HTTP request handler (useful for testing).
+func (s *Server) Handler() http.Handler {
+	return s.handler
+}
+
+func writeJSON(w http.ResponseWriter, status int, data any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(data)
+}
+
+func writeError(w http.ResponseWriter, status int, message string) {
+	writeJSON(w, status, map[string]string{
+		"error": message,
+	})
+}

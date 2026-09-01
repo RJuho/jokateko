@@ -20,9 +20,10 @@ all: test build
 install-tools:
 	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 
-# Generate type-safe queries using sqlc (https://github.com/sqlc-dev/sqlc)
+# Generate type-safe queries using sqlc and TypeScript models
 generate:
 	sqlc generate -f internal/store/sqlc.yaml
+	go run ./cmd/gentypes
 
 # Run all Go tests with CGO disabled
 test:
