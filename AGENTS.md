@@ -4,6 +4,13 @@ Other documentation:
 - COMMANDS.md
 - /docs/README.md
 
+More resources:
+- [Bun documentation](https://bun.com/llms.txt)
+- [Valibot documentation](https://valibot.dev/llms.txt)
+- [daisyUI documentation](https://daisyui.com/llms.txt)
+
+Remember check SKILLS and MCP for more help.
+
 ## 1. Project Overview
 This project is a local, Markdown-driven Kanban and task management tool designed for both human developers and AI agents. It operates on a "Tasks-as-Code" and "Spec-First" methodology, where the repository files are the absolute source of truth. The architecture relies on a local backend that handles safe file writing and provides structured Model Context Protocol (MCP) interfaces to AI agents.
 
