@@ -7,7 +7,7 @@
 		"build": "bun run scripts/bundle.ts",
 		"check:fix": "biome check --write",
 		"check": "biome check",
-		"dev": "bun --hot index.html",
+		"dev": "bun --hot scripts/dev.ts",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
