@@ -318,30 +318,30 @@ flowchart TD
 
 ## Phase 6: CLI Implementation (`cmd/jokateko/`)
 
-- [ ] **6.1 Root CLI Dispatcher & Flag Handling**
+- [x] **6.1 Root CLI Dispatcher & Flag Handling**
   - File: `cmd/jokateko/main.go`
   - Subcommands: `serve` (or default empty), `parse` (alias `lint`), `build`, `init`, `mcp`, `version`, `help`
   - Signal handling for graceful shutdown (`SIGINT`, `SIGTERM`)
   - Zero external CLI libraries (pure `flag.FlagSet`)
 
-- [ ] **6.2 `version` Subcommand**
+- [x] **6.2 `version` Subcommand**
   - File: `cmd/jokateko/version.go`
   - Uses `internal/version.Get()`
   - Output: formatted version string (`jokateko v1.1.1 (commit: abc1234, built: 2026-09-01T12:00:00Z, linux/amd64)`) or optional `--json` flag output
 
-- [ ] **6.3 `init` Scaffolding Subcommand**
+- [x] **6.3 `init` Scaffolding Subcommand**
   - File: `cmd/jokateko/init.go`
   - Create directory layout: `.jokateko/tasks/`, `.jokateko/milestones/`, `.jokateko/strategies/`, `.jokateko/glossary/`
   - Write default `.jokateko/config.toml` with `version = "0"` and standard columns/tags
   - Write starter `AGENTS.md` and initial sample strategy / glossary entry
   - Ensure zero overwriting of existing configuration
 
-- [ ] **6.4 `parse` / `lint` Subcommand**
+- [x] **6.4 `parse` / `lint` Subcommand**
   - File: `cmd/jokateko/parse.go`
   - Executes `internal/validator` in dry-run mode
   - Exits with `0` on clean state or `1` with diagnostics
 
-- [ ] **6.5 Integration Tests for CLI Commands**
+- [x] **6.5 Integration Tests for CLI Commands**
   - File: `cmd/jokateko/main_test.go`
   - Test cases: `init` in empty directory, `parse` on newly initialized project, `version` output, invalid flag handling.
 
