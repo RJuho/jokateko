@@ -151,7 +151,7 @@ flowchart TD
 
 ## Phase 2: Domain Models & Parsing (`internal/model`, `internal/parser`)
 
-- [ ] **2.1 Define Domain Models**
+- [x] **2.1 Define Domain Models**
   - Files:
     - `internal/model/task.go`: `Task`, `TaskFrontmatter`, `Priority` enum (`low`, `medium`, `high`, `critical`)
     - `internal/model/milestone.go`: `Milestone`, `MilestoneFrontmatter`
