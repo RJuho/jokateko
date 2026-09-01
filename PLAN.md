@@ -408,12 +408,12 @@ flowchart TD
 
 ## Phase 8: Model Context Protocol (MCP) Server & Proxy (`internal/mcp`, `internal/proxy`)
 
-- [ ] **8.1 Initialize Official MCP Go SDK Server**
+- [x] **8.1 Initialize Official MCP Go SDK Server**
   - File: `internal/mcp/mcp.go`
   - Integration with `github.com/modelcontextprotocol/go-sdk`
   - Register server capabilities: tools, resources, prompts
 
-- [ ] **8.2 Implement MCP Task Tools**
+- [x] **8.2 Implement MCP Task Tools**
   - File: `internal/mcp/tools_task.go`
   - Tools:
     - `list_tasks`: Compact summary list with filters (`status`, `milestone`, `tag`, `priority`)
