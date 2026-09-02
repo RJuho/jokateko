@@ -148,11 +148,6 @@ func collectNodeText(n gast.Node, source []byte, buf *strings.Builder) {
 		buf.Write(node.Segment.Value(source))
 	case *gast.String:
 		buf.Write(node.Value)
-	case *gast.CodeSpan:
-		for i := 0; i < node.Lines().Len(); i++ {
-			line := node.Lines().At(i)
-			buf.Write(line.Value(source))
-		}
 	default:
 		for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 			collectNodeText(child, source, buf)

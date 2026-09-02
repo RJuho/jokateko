@@ -107,7 +107,35 @@ func TestMCP_StrategyAndGlossaryTools(t *testing.T) {
 		t.Errorf("unexpected strategy detail: %+v", stratDetail)
 	}
 
-	// 3. lookup_glossary (all)
+	// 3. create_strategy
+	createdStrat, err := callToolJSON[internalmcp.StrategyDetail](t, session, "create_strategy", internalmcp.CreateStrategyInput{
+		Title:   "Progressive Disclosure Guidelines",
+		Tier:    2,
+		Summary: "Architecture guidelines for tiered information exposure",
+		Tags:    []string{"backend"},
+		Body:    "## Progressive Disclosure\nTiers expose information gradually.",
+	})
+	if err != nil {
+		t.Fatalf("create_strategy failed: %v", err)
+	}
+	if createdStrat.ID != "progressive-disclosure-guidelines" || createdStrat.Tier != 2 {
+		t.Errorf("unexpected created strategy: %+v", createdStrat)
+	}
+
+	// 4. update_strategy
+	updatedStrat, err := callToolJSON[internalmcp.StrategyDetail](t, session, "update_strategy", internalmcp.UpdateStrategyInput{
+		ID:      "progressive-disclosure-guidelines",
+		Tier:    3,
+		Summary: "Updated summary for progressive disclosure",
+	})
+	if err != nil {
+		t.Fatalf("update_strategy failed: %v", err)
+	}
+	if updatedStrat.Tier != 3 || updatedStrat.Summary != "Updated summary for progressive disclosure" {
+		t.Errorf("unexpected updated strategy: %+v", updatedStrat)
+	}
+
+	// 5. lookup_glossary (all)
 	allTerms, err := callToolJSON[[]internalmcp.GlossaryEntry](t, session, "lookup_glossary", internalmcp.LookupGlossaryInput{})
 	if err != nil {
 		t.Fatalf("lookup_glossary failed: %v", err)
@@ -116,13 +144,39 @@ func TestMCP_StrategyAndGlossaryTools(t *testing.T) {
 		t.Errorf("unexpected glossary terms: %+v", allTerms)
 	}
 
-	// 4. lookup_glossary (specific term)
+	// 6. lookup_glossary (specific term)
 	singleTerm, err := callToolJSON[[]internalmcp.GlossaryEntry](t, session, "lookup_glossary", internalmcp.LookupGlossaryInput{Term: "tac"})
 	if err != nil {
 		t.Fatalf("lookup_glossary for 'tac' failed: %v", err)
 	}
 	if len(singleTerm) != 1 || singleTerm[0].Title != "Tasks-as-Code" {
 		t.Errorf("expected term 'tac', got %+v", singleTerm)
+	}
+
+	// 7. create_glossary_term
+	createdTerm, err := callToolJSON[internalmcp.GlossaryEntry](t, session, "create_glossary_term", internalmcp.CreateGlossaryTermInput{
+		Title:   "Single Executable",
+		Summary: "Packaging frontend and backend into a zero-dependency binary",
+		Tags:    []string{"feature"},
+		Body:    "Go embed embeds the web UI directly.",
+	})
+	if err != nil {
+		t.Fatalf("create_glossary_term failed: %v", err)
+	}
+	if createdTerm.ID != "single-executable" || createdTerm.Title != "Single Executable" {
+		t.Errorf("unexpected created glossary term: %+v", createdTerm)
+	}
+
+	// 8. update_glossary_term
+	updatedTerm, err := callToolJSON[internalmcp.GlossaryEntry](t, session, "update_glossary_term", internalmcp.UpdateGlossaryTermInput{
+		ID:      "single-executable",
+		Summary: "Updated single executable definition",
+	})
+	if err != nil {
+		t.Fatalf("update_glossary_term failed: %v", err)
+	}
+	if updatedTerm.Summary != "Updated single executable definition" {
+		t.Errorf("unexpected updated glossary term: %+v", updatedTerm)
 	}
 }
 
@@ -176,4 +230,161 @@ func TestMCP_SearchTagBoardTools(t *testing.T) {
 	if len(board.Columns) < 2 {
 		t.Errorf("expected at least 2 columns, got %d", len(board.Columns))
 	}
+}
+
+func TestMCP_StrategyAndGlossaryGuards(t *testing.T) {
+	_, _, _, session := setupTestMCP(t)
+
+	// 1. create_strategy guards
+	t.Run("create_strategy validates title, summary, tier, and tags", func(t *testing.T) {
+		// Empty title
+		_, err := callToolJSON[internalmcp.StrategyDetail](t, session, "create_strategy", internalmcp.CreateStrategyInput{
+			Summary: "Some summary",
+			Tier:    1,
+		})
+		if err == nil {
+			t.Error("expected error for empty title")
+		}
+
+		// Empty summary
+		_, err = callToolJSON[internalmcp.StrategyDetail](t, session, "create_strategy", internalmcp.CreateStrategyInput{
+			Title: "Some Title",
+			Tier:  1,
+		})
+		if err == nil {
+			t.Error("expected error for empty summary")
+		}
+
+		// Invalid tier (0)
+		_, err = callToolJSON[internalmcp.StrategyDetail](t, session, "create_strategy", internalmcp.CreateStrategyInput{
+			Title:   "Some Title",
+			Summary: "Some summary",
+			Tier:    0,
+		})
+		if err == nil {
+			t.Error("expected error for tier 0")
+		}
+
+		// Invalid tier (4)
+		_, err = callToolJSON[internalmcp.StrategyDetail](t, session, "create_strategy", internalmcp.CreateStrategyInput{
+			Title:   "Some Title",
+			Summary: "Some summary",
+			Tier:    4,
+		})
+		if err == nil {
+			t.Error("expected error for tier 4")
+		}
+
+		// Invalid tag when enforcement is enabled
+		_, err = callToolJSON[internalmcp.StrategyDetail](t, session, "create_strategy", internalmcp.CreateStrategyInput{
+			Title:   "Valid Title",
+			Summary: "Valid summary",
+			Tier:    1,
+			Tags:    []string{"disallowed-tag"},
+		})
+		if err == nil {
+			t.Error("expected error for disallowed tag")
+		}
+	})
+
+	// 2. update_strategy guards
+	t.Run("update_strategy validates non-existent id, tier, and tags", func(t *testing.T) {
+		// Non-existent ID
+		_, err := callToolJSON[internalmcp.StrategyDetail](t, session, "update_strategy", internalmcp.UpdateStrategyInput{
+			ID:      "non-existent-strategy-id",
+			Summary: "Updated summary",
+		})
+		if err == nil {
+			t.Error("expected error for non-existent strategy id")
+		}
+
+		// First create a valid strategy
+		created, err := callToolJSON[internalmcp.StrategyDetail](t, session, "create_strategy", internalmcp.CreateStrategyInput{
+			Title:   "Test Guard Strategy",
+			Summary: "Guard strategy summary",
+			Tier:    2,
+			Tags:    []string{"backend"},
+		})
+		if err != nil {
+			t.Fatalf("failed to create strategy: %v", err)
+		}
+
+		// Update with invalid tier
+		_, err = callToolJSON[internalmcp.StrategyDetail](t, session, "update_strategy", internalmcp.UpdateStrategyInput{
+			ID:   created.ID,
+			Tier: 99,
+		})
+		if err == nil {
+			t.Error("expected error for updating with tier 99")
+		}
+
+		// Update with disallowed tag
+		_, err = callToolJSON[internalmcp.StrategyDetail](t, session, "update_strategy", internalmcp.UpdateStrategyInput{
+			ID:   created.ID,
+			Tags: []string{"unauthorized-tag"},
+		})
+		if err == nil {
+			t.Error("expected error for disallowed tag on update")
+		}
+	})
+
+	// 3. create_glossary_term guards
+	t.Run("create_glossary_term validates title, summary, and tags", func(t *testing.T) {
+		// Empty title
+		_, err := callToolJSON[internalmcp.GlossaryEntry](t, session, "create_glossary_term", internalmcp.CreateGlossaryTermInput{
+			Summary: "Term summary",
+		})
+		if err == nil {
+			t.Error("expected error for empty title")
+		}
+
+		// Empty summary
+		_, err = callToolJSON[internalmcp.GlossaryEntry](t, session, "create_glossary_term", internalmcp.CreateGlossaryTermInput{
+			Title: "Term Title",
+		})
+		if err == nil {
+			t.Error("expected error for empty summary")
+		}
+
+		// Disallowed tag
+		_, err = callToolJSON[internalmcp.GlossaryEntry](t, session, "create_glossary_term", internalmcp.CreateGlossaryTermInput{
+			Title:   "Valid Term",
+			Summary: "Valid summary",
+			Tags:    []string{"disallowed-tag"},
+		})
+		if err == nil {
+			t.Error("expected error for disallowed tag")
+		}
+	})
+
+	// 4. update_glossary_term guards
+	t.Run("update_glossary_term validates non-existent id and tags", func(t *testing.T) {
+		// Non-existent ID
+		_, err := callToolJSON[internalmcp.GlossaryEntry](t, session, "update_glossary_term", internalmcp.UpdateGlossaryTermInput{
+			ID:      "non-existent-term-id",
+			Summary: "Updated definition",
+		})
+		if err == nil {
+			t.Error("expected error for non-existent glossary term id")
+		}
+
+		// First create a valid term
+		created, err := callToolJSON[internalmcp.GlossaryEntry](t, session, "create_glossary_term", internalmcp.CreateGlossaryTermInput{
+			Title:   "Guard Term",
+			Summary: "Guard summary",
+			Tags:    []string{"feature"},
+		})
+		if err != nil {
+			t.Fatalf("failed to create glossary term: %v", err)
+		}
+
+		// Update with disallowed tag
+		_, err = callToolJSON[internalmcp.GlossaryEntry](t, session, "update_glossary_term", internalmcp.UpdateGlossaryTermInput{
+			ID:   created.ID,
+			Tags: []string{"bad-tag"},
+		})
+		if err == nil {
+			t.Error("expected error for disallowed tag on update")
+		}
+	})
 }

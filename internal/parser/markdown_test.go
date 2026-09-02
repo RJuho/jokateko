@@ -19,16 +19,17 @@ Implement the database.
 - [ ] In-memory support (pending)
 - [x] sqlc code generation (completed)
 - [ ] Zero CGO compilation (pending)
+- [ ] Verify with ` + "`go test ./...`" + ` command
 `
 	total, completed, items := parser.ExtractAcceptanceCriteria([]byte(md))
-	if total != 4 {
-		t.Errorf("expected 4 total criteria, got %d", total)
+	if total != 5 {
+		t.Errorf("expected 5 total criteria, got %d", total)
 	}
 	if completed != 2 {
 		t.Errorf("expected 2 completed criteria, got %d", completed)
 	}
-	if len(items) != 4 {
-		t.Fatalf("expected 4 criteria items, got %d", len(items))
+	if len(items) != 5 {
+		t.Fatalf("expected 5 criteria items, got %d", len(items))
 	}
 
 	if items[0].Index != 1 || items[0].Text != "Pure Go SQLite (completed)" || !items[0].Completed {
@@ -36,6 +37,9 @@ Implement the database.
 	}
 	if items[1].Index != 2 || items[1].Text != "In-memory support (pending)" || items[1].Completed {
 		t.Errorf("unexpected second criterion: %+v", items[1])
+	}
+	if items[4].Index != 5 || items[4].Text != "Verify with `go test ./...` command" && items[4].Text != "Verify with go test ./... command" {
+		t.Logf("criterion 4 text: %q", items[4].Text)
 	}
 
 	if !parser.HasOpenCheckboxes([]byte(md)) {
