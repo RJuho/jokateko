@@ -321,6 +321,20 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+// Close forcibly terminates the HTTP server and SSE hub immediately.
+func (s *Server) Close() error {
+	if s.sseHub != nil {
+		s.sseHub.Stop()
+	}
+	if s.listener != nil {
+		_ = s.listener.Close()
+	}
+	if s.httpServer != nil {
+		return s.httpServer.Close()
+	}
+	return nil
+}
+
 // Addr returns the bound network address of the running server.
 func (s *Server) Addr() string {
 	if s.listener != nil {
