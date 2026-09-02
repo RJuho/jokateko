@@ -3,6 +3,7 @@ import type { Priority, Task } from '../../schemas/models'
 import {
 	activeTaskDetailId,
 	config,
+	configuredPriorities,
 	createTaskInitialColumnId,
 	isCreateTaskModalOpen,
 	milestones,
@@ -14,6 +15,7 @@ export function CreateTaskModal() {
 	const isOpen = isCreateTaskModalOpen.value
 	const cols = config.value.board.columns
 	const milestoneList = milestones.value
+	const priorityList = configuredPriorities.value
 
 	function closeModal() {
 		createTaskInitialColumnId.value = null
@@ -249,9 +251,20 @@ export function CreateTaskModal() {
 						<div>
 							<label
 								for='task-create-priority'
-								class='label py-1 text-xs font-semibold'
+								class='label py-1 text-xs font-semibold flex items-center justify-between'
 							>
-								Priority
+								<span>Priority</span>
+								{priorityList.find((p) => p.id === priority)?.color && (
+									<span
+										class='w-2.5 h-2.5 rounded-full inline-block shadow-2xs'
+										style={{
+											backgroundColor: priorityList.find(
+												(p) => p.id === priority,
+											)?.color,
+										}}
+										aria-hidden='true'
+									/>
+								)}
 							</label>
 							<select
 								id='task-create-priority'
@@ -260,12 +273,23 @@ export function CreateTaskModal() {
 									setPriority((e.target as HTMLSelectElement).value as Priority)
 								}
 								class='select select-sm select-bordered w-full rounded-lg'
+								style={
+									priorityList.find((p) => p.id === priority)?.color
+										? {
+												borderLeftColor: priorityList.find(
+													(p) => p.id === priority,
+												)?.color,
+												borderLeftWidth: '3px',
+											}
+										: undefined
+								}
 								aria-label='Select initial priority'
 							>
-								<option value='low'>Low</option>
-								<option value='medium'>Medium</option>
-								<option value='high'>High</option>
-								<option value='critical'>Critical</option>
+								{priorityList.map((p) => (
+									<option key={p.id} value={p.id}>
+										{p.name}
+									</option>
+								))}
 							</select>
 						</div>
 

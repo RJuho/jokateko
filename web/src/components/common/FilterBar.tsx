@@ -1,6 +1,6 @@
-import type { Priority } from '../../schemas/models'
 import {
 	allTags,
+	configuredPriorities,
 	filteredTasks,
 	filters,
 	resetFilters,
@@ -8,13 +8,14 @@ import {
 	togglePriorityFilter,
 	toggleTagFilter,
 } from '../../state/store'
+import { getContrastTextColor } from '../../utils/colors'
 import { t } from '../../utils/i18n'
 import { TagBadge } from './Badge'
 
 export function FilterBar() {
 	const currentFilters = filters.value
 	const tagList = allTags.value
-	const priorities: Priority[] = ['critical', 'high', 'medium', 'low']
+	const priorities = configuredPriorities.value
 
 	const hasActiveFilters =
 		currentFilters.searchQuery !== ''
@@ -36,21 +37,35 @@ export function FilterBar() {
 						aria-label={t('arial_filter_by_priority')}
 					>
 						{priorities.map((p) => {
-							const isSelected = currentFilters.selectedPriorities.includes(p)
+							const isSelected = currentFilters.selectedPriorities.includes(
+								p.id,
+							)
+							const color = p.color
+							const activeStyle =
+								isSelected && color
+									? {
+											backgroundColor: color,
+											color: getContrastTextColor(color),
+										}
+									: undefined
+
 							return (
 								<button
-									key={p}
+									key={p.id}
 									type='button'
-									onClick={() => togglePriorityFilter(p)}
+									onClick={() => togglePriorityFilter(p.id)}
 									class={`px-2 py-0.5 text-[10px] uppercase font-semibold rounded-md transition-all ${
 										isSelected
-											? 'bg-primary text-primary-content shadow-xs'
+											? color
+												? 'shadow-xs'
+												: 'bg-primary text-primary-content shadow-xs'
 											: 'text-base-content/60 hover:text-base-content'
 									}`}
+									style={activeStyle}
 									aria-pressed={isSelected}
-									aria-label={`Filter priority ${p}`}
+									aria-label={`Filter priority ${p.name}`}
 								>
-									{p.slice(0, 3)}
+									{p.name.slice(0, 3)}
 								</button>
 							)
 						})}

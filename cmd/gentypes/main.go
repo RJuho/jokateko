@@ -39,7 +39,7 @@ func main() {
 	buf.WriteString("// Run 'make generate' to regenerate.\n\n")
 
 	// 1. Static enums / union types
-	buf.WriteString("export type Priority = \"low\" | \"medium\" | \"high\" | \"critical\";\n\n")
+	buf.WriteString("export type Priority = string;\n\n")
 	buf.WriteString("export type MilestoneStatus = \"open\" | \"closed\";\n\n")
 	buf.WriteString("export type Tier = 1 | 2 | 3;\n\n")
 

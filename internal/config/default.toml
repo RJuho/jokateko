@@ -1,0 +1,171 @@
+# ==============================================================================
+# Jokateko - Default Configuration Specification
+# ==============================================================================
+# This configuration file is embedded directly into the Jokateko binary and serves
+# as the single source of truth for all default application settings.
+#
+# If you place a custom config.toml (or .jokateko/config.toml) in your workspace,
+# any settings you define will cleanly overlay and merge with these defaults.
+# You only need to specify the keys you wish to override.
+# ==============================================================================
+
+version = "0"
+
+[project]
+name = "My Project"
+description = "Markdown-driven task management and Kanban"
+
+[paths]
+tasks = ".jokateko/tasks"
+milestones = ".jokateko/milestones"
+strategies = ".jokateko/strategies"
+glossary = ".jokateko/glossary"
+export = "dist-kanban"
+
+[server]
+host = "127.0.0.1"
+port = 8080
+open_browser = false
+
+[server.security]
+cors_enabled = false
+cors_allowed_origins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000"
+]
+
+[server.security.csp]
+enabled = true
+default_src = ["'self'"]
+script_src = ["'self'"]
+style_src = ["'self'", "'unsafe-inline'"]
+img_src = ["'self'", "data:"]
+connect_src = ["'self'"]
+font_src = ["'self'"]
+
+# ------------------------------------------------------------------------------
+# Workflow Columns
+# ------------------------------------------------------------------------------
+[[board.columns]]
+id = "backlog"
+name = "Backlog"
+color = "#94a3b8"
+
+[[board.columns]]
+id = "ready"
+name = "Ready"
+color = "#60a5fa"
+
+[[board.columns]]
+id = "in_progress"
+name = "In Progress"
+color = "#f59e0b"
+
+[[board.columns]]
+id = "in_review"
+name = "In Review"
+color = "#a855f7"
+
+[[board.columns]]
+id = "done"
+name = "Done"
+color = "#10b981"
+
+# ------------------------------------------------------------------------------
+# Task Priorities
+# ------------------------------------------------------------------------------
+[[priorities]]
+id = "critical"
+name = "Critical"
+color = "#ef4444"
+
+[[priorities]]
+id = "high"
+name = "High"
+color = "#f97316"
+
+[[priorities]]
+id = "medium"
+name = "Medium"
+color = "#eab308"
+
+[[priorities]]
+id = "low"
+name = "Low"
+color = "#3b82f6"
+
+# ------------------------------------------------------------------------------
+# Controlled Tag Vocabulary
+# ------------------------------------------------------------------------------
+[tags]
+allowed = [
+  "backend",
+  "frontend",
+  "database",
+  "security",
+  "ui",
+  "auth",
+  "api",
+  "docs",
+  "testing",
+  "release",
+  "infra"
+]
+enforce_allowed = true
+
+# ------------------------------------------------------------------------------
+# Model Context Protocol (MCP) for AI Agents
+# ------------------------------------------------------------------------------
+[mcp]
+enabled = true
+timeout_seconds = 30
+allow_mutations = true
+
+# ------------------------------------------------------------------------------
+# UI Translations & Aria Accessibility
+# ------------------------------------------------------------------------------
+[translations]
+board = "Board"
+strategies = "Strategies"
+glossary = "Glossary"
+milestones = "Milestones"
+search = "Search"
+tasks = "tasks"
+architectural_strategies = "Architectural Strategies"
+strategies_subtitle = "Tiered guidelines and system design rules using progressive disclosure"
+tiers = "Tiers"
+all_tiers = "All Tiers"
+project_glossary = "Project Glossary"
+glossary_subtitle = "Standardized domain definitions and terminology dictionary"
+footer_text = "Build with ❤️ in 🇪🇺 with 🤖"
+reset = "Reset"
+no_tasks = "No tasks"
+no_matching_results = "No matching results found"
+no_matches_current_page = "No matches on current page"
+no_matches_other_pages = "No matches on other pages"
+show_completed = "Show completed"
+hide_completed = "Hide completed"
+show_archived = "Show Archived"
+
+# Aria attributes (marked with 'arial' in key name)
+arial_main_nav = "Main Navigation"
+arial_mobile_nav = "Mobile Navigation"
+arial_mobile_menu = "Mobile navigation menu"
+arial_open_menu = "Open menu"
+arial_close_menu = "Close menu"
+arial_search = "Site search"
+arial_search_input = "Search tasks, milestones, strategies, and glossary"
+arial_search_results = "Search results"
+arial_theme_toggle = "Toggle light and dark theme"
+arial_theme_dark = "Toggle dark theme"
+arial_theme_light_label = "Light theme"
+arial_theme_dark_label = "Dark theme"
+arial_filter_tasks = "Filter tasks"
+arial_filter_by_priority = "Filter by priority"
+arial_filter_by_tags = "Filter by tags"
+arial_reset_all_filters = "Reset all filters"
+arial_column_quick_nav = "Column quick navigation"
+arial_kanban_columns = "Kanban columns"
+arial_milestones_roadmap = "Milestones roadmap"
+arial_footer = "Application footer"
+arial_github_repo = "Jokateko GitHub repository"

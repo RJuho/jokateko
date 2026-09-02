@@ -1,5 +1,7 @@
 import type { ComponentChildren } from 'preact'
 import type { Priority } from '../../schemas/models'
+import { configuredPriorities } from '../../state/store'
+import { getContrastTextColor } from '../../utils/colors'
 
 interface PriorityBadgeProps {
 	priority: Priority
@@ -10,21 +12,28 @@ export function PriorityBadge({
 	priority,
 	className = '',
 }: PriorityBadgeProps) {
-	const colorMap: Record<Priority, string> = {
-		critical: 'badge-error text-error-content',
-		high: 'badge-warning text-warning-content',
-		medium: 'badge-info text-info-content',
-		low: 'badge-neutral text-neutral-content',
-	}
+	const priorityCfg = configuredPriorities.value.find((p) => p.id === priority)
+	const label = priorityCfg?.name || priority
+	const color = priorityCfg?.color
+
+	const style = color
+		? {
+				backgroundColor: color,
+				color: getContrastTextColor(color),
+			}
+		: undefined
 
 	return (
 		<span
-			class={`badge badge-xs font-semibold uppercase tracking-wider text-[9px] px-1.5 py-0.5 ${colorMap[priority]} ${className}`}
+			class={`badge badge-xs font-semibold uppercase tracking-wider text-[9px] px-1.5 py-0.5 shadow-2xs ${
+				!color ? 'badge-neutral text-neutral-content' : ''
+			} ${className}`}
+			style={style}
 			role='status'
-			aria-label={`Priority: ${priority}`}
+			aria-label={`Priority: ${label}`}
 			data-testid='task-priority-badge'
 		>
-			{priority}
+			{label}
 		</span>
 	)
 }

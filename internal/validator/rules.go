@@ -122,14 +122,22 @@ func ValidateTask(path string, content []byte, ctx TaskContext) (*model.Task, []
 	}
 
 	// TSK-005: valid-priority (Warning)
-	if task.Priority != "" && !task.Priority.IsValid() {
-		diags = append(diags, Diagnostic{
-			RuleID:   "TSK-005",
-			Severity: SeverityWarning,
-			File:     path,
-			Message:  fmt.Sprintf("Invalid priority: %q", task.Priority),
-			Fix:      "Priority must be one of: low, medium, high, critical.",
-		})
+	if task.Priority != "" {
+		validPriority := false
+		if ctx.Config != nil && len(ctx.Config.Priorities) > 0 {
+			validPriority = ctx.Config.HasPriority(string(task.Priority))
+		} else {
+			validPriority = task.Priority.IsValid()
+		}
+		if !validPriority {
+			diags = append(diags, Diagnostic{
+				RuleID:   "TSK-005",
+				Severity: SeverityWarning,
+				File:     path,
+				Message:  fmt.Sprintf("Invalid priority: %q", task.Priority),
+				Fix:      "Priority must match one of the configured priorities.",
+			})
+		}
 	}
 
 	// TSK-006: milestone-exists (Error)

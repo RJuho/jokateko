@@ -79,6 +79,7 @@ func BuildSnapshot(ctx context.Context, cfg *config.Config, st *store.Store) (*m
 			Board: model.BoardConfig{
 				Columns: cols,
 			},
+			Priorities: cfg.Priorities,
 			Tags: model.TagsConfig{
 				Allowed:        cfg.Tags.Allowed,
 				EnforceAllowed: cfg.Tags.EnforceAllowed,

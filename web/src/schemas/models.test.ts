@@ -26,16 +26,31 @@ describe('Valibot Models', () => {
 		}
 	})
 
-	it('fails validation on invalid priority', () => {
+	it('fails validation on non-string priority', () => {
 		const rawTask = {
 			id: 'task-bad',
 			title: 'Bad Task',
 			status: 'backlog',
-			priority: 'ultra-high', // invalid
+			priority: 12345, // invalid type
 		}
 
 		const result = v.safeParse(TaskSchema, rawTask)
 		expect(result.success).toBe(false)
+	})
+
+	it('validates custom priority strings', () => {
+		const rawTask = {
+			id: 'task-custom',
+			title: 'Custom Priority Task',
+			status: 'backlog',
+			priority: 'ultra-high',
+		}
+
+		const result = v.safeParse(TaskSchema, rawTask)
+		expect(result.success).toBe(true)
+		if (result.success) {
+			expect(result.output.priority).toBe('ultra-high')
+		}
 	})
 
 	it('validates an entire Snapshot payload', () => {

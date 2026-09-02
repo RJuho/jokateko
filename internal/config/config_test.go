@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/RJuho/jokateko/internal/config"
+	"github.com/RJuho/jokateko/internal/model"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -47,6 +48,18 @@ func TestDefaultConfig(t *testing.T) {
 
 	if cfg.HasColumn("nonexistent") {
 		t.Error("expected HasColumn('nonexistent') to be false")
+	}
+
+	if len(cfg.Priorities) != 4 {
+		t.Errorf("expected 4 default priorities, got %d", len(cfg.Priorities))
+	}
+
+	if !cfg.HasPriority("critical") || !cfg.HasPriority("low") {
+		t.Error("expected HasPriority('critical') and HasPriority('low') to be true")
+	}
+
+	if cfg.HasPriority("nonexistent") {
+		t.Error("expected HasPriority('nonexistent') to be false")
 	}
 
 	if !cfg.IsAllowedTag("backend") {
@@ -464,4 +477,88 @@ arial_search_input = "Hae tehtäviä, virstanpylväitä, strategioita ja sanasto
 		t.Errorf("expected Translations.ArialMainNav to be 'Päänavigointi', got %q", cfg.Translations.ArialMainNav)
 	}
 }
+
+func TestCustomPrioritiesTOML(t *testing.T) {
+	tempDir := t.TempDir()
+	jokatekoDir := filepath.Join(tempDir, ".jokateko")
+	if err := os.MkdirAll(jokatekoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	tomlContent := `
+version = "0"
+
+[project]
+name = "Custom Priorities App"
+
+[[priorities]]
+id = "p0"
+name = "Blocker"
+color = "#ef4444"
+
+[[priorities]]
+id = "p1"
+name = "Critical"
+color = "#f97316"
+
+[[priorities]]
+id = "p2"
+name = "Normal"
+color = "#3b82f6"
+`
+
+	if err := os.WriteFile(filepath.Join(jokatekoDir, "config.toml"), []byte(tomlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := config.Load(tempDir)
+	if err != nil {
+		t.Fatalf("failed to load config with custom priorities: %v", err)
+	}
+
+	if len(cfg.Priorities) != 3 {
+		t.Fatalf("expected 3 custom priorities, got %d", len(cfg.Priorities))
+	}
+	if cfg.Priorities[0].ID != "p0" || cfg.Priorities[0].Name != "Blocker" {
+		t.Errorf("unexpected priority 0: %+v", cfg.Priorities[0])
+	}
+	if !cfg.HasPriority("p0") || !cfg.HasPriority("p1") || !cfg.HasPriority("p2") {
+		t.Error("expected custom priorities p0, p1, p2 to exist")
+	}
+	if cfg.HasPriority("critical") {
+		t.Error("expected default 'critical' priority to be replaced")
+	}
+}
+
+func TestValidatePriorities(t *testing.T) {
+	root := t.TempDir()
+
+	t.Run("Empty priorities list error", func(t *testing.T) {
+		cfg := config.Default(root)
+		cfg.Priorities = nil
+		err := config.Validate(cfg, root)
+		if err == nil || !strings.Contains(err.Error(), "CFG-006") {
+			t.Errorf("expected CFG-006 error for empty priorities, got: %v", err)
+		}
+	})
+
+	t.Run("Duplicate priority ID error", func(t *testing.T) {
+		cfg := config.Default(root)
+		cfg.Priorities = append(cfg.Priorities, model.PriorityConfig{ID: "low", Name: "Duplicate Low"})
+		err := config.Validate(cfg, root)
+		if err == nil || !strings.Contains(err.Error(), "CFG-007") {
+			t.Errorf("expected CFG-007 error for duplicate priority ID, got: %v", err)
+		}
+	})
+
+	t.Run("Invalid priority hex color error", func(t *testing.T) {
+		cfg := config.Default(root)
+		cfg.Priorities[0].Color = "not-a-hex"
+		err := config.Validate(cfg, root)
+		if err == nil || !strings.Contains(err.Error(), "invalid color hex") {
+			t.Errorf("expected invalid color hex error, got: %v", err)
+		}
+	})
+}
+
 

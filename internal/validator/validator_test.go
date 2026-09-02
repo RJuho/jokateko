@@ -283,3 +283,36 @@ summary = "Duplicate definition"
 		t.Error("expected GLS-003 duplicate glossary title diagnostic")
 	}
 }
+
+func TestTaskCustomPriorityValidation(t *testing.T) {
+	wsDir := createValidWorkspace(t)
+	tasksDir := filepath.Join(wsDir, ".jokateko", "tasks")
+
+	// Task with non-existent priority
+	invalidTask := filepath.Join(tasksDir, "260903-invalid-priority.md")
+	_ = os.WriteFile(invalidTask, []byte(`+++
+title = "Invalid Priority Task"
+status = "backlog"
+priority = "ultra-urgent"
+summary = "Invalid priority testing"
+tags = ["database"]
++++
+`), 0644)
+
+	res, err := validator.ValidateWorkspace(wsDir)
+	if err != nil {
+		t.Fatalf("ValidateWorkspace failed: %v", err)
+	}
+
+	foundTSK005 := false
+	for _, d := range res.Diagnostics {
+		if d.RuleID == "TSK-005" {
+			foundTSK005 = true
+			break
+		}
+	}
+	if !foundTSK005 {
+		t.Error("expected TSK-005 invalid priority warning")
+	}
+}
+

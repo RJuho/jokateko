@@ -103,6 +103,7 @@ type rawConfig struct {
 	Paths       *rawPathsConfig    `toml:"paths"`
 	Server      *rawServerConfig   `toml:"server"`
 	Board        *rawBoardConfig          `toml:"board"`
+	Priorities   []model.PriorityConfig   `toml:"priorities"`
 	Tags         *rawTagsConfig           `toml:"tags"`
 	MCP          *rawMCPConfig            `toml:"mcp"`
 	Translations *model.TranslationsConfig `toml:"translations"`
@@ -145,7 +146,8 @@ type rawCSPConfig struct {
 }
 
 type rawBoardConfig struct {
-	Columns []ColumnConfig `toml:"columns"`
+	Columns    []ColumnConfig         `toml:"columns"`
+	Priorities []model.PriorityConfig `toml:"priorities"`
 }
 
 type rawTagsConfig struct {
@@ -252,6 +254,13 @@ func mergeConfig(target *Config, raw *rawConfig) {
 	// Board columns: if custom columns provided, replace defaults
 	if raw.Board != nil && len(raw.Board.Columns) > 0 {
 		target.Board.Columns = raw.Board.Columns
+	}
+
+	// Priorities: if custom priorities provided (top-level or under board), replace defaults
+	if len(raw.Priorities) > 0 {
+		target.Priorities = raw.Priorities
+	} else if raw.Board != nil && len(raw.Board.Priorities) > 0 {
+		target.Priorities = raw.Board.Priorities
 	}
 
 	// Tags section

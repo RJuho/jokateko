@@ -3,6 +3,7 @@ import {
 	allTags,
 	columnTasks,
 	config,
+	configuredPriorities,
 	filteredTasks,
 	initFromSnapshot,
 	mode,
@@ -240,5 +241,30 @@ describe('Preact Signals State Store', () => {
 		]
 
 		expect(allTags.value).toEqual(['apple', 'banana', 'zebra'])
+	})
+
+	it('computes configuredPriorities from config or falls back to default', () => {
+		config.value = {
+			...config.value,
+			priorities: undefined,
+		}
+		expect(configuredPriorities.value.map((p) => p.id)).toEqual([
+			'critical',
+			'high',
+			'medium',
+			'low',
+		])
+
+		config.value = {
+			...config.value,
+			priorities: [
+				{ id: 'p0', name: 'P0 - Blocker', color: '#ff0000' },
+				{ id: 'p1', name: 'P1 - High', color: '#ff8800' },
+			],
+		}
+		expect(configuredPriorities.value).toEqual([
+			{ id: 'p0', name: 'P0 - Blocker', color: '#ff0000' },
+			{ id: 'p1', name: 'P1 - High', color: '#ff8800' },
+		])
 	})
 })

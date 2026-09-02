@@ -4,9 +4,17 @@ package model
 type SnapshotConfig struct {
 	Project      ProjectConfig      `json:"project"`
 	Board        BoardConfig        `json:"board"`
+	Priorities   []PriorityConfig   `json:"priorities,omitzero"`
 	Tags         TagsConfig         `json:"tags,omitzero"`
 	Build        BuildConfig        `json:"build,omitzero"`
 	Translations TranslationsConfig `json:"translations,omitzero"`
+}
+
+// PriorityConfig specifies a task priority level definition.
+type PriorityConfig struct {
+	ID    string `json:"id" toml:"id"`
+	Name  string `json:"name" toml:"name"`
+	Color string `json:"color,omitempty" toml:"color"`
 }
 
 // TranslationsConfig represents customizable user-facing UI labels and aria attributes.

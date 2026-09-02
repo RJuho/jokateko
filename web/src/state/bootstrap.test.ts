@@ -96,7 +96,7 @@ describe('Bootstrap Loader & Error Boundary', () => {
 					id: 't1',
 					title: 'Task 1',
 					status: 'c1',
-					priority: 'invalid-priority', // invalid picklist
+					priority: 99999, // invalid type: should be string
 				},
 			],
 			milestones: [],

@@ -5,6 +5,7 @@ import {
 	GlossaryTermSchema,
 	MilestoneSchema,
 	type Priority,
+	type PriorityConfig,
 	type Snapshot,
 	type SnapshotConfig,
 	StrategySchema,
@@ -22,6 +23,13 @@ export interface FilterState {
 	selectedPriorities: Priority[]
 }
 
+export const defaultPriorities: PriorityConfig[] = [
+	{ id: 'critical', name: 'Critical', color: '#ef4444' },
+	{ id: 'high', name: 'High', color: '#f97316' },
+	{ id: 'medium', name: 'Medium', color: '#eab308' },
+	{ id: 'low', name: 'Low', color: '#3b82f6' },
+]
+
 const initialConfig: SnapshotConfig = {
 	project: {
 		name: 'Jokateko',
@@ -36,6 +44,7 @@ const initialConfig: SnapshotConfig = {
 			{ id: 'done', name: 'Done', color: '#4ade80' },
 		],
 	},
+	priorities: defaultPriorities,
 	tags: {
 		allowed: [],
 		enforce_allowed: false,
@@ -52,6 +61,13 @@ const initialConfig: SnapshotConfig = {
 export const mode = signal<AppMode>('client')
 export const activeTab = signal<Tab>('board')
 export const config = signal<SnapshotConfig>(initialConfig)
+export const configuredPriorities = computed<PriorityConfig[]>(() => {
+	const p = config.value.priorities
+	if (p && p.length > 0) {
+		return p
+	}
+	return defaultPriorities
+})
 export const tasks = signal<Task[]>([])
 export const milestones = signal<Snapshot['milestones']>([])
 export const strategies = signal<Snapshot['strategies']>([])

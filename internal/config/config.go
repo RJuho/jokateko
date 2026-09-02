@@ -18,6 +18,7 @@ type Config struct {
 	Paths        PathsConfig              `toml:"paths"`
 	Server       ServerConfig             `toml:"server"`
 	Board        BoardConfig              `toml:"board"`
+	Priorities   []model.PriorityConfig   `toml:"priorities"`
 	Tags         TagsConfig               `toml:"tags"`
 	MCP          MCPConfig                `toml:"mcp"`
 	Translations model.TranslationsConfig `toml:"translations"`

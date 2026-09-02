@@ -56,6 +56,27 @@ func Validate(cfg *Config, rootPath string) error {
 		}
 	}
 
+	// Priorities validation
+	if len(cfg.Priorities) == 0 {
+		errs = append(errs, errors.New("CFG-006: at least one priority must be defined"))
+	}
+	seenPriorities := make(map[string]bool, len(cfg.Priorities))
+	for i, p := range cfg.Priorities {
+		trimmedID := strings.TrimSpace(p.ID)
+		if trimmedID == "" {
+			errs = append(errs, fmt.Errorf("CFG-007: priority at index %d has an empty id", i))
+			continue
+		}
+		if seenPriorities[trimmedID] {
+			errs = append(errs, fmt.Errorf("CFG-007: duplicate priority id %q", trimmedID))
+		}
+		seenPriorities[trimmedID] = true
+
+		if p.Color != "" && !hexColorRe.MatchString(p.Color) {
+			errs = append(errs, fmt.Errorf("invalid color hex %q for priority %q; expected format #rgb or #rrggbb", p.Color, trimmedID))
+		}
+	}
+
 	// CFG-005: Path traversal verification
 	cleanRoot := filepath.Clean(rootPath)
 	pathChecks := []struct {
@@ -156,3 +177,14 @@ func (c *Config) HasColumn(columnID string) bool {
 	}
 	return false
 }
+
+// HasPriority checks if a given priority ID is defined in the priorities configuration.
+func (c *Config) HasPriority(priorityID string) bool {
+	for _, p := range c.Priorities {
+		if p.ID == priorityID {
+			return true
+		}
+	}
+	return false
+}
+
