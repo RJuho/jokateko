@@ -104,6 +104,8 @@ type rawConfig struct {
 	Server      *rawServerConfig   `toml:"server"`
 	Board        *rawBoardConfig          `toml:"board"`
 	Priorities   []model.PriorityConfig   `toml:"priorities"`
+	Strategies   *rawStrategiesConfig     `toml:"strategies"`
+	Tiers        []model.TierConfig       `toml:"tiers"`
 	Tags         *rawTagsConfig           `toml:"tags"`
 	MCP          *rawMCPConfig            `toml:"mcp"`
 	Translations *model.TranslationsConfig `toml:"translations"`
@@ -148,6 +150,10 @@ type rawCSPConfig struct {
 type rawBoardConfig struct {
 	Columns    []ColumnConfig         `toml:"columns"`
 	Priorities []model.PriorityConfig `toml:"priorities"`
+}
+
+type rawStrategiesConfig struct {
+	Tiers []model.TierConfig `toml:"tiers"`
 }
 
 type rawTagsConfig struct {
@@ -261,6 +267,13 @@ func mergeConfig(target *Config, raw *rawConfig) {
 		target.Priorities = raw.Priorities
 	} else if raw.Board != nil && len(raw.Board.Priorities) > 0 {
 		target.Priorities = raw.Board.Priorities
+	}
+
+	// Strategies tiers: if custom tiers provided (under strategies or top-level), replace defaults
+	if raw.Strategies != nil && len(raw.Strategies.Tiers) > 0 {
+		target.Strategies.Tiers = raw.Strategies.Tiers
+	} else if len(raw.Tiers) > 0 {
+		target.Strategies.Tiers = raw.Tiers
 	}
 
 	// Tags section

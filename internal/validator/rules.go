@@ -279,7 +279,8 @@ func ValidateStrategy(path string, content []byte, cfg *config.Config, allowedTa
 	baseName := filepath.Base(path)
 	slug := strings.TrimSuffix(baseName, ".md")
 
-	strat, err := parser.ParseStrategy(content, slug)
+	var fm model.StrategyFrontmatter
+	body, _, _, err := parser.ParseFrontmatter(content, &fm)
 	if err != nil {
 		diags = append(diags, Diagnostic{
 			RuleID:   "STR-001",
@@ -292,7 +293,7 @@ func ValidateStrategy(path string, content []byte, cfg *config.Config, allowedTa
 	}
 
 	// STR-002: required-fields (Error)
-	if strings.TrimSpace(strat.Title) == "" {
+	if strings.TrimSpace(fm.Title) == "" {
 		diags = append(diags, Diagnostic{
 			RuleID:   "STR-002",
 			Severity: SeverityError,
@@ -301,7 +302,7 @@ func ValidateStrategy(path string, content []byte, cfg *config.Config, allowedTa
 			Fix:      "Add 'title = \"...\"' to frontmatter.",
 		})
 	}
-	if strings.TrimSpace(strat.Summary) == "" {
+	if strings.TrimSpace(fm.Summary) == "" {
 		diags = append(diags, Diagnostic{
 			RuleID:   "STR-002",
 			Severity: SeverityError,
@@ -312,19 +313,26 @@ func ValidateStrategy(path string, content []byte, cfg *config.Config, allowedTa
 	}
 
 	// STR-003: valid-tier (Error)
-	if !strat.Tier.IsValid() {
+	validTier := false
+	if cfg != nil && len(cfg.Strategies.Tiers) > 0 {
+		tierStr := fmt.Sprintf("%d", fm.Tier)
+		validTier = cfg.HasTier(tierStr)
+	} else {
+		validTier = fm.Tier.IsValid()
+	}
+	if !validTier {
 		diags = append(diags, Diagnostic{
 			RuleID:   "STR-003",
 			Severity: SeverityError,
 			File:     path,
-			Message:  fmt.Sprintf("Invalid strategy tier: %d", strat.Tier),
-			Fix:      "Set 'tier' to 1 (Core), 2 (Domain), or 3 (Implementation).",
+			Message:  fmt.Sprintf("Invalid strategy tier: %d", fm.Tier),
+			Fix:      "Set 'tier' to match one of the defined strategy tiers in config.toml.",
 		})
 	}
 
 	// STR-004: allowed-tags (Error)
 	if cfg != nil && cfg.Tags.EnforceAllowed {
-		for _, tag := range strat.Tags {
+		for _, tag := range fm.Tags {
 			if !allowedTags[tag] {
 				diags = append(diags, Diagnostic{
 					RuleID:   "STR-004",
@@ -335,6 +343,16 @@ func ValidateStrategy(path string, content []byte, cfg *config.Config, allowedTa
 				})
 			}
 		}
+	}
+
+	strat := &model.Strategy{
+		ID:       slug,
+		Title:    strings.TrimSpace(fm.Title),
+		Tier:     fm.Tier,
+		Tags:     fm.Tags,
+		Summary:  strings.TrimSpace(fm.Summary),
+		Body:     strings.TrimSpace(string(body)),
+		FilePath: path,
 	}
 
 	return strat, diags

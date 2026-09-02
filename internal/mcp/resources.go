@@ -27,7 +27,15 @@ func (s *Server) registerResources() {
 		MIMEType:    "text/markdown",
 	}, s.resourceTier1Strategies)
 
-	// 3. jokateko://glossary
+	// 3. jokateko://strategies/tiers
+	s.mcpServer.AddResource(&mcp.Resource{
+		URI:         "jokateko://strategies/tiers",
+		Name:        "Architectural Strategy Tiers Specification",
+		Description: "Configured progressive disclosure tiers, titles, summaries, and scopes for architectural guidelines",
+		MIMEType:    "text/markdown",
+	}, s.resourceStrategyTiers)
+
+	// 4. jokateko://glossary
 	s.mcpServer.AddResource(&mcp.Resource{
 		URI:         "jokateko://glossary",
 		Name:        "Project Glossary Dictionary",
@@ -105,6 +113,31 @@ func (s *Server) resourceTier1Strategies(ctx context.Context, req *mcp.ReadResou
 		},
 	}, nil
 }
+
+func (s *Server) resourceStrategyTiers(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+	var sb strings.Builder
+	sb.WriteString("# Architectural Strategy Tiers (Progressive Disclosure)\n\n")
+	sb.WriteString("Architectural strategies are structured into progressive disclosure tiers to prevent agent token exhaustion.\n\n")
+
+	for _, tr := range s.cfg.Strategies.Tiers {
+		fmt.Fprintf(&sb, "## %s: %s (`tier = %s`)\n", tr.Name, tr.Title, tr.ID)
+		if tr.Summary != "" {
+			fmt.Fprintf(&sb, "%s\n", tr.Summary)
+		}
+		sb.WriteString("\n")
+	}
+
+	return &mcp.ReadResourceResult{
+		Contents: []*mcp.ResourceContents{
+			{
+				URI:      req.Params.URI,
+				MIMEType: "text/markdown",
+				Text:     sb.String(),
+			},
+		},
+	}, nil
+}
+
 
 func (s *Server) resourceGlossary(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 	terms, err := s.store.ListGlossaryTerms(ctx)

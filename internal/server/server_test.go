@@ -388,7 +388,7 @@ func TestSecurityHeaders(t *testing.T) {
 	srv, _, _, _ := setupTestServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
-	req.Header.Set("Origin", "http://localhost:3000")
+	req.Header.Set("Origin", "http://localhost:8080")
 	rec := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(rec, req)
 
@@ -398,7 +398,7 @@ func TestSecurityHeaders(t *testing.T) {
 	}
 
 	cors := rec.Header().Get("Access-Control-Allow-Origin")
-	if cors != "http://localhost:3000" {
-		t.Errorf("expected Access-Control-Allow-Origin: http://localhost:3000, got %q", cors)
+	if cors != "http://localhost:8080" {
+		t.Errorf("expected Access-Control-Allow-Origin: http://localhost:8080, got %q", cors)
 	}
 }

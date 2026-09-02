@@ -10,6 +10,7 @@ import {
 	type SnapshotConfig,
 	StrategySchema,
 	type Task,
+	type TierConfig,
 } from '../schemas/models'
 import type { AppMode } from './bootstrap'
 import { saveStateToStorage } from './storage'
@@ -30,6 +31,33 @@ export const defaultPriorities: PriorityConfig[] = [
 	{ id: 'low', name: 'Low', color: '#3b82f6' },
 ]
 
+export const defaultTiers: TierConfig[] = [
+	{
+		id: '1',
+		name: 'Tier 1',
+		title: 'Core Architecture & Tech Stack',
+		summary:
+			'System-wide non-negotiables: tech stack limits, project structure, and absolute constraints.',
+		color: '#ef4444',
+	},
+	{
+		id: '2',
+		name: 'Tier 2',
+		title: 'Domain Logic & Data Flow',
+		summary:
+			'Rules for API design, database interactions, authentication, and state management.',
+		color: '#3b82f6',
+	},
+	{
+		id: '3',
+		name: 'Tier 3',
+		title: 'Code Conventions & UI Standards',
+		summary:
+			'Implementation details: naming conventions, testing requirements, UI styling, and accessibility.',
+		color: '#10b981',
+	},
+]
+
 const initialConfig: SnapshotConfig = {
 	project: {
 		name: 'Jokateko',
@@ -45,6 +73,7 @@ const initialConfig: SnapshotConfig = {
 		],
 	},
 	priorities: defaultPriorities,
+	tiers: defaultTiers,
 	tags: {
 		allowed: [],
 		enforce_allowed: false,
@@ -67,6 +96,13 @@ export const configuredPriorities = computed<PriorityConfig[]>(() => {
 		return p
 	}
 	return defaultPriorities
+})
+export const configuredTiers = computed<TierConfig[]>(() => {
+	const t = config.value.tiers
+	if (t && t.length > 0) {
+		return t
+	}
+	return defaultTiers
 })
 export const tasks = signal<Task[]>([])
 export const milestones = signal<Snapshot['milestones']>([])

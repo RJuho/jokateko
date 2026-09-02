@@ -80,6 +80,7 @@ func BuildSnapshot(ctx context.Context, cfg *config.Config, st *store.Store) (*m
 				Columns: cols,
 			},
 			Priorities: cfg.Priorities,
+			Tiers:      cfg.Strategies.Tiers,
 			Tags: model.TagsConfig{
 				Allowed:        cfg.Tags.Allowed,
 				EnforceAllowed: cfg.Tags.EnforceAllowed,

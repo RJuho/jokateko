@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/RJuho/jokateko/internal/model"
 )
 
 var (
@@ -74,6 +76,27 @@ func Validate(cfg *Config, rootPath string) error {
 
 		if p.Color != "" && !hexColorRe.MatchString(p.Color) {
 			errs = append(errs, fmt.Errorf("invalid color hex %q for priority %q; expected format #rgb or #rrggbb", p.Color, trimmedID))
+		}
+	}
+
+	// Strategies tiers validation
+	if len(cfg.Strategies.Tiers) == 0 {
+		errs = append(errs, errors.New("CFG-008: at least one strategy tier must be defined"))
+	}
+	seenTiers := make(map[string]bool, len(cfg.Strategies.Tiers))
+	for i, tr := range cfg.Strategies.Tiers {
+		trimmedID := strings.TrimSpace(tr.ID)
+		if trimmedID == "" {
+			errs = append(errs, fmt.Errorf("CFG-009: strategy tier at index %d has an empty id", i))
+			continue
+		}
+		if seenTiers[trimmedID] {
+			errs = append(errs, fmt.Errorf("CFG-009: duplicate strategy tier id %q", trimmedID))
+		}
+		seenTiers[trimmedID] = true
+
+		if tr.Color != "" && !hexColorRe.MatchString(tr.Color) {
+			errs = append(errs, fmt.Errorf("invalid color hex %q for strategy tier %q; expected format #rgb or #rrggbb", tr.Color, trimmedID))
 		}
 	}
 
@@ -187,4 +210,25 @@ func (c *Config) HasPriority(priorityID string) bool {
 	}
 	return false
 }
+
+// HasTier checks if a given tier ID is defined in the strategy tiers configuration.
+func (c *Config) HasTier(tierID string) bool {
+	for _, tr := range c.Strategies.Tiers {
+		if tr.ID == tierID {
+			return true
+		}
+	}
+	return false
+}
+
+// GetTier returns the tier configuration for a given tier ID, if defined.
+func (c *Config) GetTier(tierID string) (model.TierConfig, bool) {
+	for _, tr := range c.Strategies.Tiers {
+		if tr.ID == tierID {
+			return tr, true
+		}
+	}
+	return model.TierConfig{}, false
+}
+
 

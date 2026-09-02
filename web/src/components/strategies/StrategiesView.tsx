@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'preact/hooks'
 import { navigateTo } from '../../router'
-import type { Tier } from '../../schemas/models'
-import { activeStrategyId, filters, strategies } from '../../state/store'
+import {
+	activeStrategyId,
+	configuredTiers,
+	filters,
+	strategies,
+} from '../../state/store'
+import { getContrastTextColor } from '../../utils/colors'
 import { t } from '../../utils/i18n'
 import { TagBadge } from '../common/Badge'
 
 export function StrategiesView() {
 	const allStrategies = strategies.value
-	const [selectedTier, setSelectedTier] = useState<Tier | 0>(0)
+	const tierList = configuredTiers.value
+	const [selectedTier, setSelectedTier] = useState<string | number>(0)
 	const [selectedTag, setSelectedTag] = useState<string | null>(null)
 	const [openedStrategyIds, setOpenedStrategyIds] = useState<Set<string>>(
 		new Set(),
@@ -20,33 +26,55 @@ export function StrategiesView() {
 	// If initial or current URL anchor has a strategy, ensure it is open and scroll into it
 	useEffect(() => {
 		const activeId = activeStrategyId.value
-		if (activeId) {
-			const target = allStrategies.find((s) => s.id === activeId)
-			if (target && selectedTier !== 0 && target.tier !== selectedTier) {
-				setSelectedTier(0)
-			}
-			setOpenedStrategyIds((prev) => new Set([...prev, activeId]))
-
-			if (typeof document !== 'undefined') {
-				requestAnimationFrame(() => {
-					setTimeout(() => {
-						const el = document.getElementById(`strategy-card-${activeId}`)
-						el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-					}, 60)
-				})
-			}
+		if (!activeId || allStrategies.length === 0) {
+			return
 		}
-	}, [activeStrategyId.value, allStrategies, selectedTier])
 
-	// Strategy stays open until page is reloaded, search is used, or tags/tiers are changed
+		const target = allStrategies.find((s) => s.id === activeId)
+		if (!target) {
+			return
+		}
+
+		// Ensure targeted strategy is visible by resetting tier filter if currently filtering another tier
+		if (selectedTier !== 0 && String(target.tier) !== String(selectedTier)) {
+			setSelectedTier(0)
+		}
+
+		// Ensure targeted card is recorded in opened set
+		setOpenedStrategyIds((prev) => new Set([...prev, activeId]))
+
+		// Scroll smoothly into view with retries to account for DOM rendering
+		if (typeof document !== 'undefined') {
+			let attempts = 0
+			const maxAttempts = 15
+			const tryScroll = () => {
+				const el = document.getElementById(`strategy-card-${activeId}`)
+				if (el) {
+					el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+				} else if (attempts < maxAttempts) {
+					attempts++
+					setTimeout(tryScroll, 60)
+				}
+			}
+			requestAnimationFrame(() => {
+				setTimeout(tryScroll, 60)
+			})
+		}
+	}, [activeStrategyId.value, allStrategies.length])
+
+	// Close non-URL opened strategies when search or tag filter changes
 	useEffect(() => {
-		setOpenedStrategyIds(new Set())
-	}, [searchQuery, selectedTier, selectedTag])
+		if (searchQuery !== '' || selectedTag !== null) {
+			setOpenedStrategyIds(
+				new Set(activeStrategyId.value ? [activeStrategyId.value] : []),
+			)
+		}
+	}, [searchQuery, selectedTag])
 
 	// Filter strategies by tier, tag, and search query
 	const visibleStrategies = allStrategies.filter((s) => {
 		// Tier filter
-		if (selectedTier !== 0 && s.tier !== selectedTier) {
+		if (selectedTier !== 0 && String(s.tier) !== String(selectedTier)) {
 			return false
 		}
 		// Tag filter
@@ -75,16 +103,60 @@ export function StrategiesView() {
 		return true
 	})
 
-	const tiers: Array<{ id: Tier | 0; label: string; desc: string }> = [
-		{ id: 0, label: t('all_tiers'), desc: 'Complete architecture rules' },
-		{ id: 1, label: 'Tier 1', desc: 'Core Invariants & Zero-CGO' },
-		{ id: 2, label: 'Tier 2', desc: 'Design Patterns & Touch UI' },
-		{ id: 3, label: 'Tier 3', desc: 'Implementation Specs' },
+	const tiers: Array<{
+		id: string | number
+		label: string
+		title: string
+		summary: string
+		color?: string
+	}> = [
+		{
+			id: 0,
+			label: t('all_tiers'),
+			title: 'Complete architecture rules',
+			summary:
+				'View all strategy guidelines across every progressive disclosure tier',
+		},
+		...tierList.map((tr) => ({
+			id: tr.id,
+			label: tr.name,
+			title: tr.title,
+			summary: tr.summary,
+			color: tr.color,
+		})),
 	]
 
+	function handleSelectTier(tierId: string | number) {
+		setSelectedTier(tierId)
+		// If an active strategy from URL is not in this tier, navigate back to #strategies
+		const activeId = activeStrategyId.value
+		if (activeId && tierId !== 0) {
+			const target = allStrategies.find((s) => s.id === activeId)
+			if (target && String(target.tier) !== String(tierId)) {
+				activeStrategyId.value = null
+				navigateTo('strategies', true)
+			}
+		}
+	}
+
 	function handleCardClick(id: string) {
-		setOpenedStrategyIds((prev) => new Set([...prev, id]))
-		navigateTo(`strategy/${id}`)
+		const isCurrentlyActive = activeStrategyId.value === id
+		const isCurrentlyOpened = openedStrategyIds.has(id) || isCurrentlyActive
+
+		if (isCurrentlyOpened) {
+			setOpenedStrategyIds((prev) => {
+				const next = new Set(prev)
+				next.delete(id)
+				return next
+			})
+			if (isCurrentlyActive) {
+				activeStrategyId.value = null
+				navigateTo('strategies', true)
+			}
+		} else {
+			setOpenedStrategyIds((prev) => new Set([...prev, id]))
+			navigateTo(`strategy/${id}`)
+		}
 	}
 
 	function handleCopyId(e: MouseEvent, id: string) {
@@ -109,37 +181,50 @@ export function StrategiesView() {
 	}
 
 	return (
-		<div class='flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-5'>
-			{/* Top Bar */}
-			<div class='border-b border-base-200 pb-4'>
-				<h2 class='text-xl sm:text-2xl font-bold tracking-tight text-base-content'>
+		<div class='flex flex-col gap-5 max-w-5xl mx-auto py-2 px-1 sm:px-2'>
+			{/* Page Header */}
+			<div class='flex flex-col gap-1 border-b border-base-200/80 pb-4'>
+				<h1 class='text-2xl font-black tracking-tight text-base-content'>
 					{t('architectural_strategies')}
-				</h2>
-				<p class='text-xs sm:text-sm text-base-content/60 mt-0.5'>
+				</h1>
+				<p class='text-sm text-base-content/60 leading-relaxed'>
 					{t('strategies_subtitle')}
 				</p>
 			</div>
 
 			{/* Tier Selector Pills: Kept as is */}
 			<div class='flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1'>
-				{tiers.map((t) => {
-					const isSelected = selectedTier === t.id
+				{tiers.map((tr) => {
+					const isSelected = String(selectedTier) === String(tr.id)
+					const color = tr.color
+					const activeStyle =
+						isSelected && color
+							? {
+									backgroundColor: color,
+									color: getContrastTextColor(color),
+								}
+							: undefined
+
 					return (
 						<button
-							key={t.id}
+							key={tr.id}
 							type='button'
-							onClick={() => setSelectedTier(t.id)}
+							onClick={() => handleSelectTier(tr.id)}
 							class={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
 								isSelected
-									? 'bg-primary text-primary-content shadow-xs'
+									? color
+										? 'shadow-xs'
+										: 'bg-primary text-primary-content shadow-xs'
 									: 'bg-base-200 text-base-content/70 hover:text-base-content'
 							}`}
+							style={activeStyle}
+							title={tr.summary || tr.title}
 							aria-pressed={isSelected}
-							aria-label={`Filter strategies by ${t.label}`}
+							aria-label={`Filter strategies by ${tr.label}`}
 						>
-							<span>{t.label}</span>
+							<span>{tr.label}</span>
 							<span class='text-[10px] opacity-70 hidden sm:inline'>
-								({t.desc})
+								({tr.title})
 							</span>
 						</button>
 					)
@@ -149,13 +234,19 @@ export function StrategiesView() {
 			{/* Strategies List */}
 			<div class='flex flex-col gap-3.5'>
 				{visibleStrategies.map((s) => {
-					const isOpened = openedStrategyIds.has(s.id)
-					const tierColor =
-						s.tier === 1
-							? 'badge-primary'
-							: s.tier === 2
-								? 'badge-secondary'
-								: 'badge-accent'
+					const isOpened =
+						openedStrategyIds.has(s.id) || activeStrategyId.value === s.id
+					const tierCfg = tierList.find(
+						(tr) => String(tr.id) === String(s.tier),
+					)
+					const tierLabel = tierCfg?.name || `Tier ${s.tier}`
+					const tierColor = tierCfg?.color
+					const badgeStyle = tierColor
+						? {
+								backgroundColor: tierColor,
+								color: getContrastTextColor(tierColor),
+							}
+						: undefined
 
 					return (
 						<div
@@ -171,9 +262,16 @@ export function StrategiesView() {
 								<div class='flex items-center gap-2 flex-wrap'>
 									{/* Tier Badge: xs */}
 									<span
-										class={`badge badge-xs ${tierColor} font-bold text-[10px] uppercase tracking-wider px-1.5 py-0.5`}
+										class={`badge badge-xs font-bold text-[10px] uppercase tracking-wider px-1.5 py-0.5 shadow-2xs ${
+											!tierColor ? 'badge-primary text-primary-content' : ''
+										}`}
+										style={badgeStyle}
+										title={
+											tierCfg ? `${tierCfg.name}: ${tierCfg.title}` : undefined
+										}
+										data-testid='strategy-tier-badge'
 									>
-										Tier {s.tier}
+										{tierLabel}
 									</span>
 
 									{/* Strategy ID: Click to copy without "#" */}

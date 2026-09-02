@@ -316,3 +316,53 @@ tags = ["database"]
 	}
 }
 
+func TestStrategyCustomTierValidation(t *testing.T) {
+	wsDir := t.TempDir()
+	jokDir := filepath.Join(wsDir, ".jokateko")
+	_ = os.MkdirAll(jokDir, 0755)
+
+	tasksDir := filepath.Join(jokDir, "tasks")
+	_ = os.MkdirAll(tasksDir, 0755)
+	msDir := filepath.Join(jokDir, "milestones")
+	_ = os.MkdirAll(msDir, 0755)
+	stratDir := filepath.Join(jokDir, "strategies")
+	_ = os.MkdirAll(stratDir, 0755)
+
+	// Valid strategy with tier 1
+	validStrat := filepath.Join(stratDir, "core.md")
+	_ = os.WriteFile(validStrat, []byte(`+++
+title = "Core Guidelines"
+tier = 1
+summary = "Core rules"
+tags = []
++++
+`), 0644)
+
+	// Invalid strategy with tier 99
+	invalidStrat := filepath.Join(stratDir, "invalid.md")
+	_ = os.WriteFile(invalidStrat, []byte(`+++
+title = "Invalid Tier Guidelines"
+tier = 99
+summary = "Invalid rules"
+tags = []
++++
+`), 0644)
+
+	res, err := validator.ValidateWorkspace(wsDir)
+	if err != nil {
+		t.Fatalf("ValidateWorkspace failed: %v", err)
+	}
+
+	foundSTR003 := false
+	for _, d := range res.Diagnostics {
+		if d.RuleID == "STR-003" {
+			foundSTR003 = true
+			break
+		}
+	}
+	if !foundSTR003 {
+		t.Error("expected STR-003 invalid tier diagnostic")
+	}
+}
+
+

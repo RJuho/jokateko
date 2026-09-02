@@ -4,7 +4,7 @@ export const PrioritySchema = v.string()
 
 export const MilestoneStatusSchema = v.picklist(['open', 'closed'])
 
-export const TierSchema = v.picklist([1, 2, 3])
+export const TierSchema = v.union([v.number(), v.string()])
 
 export const ColumnSchema = v.object({
 	id: v.string(),
@@ -92,12 +92,21 @@ export const PriorityConfigSchema = v.object({
 	color: v.optional(v.string(), ''),
 })
 
+export const TierConfigSchema = v.object({
+	id: v.string(),
+	name: v.string(),
+	title: v.string(),
+	summary: v.string(),
+	color: v.optional(v.string(), ''),
+})
+
 export const TranslationsConfigSchema = v.record(v.string(), v.string())
 
 export const SnapshotConfigSchema = v.object({
 	project: ProjectConfigSchema,
 	board: BoardConfigSchema,
 	priorities: v.optional(v.array(PriorityConfigSchema)),
+	tiers: v.optional(v.array(TierConfigSchema)),
 	tags: v.optional(TagsConfigSchema),
 	build: v.optional(BuildConfigSchema),
 	translations: v.optional(TranslationsConfigSchema),
@@ -127,6 +136,7 @@ export const BoardStateSchema = v.object({
 // Automatically inferred TypeScript types (Single source of truth)
 export type Priority = v.InferOutput<typeof PrioritySchema>
 export type PriorityConfig = v.InferOutput<typeof PriorityConfigSchema>
+export type TierConfig = v.InferOutput<typeof TierConfigSchema>
 export type MilestoneStatus = v.InferOutput<typeof MilestoneStatusSchema>
 export type Tier = v.InferOutput<typeof TierSchema>
 export type Column = v.InferOutput<typeof ColumnSchema>

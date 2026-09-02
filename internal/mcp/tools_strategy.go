@@ -43,7 +43,7 @@ func (s *Server) registerStrategyTools() {
 	// 1. list_strategies
 	mcp.AddTool(s.mcpServer, &mcp.Tool{
 		Name:        "list_strategies",
-		Description: "Returns high-level summaries and tiers of architectural guidelines for progressive disclosure.",
+		Description: "Returns high-level summaries and tiers of architectural guidelines for progressive disclosure. See jokateko://strategies/tiers for tier specifications.",
 	}, s.toolListStrategies)
 
 	// 2. get_strategy

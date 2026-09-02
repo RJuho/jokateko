@@ -561,4 +561,116 @@ func TestValidatePriorities(t *testing.T) {
 	})
 }
 
+func TestLoadCustomStrategyTiers(t *testing.T) {
+	tempDir := t.TempDir()
+	jokatekoDir := filepath.Join(tempDir, ".jokateko")
+	if err := os.MkdirAll(jokatekoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	tomlContent := `
+[[strategies.tiers]]
+id = "core"
+name = "Core"
+title = "Critical Invariants"
+summary = "Zero CGO and markdown tasks-as-code"
+color = "#3b82f6"
+
+[[strategies.tiers]]
+id = "patterns"
+name = "Patterns"
+title = "Architecture Patterns"
+summary = "Progressive disclosure domain patterns"
+color = "#a855f7"
+`
+
+	if err := os.WriteFile(filepath.Join(jokatekoDir, "config.toml"), []byte(tomlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := config.Load(tempDir)
+	if err != nil {
+		t.Fatalf("failed to load config with custom strategy tiers: %v", err)
+	}
+
+	if len(cfg.Strategies.Tiers) != 2 {
+		t.Fatalf("expected 2 custom tiers, got %d", len(cfg.Strategies.Tiers))
+	}
+	if cfg.Strategies.Tiers[0].ID != "core" || cfg.Strategies.Tiers[0].Title != "Critical Invariants" {
+		t.Errorf("unexpected tier 0: %+v", cfg.Strategies.Tiers[0])
+	}
+	if !cfg.HasTier("core") || !cfg.HasTier("patterns") {
+		t.Error("expected custom tiers 'core' and 'patterns' to exist")
+	}
+	if cfg.HasTier("1") {
+		t.Error("expected default tier '1' to be replaced")
+	}
+	tr, ok := cfg.GetTier("core")
+	if !ok || tr.Name != "Core" {
+		t.Errorf("GetTier('core') failed: %+v", tr)
+	}
+}
+
+func TestLoadTopLevelTiersAlias(t *testing.T) {
+	tempDir := t.TempDir()
+	jokatekoDir := filepath.Join(tempDir, ".jokateko")
+	if err := os.MkdirAll(jokatekoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	tomlContent := `
+[[tiers]]
+id = "t1"
+name = "Tier 1"
+title = "Base"
+summary = "Base rules"
+color = "#10b981"
+`
+
+	if err := os.WriteFile(filepath.Join(jokatekoDir, "config.toml"), []byte(tomlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := config.Load(tempDir)
+	if err != nil {
+		t.Fatalf("failed to load config with [[tiers]] alias: %v", err)
+	}
+
+	if len(cfg.Strategies.Tiers) != 1 || cfg.Strategies.Tiers[0].ID != "t1" {
+		t.Fatalf("expected 1 tier with ID 't1', got %+v", cfg.Strategies.Tiers)
+	}
+}
+
+func TestValidateStrategyTiers(t *testing.T) {
+	root := t.TempDir()
+
+	t.Run("Empty strategy tiers list error", func(t *testing.T) {
+		cfg := config.Default(root)
+		cfg.Strategies.Tiers = nil
+		err := config.Validate(cfg, root)
+		if err == nil || !strings.Contains(err.Error(), "CFG-008") {
+			t.Errorf("expected CFG-008 error for empty strategy tiers, got: %v", err)
+		}
+	})
+
+	t.Run("Duplicate tier ID error", func(t *testing.T) {
+		cfg := config.Default(root)
+		cfg.Strategies.Tiers = append(cfg.Strategies.Tiers, model.TierConfig{ID: "1", Name: "Duplicate Tier 1"})
+		err := config.Validate(cfg, root)
+		if err == nil || !strings.Contains(err.Error(), "CFG-009") {
+			t.Errorf("expected CFG-009 error for duplicate tier ID, got: %v", err)
+		}
+	})
+
+	t.Run("Invalid tier hex color error", func(t *testing.T) {
+		cfg := config.Default(root)
+		cfg.Strategies.Tiers[0].Color = "invalid-hex"
+		err := config.Validate(cfg, root)
+		if err == nil || !strings.Contains(err.Error(), "invalid color hex") {
+			t.Errorf("expected invalid color hex error, got: %v", err)
+		}
+	})
+}
+
+
 

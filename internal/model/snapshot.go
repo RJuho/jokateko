@@ -5,6 +5,7 @@ type SnapshotConfig struct {
 	Project      ProjectConfig      `json:"project"`
 	Board        BoardConfig        `json:"board"`
 	Priorities   []PriorityConfig   `json:"priorities,omitzero"`
+	Tiers        []TierConfig       `json:"tiers,omitzero"`
 	Tags         TagsConfig         `json:"tags,omitzero"`
 	Build        BuildConfig        `json:"build,omitzero"`
 	Translations TranslationsConfig `json:"translations,omitzero"`
@@ -15,6 +16,15 @@ type PriorityConfig struct {
 	ID    string `json:"id" toml:"id"`
 	Name  string `json:"name" toml:"name"`
 	Color string `json:"color,omitempty" toml:"color"`
+}
+
+// TierConfig specifies an architectural strategy tier level definition.
+type TierConfig struct {
+	ID      string `json:"id" toml:"id"`
+	Name    string `json:"name" toml:"name"`
+	Title   string `json:"title" toml:"title"`
+	Summary string `json:"summary" toml:"summary"`
+	Color   string `json:"color,omitempty" toml:"color"`
 }
 
 // TranslationsConfig represents customizable user-facing UI labels and aria attributes.

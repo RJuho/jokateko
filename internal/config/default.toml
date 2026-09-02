@@ -28,10 +28,10 @@ port = 8080
 open_browser = false
 
 [server.security]
-cors_enabled = false
+cors_enabled = true
 cors_allowed_origins = [
-  "http://localhost:3000",
-  "http://127.0.0.1:3000"
+  "http://localhost:8080",
+  "http://127.0.0.1:8080"
 ]
 
 [server.security.csp]
@@ -93,6 +93,35 @@ color = "#eab308"
 id = "low"
 name = "Low"
 color = "#3b82f6"
+
+# ------------------------------------------------------------------------------
+# Architectural Strategy Tiers (Progressive Disclosure)
+# ------------------------------------------------------------------------------
+# Jokateko uses a tiered architecture system to structure rules and guidelines.
+# AI agents access these tiers progressively over MCP so token limits are not
+# exhausted. Tier 1 represents critical, non-negotiable invariants, while deeper
+# tiers provide domain patterns and implementation specifications.
+# ------------------------------------------------------------------------------
+[[strategies.tiers]]
+id = "1"
+name = "Tier 1"
+title = "Core Architecture & Tech Stack"
+summary = "System-wide non-negotiables: tech stack limits, project structure, and absolute constraints."
+color = "#ef4444"
+
+[[strategies.tiers]]
+id = "2"
+name = "Tier 2"
+title = "Domain Logic & Data Flow"
+summary = "Rules for API design, database interactions, authentication, and state management."
+color = "#3b82f6"
+
+[[strategies.tiers]]
+id = "3"
+name = "Tier 3"
+title = "Code Conventions & UI Standards"
+summary = "Implementation details: naming conventions, testing requirements, UI styling, and accessibility."
+color = "#10b981"
 
 # ------------------------------------------------------------------------------
 # Controlled Tag Vocabulary

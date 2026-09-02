@@ -19,9 +19,15 @@ type Config struct {
 	Server       ServerConfig             `toml:"server"`
 	Board        BoardConfig              `toml:"board"`
 	Priorities   []model.PriorityConfig   `toml:"priorities"`
+	Strategies   StrategiesConfig         `toml:"strategies"`
 	Tags         TagsConfig               `toml:"tags"`
 	MCP          MCPConfig                `toml:"mcp"`
 	Translations model.TranslationsConfig `toml:"translations"`
+}
+
+// StrategiesConfig specifies configuration for architectural guidelines and progressive disclosure tiers.
+type StrategiesConfig struct {
+	Tiers []model.TierConfig `toml:"tiers" json:"tiers"`
 }
 
 // ProjectConfig specifies project-level descriptive metadata.

@@ -4,6 +4,7 @@ import {
 	columnTasks,
 	config,
 	configuredPriorities,
+	configuredTiers,
 	filteredTasks,
 	initFromSnapshot,
 	mode,
@@ -266,5 +267,36 @@ describe('Preact Signals State Store', () => {
 			{ id: 'p0', name: 'P0 - Blocker', color: '#ff0000' },
 			{ id: 'p1', name: 'P1 - High', color: '#ff8800' },
 		])
+	})
+
+	it('computes configuredTiers from config or falls back to default', () => {
+		config.value = {
+			...config.value,
+			tiers: undefined,
+		}
+		expect(configuredTiers.value.map((t) => t.id)).toEqual(['1', '2', '3'])
+		expect(configuredTiers.value[0].name).toBe('Tier 1')
+
+		config.value = {
+			...config.value,
+			tiers: [
+				{
+					id: 'core',
+					name: 'Core',
+					title: 'Invariants',
+					summary: 'Zero-CGO rules',
+					color: '#3b82f6',
+				},
+				{
+					id: 'extended',
+					name: 'Extended',
+					title: 'Details',
+					summary: 'Implementation rules',
+					color: '#10b981',
+				},
+			],
+		}
+		expect(configuredTiers.value.map((t) => t.id)).toEqual(['core', 'extended'])
+		expect(configuredTiers.value[0].title).toBe('Invariants')
 	})
 })

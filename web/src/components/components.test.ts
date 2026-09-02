@@ -3,6 +3,7 @@ import * as v from 'valibot'
 import { sampleSnapshot } from '../fixtures/sampleData'
 import { SnapshotSchema } from '../schemas/models'
 import {
+	activeStrategyId,
 	columnTasks,
 	config,
 	filteredTasks,
@@ -93,5 +94,14 @@ describe('Sample Data & Component Logic Verification', () => {
 		expect(
 			filteredTasks.value.every((t) => t.milestone === 'm1-mvp-release'),
 		).toBe(true)
+	})
+
+	it('locates URL targeted strategy accurately in sample data', () => {
+		initFromSnapshot(sampleSnapshot)
+		activeStrategyId.value = 'strat-mobile-first-layout'
+		const target = strategies.value.find((s) => s.id === activeStrategyId.value)
+		expect(target).toBeDefined()
+		expect(target?.tier).toBe(2)
+		expect(target?.title).toContain('Mobile-First')
 	})
 })

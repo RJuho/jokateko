@@ -141,4 +141,47 @@ describe('Valibot Models', () => {
 			expect(result.output.columns[0].tasks[0].priority).toBe('low')
 		}
 	})
+
+	it('validates custom strategy tiers in snapshot', () => {
+		const snapshotWithTiers: SnapshotInput = {
+			config: {
+				project: { name: 'Tier Project', description: '' },
+				board: { columns: [{ id: 'col1', name: 'Col 1', color: '#000' }] },
+				tiers: [
+					{
+						id: '1',
+						name: 'Tier 1',
+						title: 'Core Invariants',
+						summary: 'Zero CGO invariants',
+						color: '#3b82f6',
+					},
+					{
+						id: 'domain',
+						name: 'Domain',
+						title: 'Domain Patterns',
+						summary: 'Architectural domain patterns',
+						color: '#a855f7',
+					},
+				],
+			},
+			tasks: [],
+			milestones: [],
+			strategies: [
+				{
+					id: 'core-rule',
+					title: 'Core Rule',
+					tier: 'domain',
+					summary: 'Rule summary',
+				},
+			],
+			glossary: [],
+		}
+
+		const result = v.safeParse(SnapshotSchema, snapshotWithTiers)
+		expect(result.success).toBe(true)
+		if (result.success) {
+			expect(result.output.config.tiers?.length).toBe(2)
+			expect(result.output.strategies[0].tier).toBe('domain')
+		}
+	})
 })

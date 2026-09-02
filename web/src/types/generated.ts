@@ -121,6 +121,7 @@ export interface SnapshotConfig {
   project: ProjectConfig;
   board: BoardConfig;
   priorities?: PriorityConfig[];
+  tiers?: TierConfig[];
   tags?: TagsConfig;
   build?: BuildConfig;
   translations?: TranslationsConfig;
@@ -185,6 +186,14 @@ export interface TaskFrontmatter {
   tags: string[];
   summary: string;
   dependencies?: string[];
+}
+
+export interface TierConfig {
+  id: string;
+  name: string;
+  title: string;
+  summary: string;
+  color?: string;
 }
 
 export interface TranslationsConfig {
