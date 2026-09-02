@@ -20,7 +20,7 @@ tasks = ".jokateko/tasks"
 milestones = ".jokateko/milestones"
 strategies = ".jokateko/strategies"
 glossary = ".jokateko/glossary"
-export = "dist-kanban"
+export = "dist-kanban/index.html"
 
 [server]
 host = "127.0.0.1"

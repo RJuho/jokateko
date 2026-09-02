@@ -44,6 +44,9 @@ func cmdBuild(args []string, stdout, stderr io.Writer) int {
 			outPath = "dist-kanban/index.html"
 		}
 	}
+	if filepath.Ext(outPath) == "" {
+		outPath = filepath.Join(outPath, "index.html")
+	}
 	if !filepath.IsAbs(outPath) {
 		outPath = filepath.Join(workspaceDir, outPath)
 	}

@@ -1,5 +1,9 @@
 {
 	"mcpServers": {
+		"Jokateko": {
+			"command": "jokateko",
+			"args": ["mcp"]
+		},
 		"Playwright": {
 			"command": "bunx",
 			"args": ["@playwright/mcp@latest", "--headless", "--browser=chromium"]

@@ -593,7 +593,7 @@ flowchart TD
     - Inject slightly malformed JSON snapshot
     - Verify `data-testid="validation-error-banner"` displays warnings gracefully without crashing board
 
-- [ ] **11.3 Project Dogfooding**
+- [x] **11.3 Project Dogfooding**
   - Run `jokateko init` on a clean repository
   - Run `jokateko parse` to verify 0 errors
   - Connect AI agent via MCP (`jokateko mcp`)

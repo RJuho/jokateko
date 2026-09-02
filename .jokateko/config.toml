@@ -1,0 +1,40 @@
+version = "0"
+
+[project]
+name = "Jokateko"
+description = "Local, Markdown-driven Kanban and task management"
+
+[server]
+host = "0.0.0.0"
+port = 3000
+open_browser = false
+
+[board]
+[[board.columns]]
+id = "backlog"
+name = "Backlog"
+color = "#64748b"
+
+[[board.columns]]
+id = "ready"
+name = "Ready"
+color = "#3b82f6"
+
+[[board.columns]]
+id = "in_progress"
+name = "In Progress"
+color = "#f59e0b"
+
+[[board.columns]]
+id = "in_review"
+name = "In Review"
+color = "#8b5cf6"
+
+[[board.columns]]
+id = "done"
+name = "Done"
+color = "#10b981"
+
+[tags]
+enforce_allowed = false
+allowed = ["backend", "frontend", "api", "docs", "bug", "feature"]
