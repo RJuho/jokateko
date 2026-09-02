@@ -299,6 +299,11 @@ export function Header() {
 		} else if (item.type === 'glossary') {
 			navigateTo(`glossary/${item.id}`)
 		} else if (item.type === 'milestone') {
+			setSearchQuery('')
+			if (searchInputRef.current) {
+				searchInputRef.current.value = ''
+				searchInputRef.current.blur()
+			}
 			navigateTo(`milestone/${item.id}`)
 		}
 		setIsSearchDropdownOpen(false)

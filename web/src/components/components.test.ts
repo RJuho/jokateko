@@ -78,4 +78,20 @@ describe('Sample Data & Component Logic Verification', () => {
 		expect(formatBrowserDateTime('')).toBe('')
 		expect(formatBrowserDateTime(null)).toBe('')
 	})
+
+	it('clearing search query when milestone is selected shows all milestone tasks', () => {
+		initFromSnapshot(sampleSnapshot)
+
+		// Suppose user searched for a milestone name e.g. "Release" which doesn't match task titles
+		setSearchQuery('Release')
+		setMilestoneFilter('m1-mvp-release')
+		expect(filteredTasks.value.length).toBe(0)
+
+		// Clearing search query (as done when selecting milestone from search)
+		setSearchQuery('')
+		expect(filteredTasks.value.length).toBe(2)
+		expect(
+			filteredTasks.value.every((t) => t.milestone === 'm1-mvp-release'),
+		).toBe(true)
+	})
 })
