@@ -52,6 +52,7 @@ type Task struct {
 	Summary           string    `json:"summary"`
 	Dependencies      []string  `json:"dependencies"`
 	Body              string    `json:"body,omitempty"`
+	BodyHTML          string    `json:"body_html,omitempty"`
 	TotalCriteria     int       `json:"total_criteria,omitzero"`
 	CompletedCriteria int       `json:"completed_criteria,omitzero"`
 	FilePath          string    `json:"file_path,omitempty"`

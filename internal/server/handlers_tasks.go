@@ -142,6 +142,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	total, completed, _ := parser.ExtractAcceptanceCriteria([]byte(req.Body))
+	bodyHTML, _ := parser.RenderHTML([]byte(req.Body))
 	task := model.Task{
 		ID:                id,
 		Title:             title,
@@ -152,6 +153,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		Summary:           summary,
 		Dependencies:      deps,
 		Body:              req.Body,
+		BodyHTML:          bodyHTML,
 		TotalCriteria:     total,
 		CompletedCriteria: completed,
 		FilePath:          filePath,
@@ -260,6 +262,8 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	existing.TotalCriteria = total
 	existing.CompletedCriteria = completed
 	existing.ModTime = time.Now()
+	bodyHTML, _ := parser.RenderHTML([]byte(existing.Body))
+	existing.BodyHTML = bodyHTML
 
 	if err := s.store.UpsertTask(r.Context(), existing); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update task in store: "+err.Error())

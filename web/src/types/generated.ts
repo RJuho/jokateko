@@ -57,6 +57,7 @@ export interface GlossaryTerm {
   tags: string[];
   summary: string;
   body?: string;
+  body_html?: string;
   file_path?: string;
   mod_time?: string;
 }
@@ -70,6 +71,7 @@ export interface Milestone {
   tags: string[];
   summary: string;
   body?: string;
+  body_html?: string;
   total_tasks: number;
   completed_tasks: number;
   progress_percentage: number;
@@ -134,6 +136,7 @@ export interface Strategy {
   tags: string[];
   summary: string;
   body?: string;
+  body_html?: string;
   file_path?: string;
   mod_time?: string;
 }
@@ -172,6 +175,7 @@ export interface Task {
   summary: string;
   dependencies: string[];
   body?: string;
+  body_html?: string;
   total_criteria?: number;
   completed_criteria?: number;
   file_path?: string;

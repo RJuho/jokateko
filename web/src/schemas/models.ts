@@ -22,6 +22,7 @@ export const TaskSchema = v.object({
 	summary: v.optional(v.string(), ''),
 	dependencies: v.optional(v.array(v.string()), []),
 	body: v.optional(v.string(), ''),
+	body_html: v.optional(v.string(), ''),
 	total_criteria: v.optional(v.number(), 0),
 	completed_criteria: v.optional(v.number(), 0),
 	file_path: v.optional(v.string()),
@@ -37,6 +38,7 @@ export const MilestoneSchema = v.object({
 	tags: v.optional(v.array(v.string()), []),
 	summary: v.optional(v.string(), ''),
 	body: v.optional(v.string(), ''),
+	body_html: v.optional(v.string(), ''),
 	total_tasks: v.optional(v.number(), 0),
 	completed_tasks: v.optional(v.number(), 0),
 	progress_percentage: v.optional(v.number(), 0),
@@ -51,6 +53,7 @@ export const StrategySchema = v.object({
 	tags: v.optional(v.array(v.string()), []),
 	summary: v.optional(v.string(), ''),
 	body: v.optional(v.string(), ''),
+	body_html: v.optional(v.string(), ''),
 	file_path: v.optional(v.string()),
 	mod_time: v.optional(v.string()),
 })
@@ -61,6 +64,7 @@ export const GlossaryTermSchema = v.object({
 	tags: v.optional(v.array(v.string()), []),
 	summary: v.optional(v.string(), ''),
 	body: v.optional(v.string(), ''),
+	body_html: v.optional(v.string(), ''),
 	file_path: v.optional(v.string()),
 	mod_time: v.optional(v.string()),
 })

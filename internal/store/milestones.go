@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/RJuho/jokateko/internal/model"
+	"github.com/RJuho/jokateko/internal/parser"
 )
 
 // UpsertMilestone inserts or updates a milestone, its tags, and its FTS index.
@@ -126,6 +127,11 @@ func (s *Store) GetMilestone(ctx context.Context, id string) (model.Milestone, e
 		}
 	}
 
+	var bodyHTML string
+	if row.Body != "" {
+		bodyHTML, _ = parser.RenderHTML([]byte(row.Body))
+	}
+
 	return model.Milestone{
 		ID:                 row.ID,
 		Title:              row.Title,
@@ -135,6 +141,7 @@ func (s *Store) GetMilestone(ctx context.Context, id string) (model.Milestone, e
 		Tags:               tags,
 		Summary:            row.Summary,
 		Body:               row.Body,
+		BodyHTML:           bodyHTML,
 		TotalTasks:         total,
 		CompletedTasks:     completed,
 		ProgressPercentage: progressPct,
@@ -208,6 +215,11 @@ func (s *Store) ListMilestones(ctx context.Context) ([]model.Milestone, error) {
 			}
 		}
 
+		var bodyHTML string
+		if row.Body != "" {
+			bodyHTML, _ = parser.RenderHTML([]byte(row.Body))
+		}
+
 		milestones = append(milestones, model.Milestone{
 			ID:                 row.ID,
 			Title:              row.Title,
@@ -217,6 +229,7 @@ func (s *Store) ListMilestones(ctx context.Context) ([]model.Milestone, error) {
 			Tags:               tags,
 			Summary:            row.Summary,
 			Body:               row.Body,
+			BodyHTML:           bodyHTML,
 			TotalTasks:         total,
 			CompletedTasks:     completed,
 			ProgressPercentage: progressPct,

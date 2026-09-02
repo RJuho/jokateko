@@ -5,3 +5,18 @@
 		sunset --default,
 		winter;
 }
+
+/* Goldmark task list & checkbox styling in prose */
+.prose ul.task-list,
+.prose ul:has(input[type="checkbox"]) {
+	list-style-type: none;
+	padding-left: 0;
+}
+
+.prose li.task-list-item,
+.prose li:has(input[type="checkbox"]) {
+	list-style-type: none;
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/RJuho/jokateko/internal/model"
+	"github.com/RJuho/jokateko/internal/parser"
 )
 
 // UpsertStrategy inserts or updates an architectural strategy, its tags, and FTS index.
@@ -106,6 +107,11 @@ func (s *Store) GetStrategy(ctx context.Context, id string) (model.Strategy, err
 		modTime = time.Unix(row.Mtime, 0)
 	}
 
+	var bodyHTML string
+	if row.Body != "" {
+		bodyHTML, _ = parser.RenderHTML([]byte(row.Body))
+	}
+
 	return model.Strategy{
 		ID:       row.ID,
 		Title:    row.Title,
@@ -113,6 +119,7 @@ func (s *Store) GetStrategy(ctx context.Context, id string) (model.Strategy, err
 		Tags:     tags,
 		Summary:  row.Summary,
 		Body:     row.Body,
+		BodyHTML: bodyHTML,
 		FilePath: row.Filepath,
 		ModTime:  modTime,
 	}, nil
@@ -175,6 +182,11 @@ func (s *Store) ListStrategies(ctx context.Context, tier ...model.Tier) ([]model
 			modTime = time.Unix(row.Mtime, 0)
 		}
 
+		var bodyHTML string
+		if row.Body != "" {
+			bodyHTML, _ = parser.RenderHTML([]byte(row.Body))
+		}
+
 		strategies = append(strategies, model.Strategy{
 			ID:       row.ID,
 			Title:    row.Title,
@@ -182,6 +194,7 @@ func (s *Store) ListStrategies(ctx context.Context, tier ...model.Tier) ([]model
 			Tags:     tags,
 			Summary:  row.Summary,
 			Body:     row.Body,
+			BodyHTML: bodyHTML,
 			FilePath: row.Filepath,
 			ModTime:  modTime,
 		})

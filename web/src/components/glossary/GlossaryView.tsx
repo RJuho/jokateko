@@ -94,9 +94,10 @@ export function GlossaryView() {
 				{visibleTerms.map((term) => {
 					const isOpened = openedTermIds.has(term.id)
 					const hasBody =
-						Boolean(term.body)
-						&& term.body.trim() !== ''
-						&& term.body !== term.summary
+						(Boolean(term.body_html) && term.body_html.trim() !== '')
+						|| (Boolean(term.body)
+							&& term.body.trim() !== ''
+							&& term.body !== term.summary)
 
 					return (
 						<div
@@ -198,47 +199,16 @@ export function GlossaryView() {
 							{isOpened && hasBody && (
 								<div class='pt-0.5'>
 									<hr class='border-base-200 my-1.5' />
-									<div class='text-xs text-base-content/85 space-y-2 font-sans'>
-										{term.body.split('\n').map((line, idx) => {
-											const trimmed = line.trim()
-											if (!trimmed) {
-												return <div key={`empty-${idx}`} class='h-1' />
-											}
-											if (trimmed.startsWith('#')) {
-												const headingText = trimmed.replace(/^#+\s*/, '')
-												return (
-													<h4
-														key={`h-${idx}`}
-														class='font-bold text-xs sm:text-sm text-base-content pt-1'
-													>
-														{headingText}
-													</h4>
-												)
-											}
-											if (
-												trimmed.startsWith('- ')
-												|| trimmed.startsWith('* ')
-											) {
-												return (
-													<div
-														key={`li-${idx}`}
-														class='flex items-start gap-2 pl-2'
-													>
-														<span class='text-primary font-bold'>•</span>
-														<span>{trimmed.slice(2)}</span>
-													</div>
-												)
-											}
-											return (
-												<p
-													key={`p-${idx}`}
-													class='leading-relaxed whitespace-pre-wrap'
-												>
-													{line}
-												</p>
-											)
-										})}
-									</div>
+									{term.body_html ? (
+										<div
+											class='prose prose-sm max-w-none text-base-content/90 prose-headings:text-base-content prose-headings:font-bold prose-p:text-base-content/85 prose-strong:text-base-content prose-code:text-primary prose-code:bg-base-200/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-base-200 prose-pre:text-base-content'
+											dangerouslySetInnerHTML={{ __html: term.body_html }}
+										/>
+									) : (
+										<div class='prose prose-sm max-w-none text-base-content/90 prose-p:text-base-content/85'>
+											<p class='whitespace-pre-wrap'>{term.body}</p>
+										</div>
+									)}
 								</div>
 							)}
 

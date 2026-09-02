@@ -373,53 +373,23 @@ export function StrategiesView() {
 								)}
 							</button>
 
-							{/* Expandable Body: Opens below summary with line divider, formatted like in Task modal */}
-							{isOpened && s.body && s.body.trim() !== '' && (
-								<div class='pt-1'>
-									<hr class='border-base-200 my-1.5' />
-									<div class='text-xs sm:text-sm text-base-content/85 space-y-2 font-sans'>
-										{s.body.split('\n').map((line, idx) => {
-											const trimmed = line.trim()
-											if (!trimmed) {
-												return <div key={`empty-${idx}`} class='h-1' />
-											}
-											if (trimmed.startsWith('#')) {
-												const headingText = trimmed.replace(/^#+\s*/, '')
-												return (
-													<h4
-														key={`h-${idx}`}
-														class='font-bold text-sm sm:text-base text-base-content pt-2'
-													>
-														{headingText}
-													</h4>
-												)
-											}
-											if (
-												trimmed.startsWith('- ')
-												|| trimmed.startsWith('* ')
-											) {
-												return (
-													<div
-														key={`li-${idx}`}
-														class='flex items-start gap-2 pl-2'
-													>
-														<span class='text-primary font-bold'>•</span>
-														<span>{trimmed.slice(2)}</span>
-													</div>
-												)
-											}
-											return (
-												<p
-													key={`p-${idx}`}
-													class='leading-relaxed whitespace-pre-wrap'
-												>
-													{line}
-												</p>
-											)
-										})}
+							{/* Expandable Body: Opens below summary with line divider */}
+							{isOpened
+								&& (s.body_html || (s.body && s.body.trim() !== '')) && (
+									<div class='pt-1'>
+										<hr class='border-base-200 my-1.5' />
+										{s.body_html ? (
+											<div
+												class='prose prose-sm max-w-none text-base-content/90 prose-headings:text-base-content prose-headings:font-bold prose-p:text-base-content/85 prose-strong:text-base-content prose-code:text-primary prose-code:bg-base-200/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-base-200 prose-pre:text-base-content'
+												dangerouslySetInnerHTML={{ __html: s.body_html }}
+											/>
+										) : (
+											<div class='prose prose-sm max-w-none text-base-content/90 prose-p:text-base-content/85'>
+												<p class='whitespace-pre-wrap'>{s.body}</p>
+											</div>
+										)}
 									</div>
-								</div>
-							)}
+								)}
 						</div>
 					)
 				})}

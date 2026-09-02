@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/RJuho/jokateko/internal/model"
+	"github.com/RJuho/jokateko/internal/parser"
 )
 
 // UpsertGlossaryTerm inserts or updates a glossary definition, its tags, and FTS index.
@@ -100,12 +101,18 @@ func (s *Store) GetGlossaryTerm(ctx context.Context, id string) (model.GlossaryT
 		modTime = time.Unix(row.Mtime, 0)
 	}
 
+	var bodyHTML string
+	if row.Body != "" {
+		bodyHTML, _ = parser.RenderHTML([]byte(row.Body))
+	}
+
 	return model.GlossaryTerm{
 		ID:       row.ID,
 		Title:    row.Title,
 		Tags:     tags,
 		Summary:  row.Summary,
 		Body:     row.Body,
+		BodyHTML: bodyHTML,
 		FilePath: row.Filepath,
 		ModTime:  modTime,
 	}, nil
@@ -158,12 +165,18 @@ func (s *Store) ListGlossaryTerms(ctx context.Context) ([]model.GlossaryTerm, er
 			modTime = time.Unix(row.Mtime, 0)
 		}
 
+		var bodyHTML string
+		if row.Body != "" {
+			bodyHTML, _ = parser.RenderHTML([]byte(row.Body))
+		}
+
 		terms = append(terms, model.GlossaryTerm{
 			ID:       row.ID,
 			Title:    row.Title,
 			Tags:     tags,
 			Summary:  row.Summary,
 			Body:     row.Body,
+			BodyHTML: bodyHTML,
 			FilePath: row.Filepath,
 			ModTime:  modTime,
 		})

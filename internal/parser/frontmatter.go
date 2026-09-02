@@ -141,6 +141,9 @@ func ParseTask(content []byte, id string) (*model.Task, error) {
 		deps = []string{}
 	}
 
+	bodyStr := strings.TrimSpace(string(body))
+	bodyHTML, _ := RenderHTML([]byte(bodyStr))
+
 	return &model.Task{
 		ID:           id,
 		Title:        strings.TrimSpace(fm.Title),
@@ -150,7 +153,8 @@ func ParseTask(content []byte, id string) (*model.Task, error) {
 		Tags:         tags,
 		Summary:      strings.TrimSpace(fm.Summary),
 		Dependencies: deps,
-		Body:         strings.TrimSpace(string(body)),
+		Body:         bodyStr,
+		BodyHTML:     bodyHTML,
 	}, nil
 }
 
@@ -179,6 +183,9 @@ func ParseMilestone(content []byte, id string) (*model.Milestone, error) {
 		tags = []string{}
 	}
 
+	bodyStr := strings.TrimSpace(string(body))
+	bodyHTML, _ := RenderHTML([]byte(bodyStr))
+
 	return &model.Milestone{
 		ID:         id,
 		Title:      strings.TrimSpace(fm.Title),
@@ -186,7 +193,8 @@ func ParseMilestone(content []byte, id string) (*model.Milestone, error) {
 		TargetDate: strings.TrimSpace(fm.TargetDate),
 		Tags:       tags,
 		Summary:    strings.TrimSpace(fm.Summary),
-		Body:       strings.TrimSpace(string(body)),
+		Body:       bodyStr,
+		BodyHTML:   bodyHTML,
 	}, nil
 }
 
@@ -213,13 +221,17 @@ func ParseStrategy(content []byte, id string) (*model.Strategy, error) {
 		tags = []string{}
 	}
 
+	bodyStr := strings.TrimSpace(string(body))
+	bodyHTML, _ := RenderHTML([]byte(bodyStr))
+
 	return &model.Strategy{
 		ID:      id,
 		Title:   strings.TrimSpace(fm.Title),
 		Tier:    fm.Tier,
 		Tags:    tags,
 		Summary: strings.TrimSpace(fm.Summary),
-		Body:    strings.TrimSpace(string(body)),
+		Body:    bodyStr,
+		BodyHTML: bodyHTML,
 	}, nil
 }
 
@@ -243,12 +255,16 @@ func ParseGlossaryTerm(content []byte, id string) (*model.GlossaryTerm, error) {
 		tags = []string{}
 	}
 
+	bodyStr := strings.TrimSpace(string(body))
+	bodyHTML, _ := RenderHTML([]byte(bodyStr))
+
 	return &model.GlossaryTerm{
 		ID:      id,
 		Title:   strings.TrimSpace(fm.Title),
 		Tags:    tags,
 		Summary: strings.TrimSpace(fm.Summary),
-		Body:    strings.TrimSpace(string(body)),
+		Body:    bodyStr,
+		BodyHTML: bodyHTML,
 	}, nil
 }
 

@@ -101,6 +101,7 @@ func (s *Server) handleCreateMilestone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	msBodyHTML, _ := parser.RenderHTML([]byte(req.Body))
 	ms := model.Milestone{
 		ID:         id,
 		Title:      title,
@@ -109,6 +110,7 @@ func (s *Server) handleCreateMilestone(w http.ResponseWriter, r *http.Request) {
 		Tags:       tags,
 		Summary:    req.Summary,
 		Body:       req.Body,
+		BodyHTML:   msBodyHTML,
 		FilePath:   filePath,
 		ModTime:    time.Now(),
 	}
@@ -232,6 +234,7 @@ func (s *Server) handleCreateStrategy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	stratBodyHTML, _ := parser.RenderHTML([]byte(req.Body))
 	strat := model.Strategy{
 		ID:       id,
 		Title:    title,
@@ -239,6 +242,7 @@ func (s *Server) handleCreateStrategy(w http.ResponseWriter, r *http.Request) {
 		Tags:     tags,
 		Summary:  req.Summary,
 		Body:     req.Body,
+		BodyHTML: stratBodyHTML,
 		FilePath: filePath,
 		ModTime:  time.Now(),
 	}
@@ -353,12 +357,14 @@ func (s *Server) handleCreateGlossaryTerm(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	termBodyHTML, _ := parser.RenderHTML([]byte(req.Body))
 	term := model.GlossaryTerm{
 		ID:       id,
 		Title:    title,
 		Tags:     tags,
 		Summary:  req.Summary,
 		Body:     req.Body,
+		BodyHTML: termBodyHTML,
 		FilePath: filePath,
 		ModTime:  time.Now(),
 	}

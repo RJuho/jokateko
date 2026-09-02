@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { navigateTo } from '../../router'
 import type { Task } from '../../schemas/models'
 import {
@@ -20,6 +20,7 @@ export function TaskDetailModal() {
 	const cols = config.value.board.columns
 	const [isDeleting, setIsDeleting] = useState(false)
 	const [idCopied, setIdCopied] = useState(false)
+	const bodyRef = useRef<HTMLDivElement>(null)
 
 	function closeModal() {
 		activeTaskDetailId.value = null
@@ -94,21 +95,29 @@ export function TaskDetailModal() {
 		}
 	}
 
-	async function toggleCheckbox(lineIndex: number, currentChecked: boolean) {
+	async function toggleCheckbox(checkboxIndex: number, newChecked: boolean) {
 		if (!task) return
+
+		let count = 0
 		const lines = (task.body || '').split('\n')
-		const line = lines[lineIndex]
-		if (!line) return
+		let lineFound = false
+		for (let i = 0; i < lines.length; i++) {
+			if (/^\s*[-*]\s+\[[ xX]\]/.test(lines[i])) {
+				count++
+				if (count === checkboxIndex) {
+					lines[i] = newChecked
+						? lines[i].replace(/\[[ ]\]/, '[x]')
+						: lines[i].replace(/\[[xX]\]/, '[ ]')
+					lineFound = true
+					break
+				}
+			}
+		}
+		if (!lineFound) return
 
-		const newLine = currentChecked
-			? line.replace(/\[[xX]\]/, '[ ]')
-			: line.replace(/\[ \]/, '[x]')
-
-		lines[lineIndex] = newLine
 		const newBody = lines.join('\n')
-
-		const total = lines.filter((l) => /^\s*-\s*\[[ xX]\]/.test(l)).length
-		const completed = lines.filter((l) => /^\s*-\s*\[[xX]\]/.test(l)).length
+		const total = lines.filter((l) => /^\s*[-*]\s+\[[ xX]\]/.test(l)).length
+		const completed = lines.filter((l) => /^\s*[-*]\s+\[[xX]\]/.test(l)).length
 
 		const updatedTask: Task = {
 			...task,
@@ -120,38 +129,49 @@ export function TaskDetailModal() {
 
 		if (isLive) {
 			try {
-				await fetch(`/api/tasks/${encodeURIComponent(task.id)}`, {
+				const res = await fetch(`/api/tasks/${encodeURIComponent(task.id)}`, {
 					method: 'PUT',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ body: newBody }),
 				})
+				if (res.ok) {
+					const serverTask = await res.json()
+					upsertTask(serverTask)
+				}
 			} catch (err) {
 				console.warn('Failed to toggle checkbox on server:', err)
 			}
 		}
 	}
 
-	// Parse body for interactive checkboxes & markdown text
-	const bodyLines = useMemo(() => {
-		return (task.body || '').split('\n').map((line, idx) => {
-			const checkboxMatch = line.match(/^(\s*-\s*\[)([ xX])(\]\s*)(.*)$/)
-			if (checkboxMatch) {
-				const isChecked = checkboxMatch[2].toLowerCase() === 'x'
-				const text = checkboxMatch[4]
-				return {
-					type: 'checkbox' as const,
-					index: idx,
-					checked: isChecked,
-					text,
+	useEffect(() => {
+		const el = bodyRef.current
+		if (!el) return
+
+		const handleClick = (e: MouseEvent) => {
+			const target = e.target as HTMLElement | null
+			if (!target) return
+			const cb = target.closest(
+				'input[type="checkbox"]',
+			) as HTMLInputElement | null
+			if (!cb) return
+
+			const idxStr = cb.getAttribute('data-checkbox-index')
+			if (!idxStr) return
+
+			const idx = parseInt(idxStr, 10)
+			if (idx > 0) {
+				if (!isLive) {
+					e.preventDefault()
+					return
 				}
+				toggleCheckbox(idx, cb.checked)
 			}
-			return {
-				type: 'text' as const,
-				index: idx,
-				text: line,
-			}
-		})
-	}, [task.body])
+		}
+
+		el.addEventListener('click', handleClick)
+		return () => el.removeEventListener('click', handleClick)
+	}, [isLive, task?.id, task?.body])
 
 	return (
 		/* Backdrop: Click outside exits modal */
@@ -267,65 +287,25 @@ export function TaskDetailModal() {
 				{/* The ONLY line in task modal: between summary and body text */}
 				<hr class='border-base-200 my-1' />
 
-				{/* Task Body Text & Interactive Checklists (starts right after summary line, no extra label) */}
-				<div class='text-sm font-sans space-y-2'>
-					{bodyLines.map((line) => {
-						if (line.type === 'checkbox') {
-							return (
-								<label
-									key={line.index}
-									class={`flex items-start gap-2.5 p-1 rounded-md transition-colors cursor-pointer ${
-										isLive ? 'hover:bg-base-200/60' : 'cursor-default'
-									}`}
-								>
-									<input
-										type='checkbox'
-										checked={line.checked}
-										disabled={!isLive}
-										onChange={() => toggleCheckbox(line.index, line.checked)}
-										class='checkbox checkbox-primary checkbox-xs mt-0.5'
-										aria-label={`Mark criterion: ${line.text}`}
-									/>
-									<span
-										class={`text-xs leading-relaxed ${
-											line.checked
-												? 'line-through text-base-content/40'
-												: 'text-base-content'
-										}`}
-									>
-										{line.text}
-									</span>
-								</label>
-							)
-						}
-
-						if (line.text.startsWith('#')) {
-							return (
-								<div
-									key={line.index}
-									class='font-bold text-sm text-base-content pt-2'
-								>
-									{line.text.replace(/^#+\s*/, '')}
-								</div>
-							)
-						}
-
-						return (
-							<p
-								key={line.index}
-								class='text-xs/relaxed whitespace-pre-wrap text-base-content/80'
-							>
-								{line.text}
-							</p>
-						)
-					})}
-
-					{(!task.body || task.body.trim() === '') && (
-						<p class='text-xs text-base-content/40 italic'>
-							No body specification provided.
-						</p>
-					)}
-				</div>
+				{/* Task Body: Rendered Markdown with @tailwindcss/typography (prose) and interactive checkboxes */}
+				{task.body_html ? (
+					<div
+						ref={bodyRef}
+						class='prose prose-sm max-w-none text-base-content/90 prose-headings:text-base-content prose-headings:font-bold prose-p:text-base-content/85 prose-strong:text-base-content prose-code:text-primary prose-code:bg-base-200/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-base-200 prose-pre:text-base-content'
+						dangerouslySetInnerHTML={{ __html: task.body_html }}
+					/>
+				) : task.body && task.body.trim() !== '' ? (
+					<div
+						ref={bodyRef}
+						class='prose prose-sm max-w-none text-base-content/90 prose-p:text-base-content/85'
+					>
+						<p class='whitespace-pre-wrap'>{task.body}</p>
+					</div>
+				) : (
+					<p class='text-xs text-base-content/40 italic'>
+						No body specification provided.
+					</p>
+				)}
 
 				{/* Dependencies (if any) */}
 				{task.dependencies && task.dependencies.length > 0 && (

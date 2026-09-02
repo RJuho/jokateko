@@ -19,6 +19,7 @@ type GlossaryTerm struct {
 	Tags     []string  `json:"tags"`
 	Summary  string    `json:"summary"`
 	Body     string    `json:"body,omitempty"`
+	BodyHTML string    `json:"body_html,omitempty"`
 	FilePath string    `json:"file_path,omitempty"`
 	ModTime  time.Time `json:"mod_time,omitzero"`
 }

@@ -2,6 +2,8 @@ package parser
 
 import (
 	"bytes"
+	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/RJuho/jokateko/internal/model"
@@ -9,6 +11,7 @@ import (
 	gast "github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	extast "github.com/yuin/goldmark/extension/ast"
+	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 )
 
@@ -17,7 +20,12 @@ var defaultMarkdown = goldmark.New(
 		extension.GFM,
 		extension.TaskList,
 	),
+	goldmark.WithRendererOptions(
+		html.WithUnsafe(),
+	),
 )
+
+var checkboxRe = regexp.MustCompile(`<input\s+([^>]*?)type="checkbox"([^>]*?)/?>`)
 
 // AcceptanceCriterion represents an individual checkbox item extracted from task markdown.
 type AcceptanceCriterion struct {
@@ -117,13 +125,31 @@ func ExtractHeadings(source []byte) []Heading {
 	return headings
 }
 
-// RenderHTML converts markdown source bytes into HTML using Goldmark.
+// RenderHTML converts markdown source bytes into HTML using Goldmark,
+// styling task list checkboxes with daisyUI classes and 1-based data-checkbox-index attributes.
 func RenderHTML(source []byte) (string, error) {
+	if len(source) == 0 {
+		return "", nil
+	}
+
 	var buf bytes.Buffer
 	if err := defaultMarkdown.Convert(source, &buf); err != nil {
 		return "", err
 	}
-	return buf.String(), nil
+
+	rawHTML := buf.String()
+	cbIndex := 0
+	formattedHTML := checkboxRe.ReplaceAllStringFunc(rawHTML, func(match string) string {
+		cbIndex++
+		checked := strings.Contains(match, "checked")
+		checkedAttr := ""
+		if checked {
+			checkedAttr = " checked"
+		}
+		return fmt.Sprintf(`<input type="checkbox"%s class="checkbox checkbox-primary checkbox-xs mt-0.5 shrink-0 cursor-pointer" data-checkbox-index="%d" />`, checkedAttr, cbIndex)
+	})
+
+	return formattedHTML, nil
 }
 
 // ParseTaskWithCriteria parses a complete task document and calculates

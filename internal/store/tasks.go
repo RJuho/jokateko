@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/RJuho/jokateko/internal/model"
+	"github.com/RJuho/jokateko/internal/parser"
 )
 
 // UpsertTask inserts or updates a task and its associated tags, dependencies, and FTS index.
@@ -131,6 +132,11 @@ func (s *Store) GetTask(ctx context.Context, id string) (model.Task, error) {
 		modTime = time.Unix(row.Mtime, 0)
 	}
 
+	var bodyHTML string
+	if row.Body != "" {
+		bodyHTML, _ = parser.RenderHTML([]byte(row.Body))
+	}
+
 	return model.Task{
 		ID:                row.ID,
 		Title:             row.Title,
@@ -141,6 +147,7 @@ func (s *Store) GetTask(ctx context.Context, id string) (model.Task, error) {
 		Summary:           row.Summary,
 		Dependencies:      deps,
 		Body:              row.Body,
+		BodyHTML:          bodyHTML,
 		TotalCriteria:     int(row.TotalCriteria),
 		CompletedCriteria: int(row.CompletedCriteria),
 		FilePath:          row.Filepath,
@@ -205,6 +212,11 @@ func (s *Store) ListTasks(ctx context.Context, filter ...model.FilterCriteria) (
 			modTime = time.Unix(row.Mtime, 0)
 		}
 
+		var bodyHTML string
+		if row.Body != "" {
+			bodyHTML, _ = parser.RenderHTML([]byte(row.Body))
+		}
+
 		task := model.Task{
 			ID:                row.ID,
 			Title:             row.Title,
@@ -215,6 +227,7 @@ func (s *Store) ListTasks(ctx context.Context, filter ...model.FilterCriteria) (
 			Summary:           row.Summary,
 			Dependencies:      deps,
 			Body:              row.Body,
+			BodyHTML:          bodyHTML,
 			TotalCriteria:     int(row.TotalCriteria),
 			CompletedCriteria: int(row.CompletedCriteria),
 			FilePath:          row.Filepath,

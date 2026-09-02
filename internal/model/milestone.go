@@ -33,6 +33,7 @@ type Milestone struct {
 	Tags               []string        `json:"tags"`
 	Summary            string          `json:"summary"`
 	Body               string          `json:"body,omitempty"`
+	BodyHTML           string          `json:"body_html,omitempty"`
 	TotalTasks         int             `json:"total_tasks"`
 	CompletedTasks     int             `json:"completed_tasks"`
 	ProgressPercentage float64         `json:"progress_percentage"`
