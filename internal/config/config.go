@@ -4,6 +4,8 @@ package config
 
 import (
 	"time"
+
+	"github.com/RJuho/jokateko/internal/model"
 )
 
 // CurrentVersion is the currently supported configuration schema version.
@@ -11,13 +13,14 @@ const CurrentVersion = "0"
 
 // Config is the root configuration structure loaded from .jokateko/config.toml.
 type Config struct {
-	Version string        `toml:"version"`
-	Project ProjectConfig `toml:"project"`
-	Paths   PathsConfig   `toml:"paths"`
-	Server  ServerConfig  `toml:"server"`
-	Board   BoardConfig   `toml:"board"`
-	Tags    TagsConfig    `toml:"tags"`
-	MCP     MCPConfig     `toml:"mcp"`
+	Version      string                   `toml:"version"`
+	Project      ProjectConfig            `toml:"project"`
+	Paths        PathsConfig              `toml:"paths"`
+	Server       ServerConfig             `toml:"server"`
+	Board        BoardConfig              `toml:"board"`
+	Tags         TagsConfig               `toml:"tags"`
+	MCP          MCPConfig                `toml:"mcp"`
+	Translations model.TranslationsConfig `toml:"translations"`
 }
 
 // ProjectConfig specifies project-level descriptive metadata.

@@ -407,3 +407,61 @@ func TestValidationRules(t *testing.T) {
 		}
 	})
 }
+
+func TestLoadTranslationsTOML(t *testing.T) {
+	tempDir := t.TempDir()
+	jokatekoDir := filepath.Join(tempDir, ".jokateko")
+	if err := os.MkdirAll(jokatekoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	tomlContent := `
+version = "0"
+
+[project]
+name = "Localized App"
+
+[translations]
+board = "Taulu"
+strategies = "Strategiat"
+glossary = "Sanasto"
+search = "Hae"
+tasks = "tehtävää"
+architectural_strategies = "Arkkitehtuuristrategiat"
+strategies_subtitle = "Porrastetut ohjeet ja järjestelmäsuunnittelun säännöt"
+tiers = "Tasot"
+all_tiers = "Kaikki tasot"
+project_glossary = "Projektin sanasto"
+glossary_subtitle = "Standardoidut termimääritelmät ja sanakirja"
+footer_text = "Rakennettu ❤️ 🇪🇺 kera 🤖"
+arial_main_nav = "Päänavigointi"
+arial_search = "Hae sivustolta"
+arial_search_input = "Hae tehtäviä, virstanpylväitä, strategioita ja sanastoa"
+`
+
+	if err := os.WriteFile(filepath.Join(jokatekoDir, "config.toml"), []byte(tomlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := config.Load(tempDir)
+	if err != nil {
+		t.Fatalf("failed to load config with translations: %v", err)
+	}
+
+	if cfg.Translations.Board != "Taulu" {
+		t.Errorf("expected Translations.Board to be 'Taulu', got %q", cfg.Translations.Board)
+	}
+	if cfg.Translations.Strategies != "Strategiat" {
+		t.Errorf("expected Translations.Strategies to be 'Strategiat', got %q", cfg.Translations.Strategies)
+	}
+	if cfg.Translations.Glossary != "Sanasto" {
+		t.Errorf("expected Translations.Glossary to be 'Sanasto', got %q", cfg.Translations.Glossary)
+	}
+	if cfg.Translations.FooterText != "Rakennettu ❤️ 🇪🇺 kera 🤖" {
+		t.Errorf("expected Translations.FooterText to be 'Rakennettu ❤️ 🇪🇺 kera 🤖', got %q", cfg.Translations.FooterText)
+	}
+	if cfg.Translations.ArialMainNav != "Päänavigointi" {
+		t.Errorf("expected Translations.ArialMainNav to be 'Päänavigointi', got %q", cfg.Translations.ArialMainNav)
+	}
+}
+

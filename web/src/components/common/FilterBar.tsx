@@ -8,6 +8,7 @@ import {
 	togglePriorityFilter,
 	toggleTagFilter,
 } from '../../state/store'
+import { t } from '../../utils/i18n'
 import { TagBadge } from './Badge'
 
 export function FilterBar() {
@@ -24,7 +25,7 @@ export function FilterBar() {
 	return (
 		<aside
 			class='bg-base-100/80 backdrop-blur-xs border-b border-base-200 py-1.5 px-3 sm:px-4 md:px-6 sticky top-12 md:top-13 z-20 shadow-2xs'
-			aria-label='Filter tasks'
+			aria-label={t('arial_filter_tasks')}
 		>
 			<div class='w-full flex items-center justify-between gap-3 overflow-x-auto no-scrollbar'>
 				{/* Combined Priority + Tags: Priorities listed first, tags immediately follow */}
@@ -32,7 +33,7 @@ export function FilterBar() {
 					{/* Priority Buttons */}
 					<fieldset
 						class='flex items-center gap-0.5 border border-base-300 rounded-lg p-0.5 bg-base-200/40 shrink-0'
-						aria-label='Filter by priority'
+						aria-label={t('arial_filter_by_priority')}
 					>
 						{priorities.map((p) => {
 							const isSelected = currentFilters.selectedPriorities.includes(p)
@@ -59,7 +60,7 @@ export function FilterBar() {
 					{tagList.length > 0 && (
 						<fieldset
 							class='flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 shrink-0'
-							aria-label='Filter by tags'
+							aria-label={t('arial_filter_by_tags')}
 						>
 							{tagList.map((tag) => (
 								<TagBadge
@@ -80,13 +81,13 @@ export function FilterBar() {
 							type='button'
 							onClick={resetFilters}
 							class='btn btn-ghost btn-xs text-error font-medium text-[11px]'
-							aria-label='Reset all filters'
+							aria-label={t('arial_reset_all_filters')}
 						>
-							Reset
+							{t('reset')}
 						</button>
 					)}
 					<div class='text-[11px] text-base-content/50 font-mono whitespace-nowrap'>
-						{filteredTasks.value.length} / {tasks.value.length} tasks
+						{filteredTasks.value.length} / {tasks.value.length} {t('tasks')}
 					</div>
 				</div>
 			</div>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { Task } from '../../schemas/models'
 import { columnTasks, config, mode, tasks, upsertTask } from '../../state/store'
+import { t } from '../../utils/i18n'
 import { Column } from './Column'
 
 export function KanbanBoard() {
@@ -122,7 +123,7 @@ export function KanbanBoard() {
 			{needsColumnNav && (
 				<nav
 					class='flex flex-wrap items-center gap-1.5 px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 border-b border-base-200/80 shrink-0 bg-base-100/60 transition-all select-none'
-					aria-label='Column quick navigation'
+					aria-label={t('arial_column_quick_nav')}
 					data-testid='column-quick-nav'
 				>
 					{cols.map((c) => {
@@ -158,7 +159,7 @@ export function KanbanBoard() {
 				ref={mainRef}
 				onScroll={handleBoardScroll}
 				class='flex-1 overflow-x-auto snap-x snap-mandatory scroll-smooth flex gap-3 sm:gap-4 p-3 sm:p-4 md:p-6 min-h-0 items-stretch'
-				aria-label='Kanban columns'
+				aria-label={t('arial_kanban_columns')}
 			>
 				{cols.map((col) => (
 					<div key={col.id} class='shrink-0 snap-center h-full flex flex-col'>

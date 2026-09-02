@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { navigateTo } from '../../router'
 import type { Tier } from '../../schemas/models'
 import { activeStrategyId, filters, strategies } from '../../state/store'
+import { t } from '../../utils/i18n'
 import { TagBadge } from '../common/Badge'
 
 export function StrategiesView() {
@@ -75,7 +76,7 @@ export function StrategiesView() {
 	})
 
 	const tiers: Array<{ id: Tier | 0; label: string; desc: string }> = [
-		{ id: 0, label: 'All Tiers', desc: 'Complete architecture rules' },
+		{ id: 0, label: t('all_tiers'), desc: 'Complete architecture rules' },
 		{ id: 1, label: 'Tier 1', desc: 'Core Invariants & Zero-CGO' },
 		{ id: 2, label: 'Tier 2', desc: 'Design Patterns & Touch UI' },
 		{ id: 3, label: 'Tier 3', desc: 'Implementation Specs' },
@@ -112,10 +113,10 @@ export function StrategiesView() {
 			{/* Top Bar */}
 			<div class='border-b border-base-200 pb-4'>
 				<h2 class='text-xl sm:text-2xl font-bold tracking-tight text-base-content'>
-					Architectural Strategies
+					{t('architectural_strategies')}
 				</h2>
 				<p class='text-xs sm:text-sm text-base-content/60 mt-0.5'>
-					Tiered guidelines and system design rules using progressive disclosure
+					{t('strategies_subtitle')}
 				</p>
 			</div>
 
@@ -327,7 +328,9 @@ export function StrategiesView() {
 
 				{visibleStrategies.length === 0 && (
 					<div class='flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-base-300 rounded-2xl text-base-content/40'>
-						<span class='text-sm font-medium'>No strategies found</span>
+						<span class='text-sm font-medium'>
+							{t('no_strategies_found', 'No strategies found')}
+						</span>
 					</div>
 				)}
 			</div>

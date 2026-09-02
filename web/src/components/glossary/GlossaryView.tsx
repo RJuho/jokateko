@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { navigateTo } from '../../router'
 import { activeGlossaryId, filters, glossary } from '../../state/store'
+import { t } from '../../utils/i18n'
 import { TagBadge } from '../common/Badge'
 
 export function GlossaryView() {
@@ -81,10 +82,10 @@ export function GlossaryView() {
 			{/* Top Bar */}
 			<div class='border-b border-base-200 pb-4'>
 				<h2 class='text-xl sm:text-2xl font-bold tracking-tight text-base-content'>
-					Project Glossary
+					{t('project_glossary')}
 				</h2>
 				<p class='text-xs sm:text-sm text-base-content/60 mt-0.5'>
-					Standardized domain definitions and terminology dictionary
+					{t('glossary_subtitle')}
 				</p>
 			</div>
 
@@ -255,7 +256,9 @@ export function GlossaryView() {
 
 				{visibleTerms.length === 0 && (
 					<div class='col-span-full flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-base-300 rounded-2xl text-base-content/40'>
-						<span class='text-sm font-medium'>No glossary terms found</span>
+						<span class='text-sm font-medium'>
+							{t('no_terms_found', 'No glossary terms found')}
+						</span>
 					</div>
 				)}
 			</div>

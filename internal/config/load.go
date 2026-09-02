@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/RJuho/jokateko/internal/model"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -101,9 +102,10 @@ type rawConfig struct {
 	Project     *rawProjectConfig  `toml:"project"`
 	Paths       *rawPathsConfig    `toml:"paths"`
 	Server      *rawServerConfig   `toml:"server"`
-	Board       *rawBoardConfig    `toml:"board"`
-	Tags        *rawTagsConfig     `toml:"tags"`
-	MCP         *rawMCPConfig      `toml:"mcp"`
+	Board        *rawBoardConfig          `toml:"board"`
+	Tags         *rawTagsConfig           `toml:"tags"`
+	MCP          *rawMCPConfig            `toml:"mcp"`
+	Translations *model.TranslationsConfig `toml:"translations"`
 }
 
 type rawProjectConfig struct {
@@ -274,4 +276,55 @@ func mergeConfig(target *Config, raw *rawConfig) {
 			target.MCP.AllowMutations = *raw.MCP.AllowMutations
 		}
 	}
+
+	// Translations section
+	if raw.Translations != nil {
+		mergeTranslations(&target.Translations, raw.Translations)
+	}
+}
+
+func mergeTranslations(target *model.TranslationsConfig, raw *model.TranslationsConfig) {
+	if raw.Board != "" { target.Board = raw.Board }
+	if raw.Strategies != "" { target.Strategies = raw.Strategies }
+	if raw.Glossary != "" { target.Glossary = raw.Glossary }
+	if raw.Milestones != "" { target.Milestones = raw.Milestones }
+	if raw.Search != "" { target.Search = raw.Search }
+	if raw.Tasks != "" { target.Tasks = raw.Tasks }
+	if raw.ArchitecturalStrategies != "" { target.ArchitecturalStrategies = raw.ArchitecturalStrategies }
+	if raw.StrategiesSubtitle != "" { target.StrategiesSubtitle = raw.StrategiesSubtitle }
+	if raw.Tiers != "" { target.Tiers = raw.Tiers }
+	if raw.AllTiers != "" { target.AllTiers = raw.AllTiers }
+	if raw.ProjectGlossary != "" { target.ProjectGlossary = raw.ProjectGlossary }
+	if raw.GlossarySubtitle != "" { target.GlossarySubtitle = raw.GlossarySubtitle }
+	if raw.FooterText != "" { target.FooterText = raw.FooterText }
+	if raw.Reset != "" { target.Reset = raw.Reset }
+	if raw.NoTasks != "" { target.NoTasks = raw.NoTasks }
+	if raw.NoMatchingResults != "" { target.NoMatchingResults = raw.NoMatchingResults }
+	if raw.NoMatchesCurrentPage != "" { target.NoMatchesCurrentPage = raw.NoMatchesCurrentPage }
+	if raw.NoMatchesOtherPages != "" { target.NoMatchesOtherPages = raw.NoMatchesOtherPages }
+	if raw.ShowCompleted != "" { target.ShowCompleted = raw.ShowCompleted }
+	if raw.HideCompleted != "" { target.HideCompleted = raw.HideCompleted }
+	if raw.ShowArchived != "" { target.ShowArchived = raw.ShowArchived }
+
+	if raw.ArialMainNav != "" { target.ArialMainNav = raw.ArialMainNav }
+	if raw.ArialMobileNav != "" { target.ArialMobileNav = raw.ArialMobileNav }
+	if raw.ArialMobileMenu != "" { target.ArialMobileMenu = raw.ArialMobileMenu }
+	if raw.ArialOpenMenu != "" { target.ArialOpenMenu = raw.ArialOpenMenu }
+	if raw.ArialCloseMenu != "" { target.ArialCloseMenu = raw.ArialCloseMenu }
+	if raw.ArialSearch != "" { target.ArialSearch = raw.ArialSearch }
+	if raw.ArialSearchInput != "" { target.ArialSearchInput = raw.ArialSearchInput }
+	if raw.ArialSearchResults != "" { target.ArialSearchResults = raw.ArialSearchResults }
+	if raw.ArialThemeToggle != "" { target.ArialThemeToggle = raw.ArialThemeToggle }
+	if raw.ArialThemeDark != "" { target.ArialThemeDark = raw.ArialThemeDark }
+	if raw.ArialThemeLightLabel != "" { target.ArialThemeLightLabel = raw.ArialThemeLightLabel }
+	if raw.ArialThemeDarkLabel != "" { target.ArialThemeDarkLabel = raw.ArialThemeDarkLabel }
+	if raw.ArialFilterTasks != "" { target.ArialFilterTasks = raw.ArialFilterTasks }
+	if raw.ArialFilterByPriority != "" { target.ArialFilterByPriority = raw.ArialFilterByPriority }
+	if raw.ArialFilterByTags != "" { target.ArialFilterByTags = raw.ArialFilterByTags }
+	if raw.ArialResetAllFilters != "" { target.ArialResetAllFilters = raw.ArialResetAllFilters }
+	if raw.ArialColumnQuickNav != "" { target.ArialColumnQuickNav = raw.ArialColumnQuickNav }
+	if raw.ArialKanbanColumns != "" { target.ArialKanbanColumns = raw.ArialKanbanColumns }
+	if raw.ArialMilestonesRoadmap != "" { target.ArialMilestonesRoadmap = raw.ArialMilestonesRoadmap }
+	if raw.ArialFooter != "" { target.ArialFooter = raw.ArialFooter }
+	if raw.ArialGithubRepo != "" { target.ArialGithubRepo = raw.ArialGithubRepo }
 }

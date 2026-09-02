@@ -89,6 +89,7 @@ func BuildSnapshot(ctx context.Context, cfg *config.Config, st *store.Store) (*m
 				Commit:  commit,
 				Version: vInfo.Version,
 			},
+			Translations: cfg.Translations,
 		},
 		Tasks:      tasks,
 		Milestones: milestones,

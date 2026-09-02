@@ -1,4 +1,5 @@
 import { config } from '../../state/store'
+import { t } from '../../utils/i18n'
 
 export function Footer() {
 	const build = config.value.build
@@ -10,10 +11,12 @@ export function Footer() {
 		<footer
 			class='hidden md:flex w-full h-7 shrink-0 items-center justify-between px-4 md:px-6 border-t border-base-200/80 bg-base-100 text-[11px] text-base-content/60 select-none'
 			data-testid='app-footer'
+			role='contentinfo'
+			aria-label={t('arial_footer')}
 		>
 			{/* Left side: Love line */}
 			<div class='flex items-center gap-1.5'>
-				<span>Build with ❤️ in 🇪🇺 with 🤖</span>
+				<span>{t('footer_text')}</span>
 			</div>
 
 			{/* Right side: Name / version */}
@@ -23,7 +26,7 @@ export function Footer() {
 					target='_blank'
 					rel='noopener noreferrer'
 					class='link link-hover font-medium text-base-content/80 hover:text-primary transition-colors'
-					aria-label='Jokateko GitHub repository'
+					aria-label={t('arial_github_repo')}
 				>
 					Jokateko
 				</a>

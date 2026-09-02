@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks'
 import { activeTab, milestones, setMilestoneFilter } from '../../state/store'
+import { t } from '../../utils/i18n'
 import { TagBadge } from '../common/Badge'
 
 export function MilestonesView() {
@@ -21,7 +22,7 @@ export function MilestonesView() {
 			<div class='flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-base-200 pb-4'>
 				<div>
 					<h2 class='text-xl sm:text-2xl font-bold tracking-tight text-base-content'>
-						Milestones
+						{t('milestones')}
 					</h2>
 					<p class='text-xs sm:text-sm text-base-content/60 mt-0.5'>
 						Track deliverables, target dates, and roadmap progress
@@ -30,7 +31,9 @@ export function MilestonesView() {
 
 				<div class='flex items-center gap-2 self-start sm:self-auto'>
 					<label class='label cursor-pointer gap-2 py-1'>
-						<span class='label-text text-xs font-medium'>Show Archived</span>
+						<span class='label-text text-xs font-medium'>
+							{t('show_archived')}
+						</span>
 						<input
 							type='checkbox'
 							checked={showArchived}

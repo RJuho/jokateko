@@ -86,11 +86,14 @@ export const BuildConfigSchema = v.object({
 	version: v.optional(v.string(), ''),
 })
 
+export const TranslationsConfigSchema = v.record(v.string(), v.string())
+
 export const SnapshotConfigSchema = v.object({
 	project: ProjectConfigSchema,
 	board: BoardConfigSchema,
 	tags: v.optional(TagsConfigSchema),
 	build: v.optional(BuildConfigSchema),
+	translations: v.optional(TranslationsConfigSchema),
 })
 
 export const SnapshotSchema = v.object({

@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks'
 import { navigateTo } from '../../router'
 import type { Milestone } from '../../schemas/models'
 import { filters, milestones, tasks } from '../../state/store'
+import { t } from '../../utils/i18n'
 
 export function MilestoneCards() {
 	const milestoneList = milestones.value
@@ -35,7 +36,7 @@ export function MilestoneCards() {
 	return (
 		<section
 			class='w-full px-3 sm:px-4 md:px-6 pt-2 pb-0.5'
-			aria-label='Milestones roadmap'
+			aria-label={t('arial_milestones_roadmap')}
 		>
 			<div class='flex items-center gap-2 overflow-x-auto no-scrollbar py-1'>
 				{visibleMilestones.map((m) => {
@@ -95,8 +96,8 @@ export function MilestoneCards() {
 						aria-expanded={showCompleted}
 					>
 						{showCompleted
-							? 'Hide completed'
-							: `Show completed (${completedMilestones.length})`}
+							? t('hide_completed')
+							: `${t('show_completed')} (${completedMilestones.length})`}
 					</button>
 				)}
 			</div>

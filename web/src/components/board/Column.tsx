@@ -5,6 +5,7 @@ import {
 	isCreateTaskModalOpen,
 	mode,
 } from '../../state/store'
+import { t } from '../../utils/i18n'
 import { TaskCard } from './TaskCard'
 
 interface ColumnProps {
@@ -129,7 +130,7 @@ export function Column({
 
 				{tasks.length === 0 && (
 					<li class='list-none flex flex-col items-center justify-center py-10 text-center border-2 border-dashed border-base-300/60 rounded-xl text-base-content/40 flex-1 min-h-[120px]'>
-						<span class='text-xs font-medium'>No tasks</span>
+						<span class='text-xs font-medium'>{t('no_tasks')}</span>
 					</li>
 				)}
 			</ul>
