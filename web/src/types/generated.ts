@@ -20,6 +20,7 @@ export interface BuildConfig {
   time?: string;
   branch?: string;
   commit?: string;
+  version?: string;
 }
 
 export interface Column {

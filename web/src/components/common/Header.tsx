@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { navigateTo } from '../../router'
-import type { GlossaryTerm, Strategy, Task } from '../../schemas/models'
+import type {
+	GlossaryTerm,
+	Milestone,
+	Strategy,
+	Task,
+} from '../../schemas/models'
 import {
 	activeTab,
 	config,
 	connectionStatus,
 	filters,
 	glossary,
+	milestones,
 	mode,
 	setSearchQuery,
 	strategies,
@@ -17,7 +23,7 @@ import { formatBrowserDateTime } from '../../utils/date'
 
 interface SearchResultItem {
 	id: string
-	type: 'task' | 'strategy' | 'glossary'
+	type: 'task' | 'strategy' | 'glossary' | 'milestone'
 	tab: Tab
 	title: string
 	snippet: string
@@ -30,6 +36,7 @@ function computeSearchResults(
 	allTasks: Task[],
 	allStrategies: Strategy[],
 	allGlossary: GlossaryTerm[],
+	allMilestones: Milestone[],
 ): {
 	currentPageResults: SearchResultItem[]
 	otherPagesResults: SearchResultItem[]
@@ -96,18 +103,44 @@ function computeSearchResults(
 			badge: 'Term',
 		}))
 
+	const milestoneResults: SearchResultItem[] = allMilestones
+		.filter((m) => {
+			const inTitle = m.title.toLowerCase().includes(q)
+			const inId = m.id.toLowerCase().includes(q)
+			const inSummary = (m.summary || '').toLowerCase().includes(q)
+			const inBody = (m.body || '').toLowerCase().includes(q)
+			const inTags =
+				m.tags?.some((tag) => tag.toLowerCase().includes(q)) ?? false
+			return inTitle || inId || inSummary || inBody || inTags
+		})
+		.map((m) => ({
+			id: m.id,
+			type: 'milestone',
+			tab: 'milestones',
+			title: m.title,
+			snippet: m.summary || m.body || m.id,
+			badge: m.status === 'closed' ? 'Closed' : 'Milestone',
+		}))
+
 	let currentPageAll: SearchResultItem[] = []
 	let otherPagesAll: SearchResultItem[] = []
 
 	if (currentTab === 'board') {
 		currentPageAll = taskResults
-		otherPagesAll = [...strategyResults, ...glossaryResults]
+		otherPagesAll = [
+			...milestoneResults,
+			...strategyResults,
+			...glossaryResults,
+		]
+	} else if (currentTab === 'milestones') {
+		currentPageAll = milestoneResults
+		otherPagesAll = [...taskResults, ...strategyResults, ...glossaryResults]
 	} else if (currentTab === 'strategies') {
 		currentPageAll = strategyResults
-		otherPagesAll = [...taskResults, ...glossaryResults]
+		otherPagesAll = [...taskResults, ...milestoneResults, ...glossaryResults]
 	} else {
 		currentPageAll = glossaryResults
-		otherPagesAll = [...taskResults, ...strategyResults]
+		otherPagesAll = [...taskResults, ...milestoneResults, ...strategyResults]
 	}
 
 	return {
@@ -120,6 +153,12 @@ export function Header() {
 	const currentTab = activeTab.value
 	const isLive = mode.value === 'live'
 	const buildInfo = config.value.build
+	const projectName = config.value.project?.name || 'Jokateko'
+	const version =
+		buildInfo?.version && buildInfo.version !== 'dev'
+			? buildInfo.version
+			: '0.1.0'
+	const displayVersion = version.startsWith('v') ? version : `v${version}`
 	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 	const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false)
 	const [isDark, setIsDark] = useState(true)
@@ -189,6 +228,7 @@ export function Header() {
 			tasks.value,
 			strategies.value,
 			glossary.value,
+			milestones.value,
 		)
 	}, [
 		filters.value.searchQuery,
@@ -196,6 +236,7 @@ export function Header() {
 		tasks.value,
 		strategies.value,
 		glossary.value,
+		milestones.value,
 	])
 
 	const hasAnyResults =
@@ -257,6 +298,8 @@ export function Header() {
 			navigateTo(`strategy/${item.id}`)
 		} else if (item.type === 'glossary') {
 			navigateTo(`glossary/${item.id}`)
+		} else if (item.type === 'milestone') {
+			navigateTo(`milestone/${item.id}`)
 		}
 		setIsSearchDropdownOpen(false)
 	}
@@ -265,20 +308,18 @@ export function Header() {
 		<header class='sticky top-0 z-30 bg-base-100/90 backdrop-blur-md border-b border-base-200/80 shadow-xs'>
 			{/* No container: wide as possible across the entire screen */}
 			<div class='w-full px-3 sm:px-4 md:px-6'>
-				<div class='flex items-center justify-between h-12 md:h-13 gap-2 sm:gap-3'>
-					{/* 1. Icon (J Box) */}
-					<button
-						type='button'
-						onClick={() => handleTabClick('board')}
-						class='btn btn-primary btn-square btn-sm font-black text-xs shadow-xs'
-						aria-label='Jokateko Kanban Board'
+				<div class='flex items-center h-12 md:h-13 gap-1.5'>
+					{/* 1. Desktop Brand Name: config.project.name (just text, not button nor link) */}
+					<span
+						class='hidden md:inline-flex font-bold text-sm sm:text-base tracking-tight shrink-0 select-none'
+						data-testid='navbar-brand-name'
 					>
-						J
-					</button>
+						{projectName}
+					</span>
 
 					{/* 2. Desktop Navigation Buttons: Board, Strategies, Glossary (hidden on mobile) */}
 					<nav
-						class='hidden md:flex items-center gap-1 shrink-0'
+						class='hidden md:flex items-center gap-1.5 shrink-0'
 						aria-label='Main Navigation'
 					>
 						{navTabs.map((tab) => {
@@ -300,13 +341,13 @@ export function Header() {
 						})}
 					</nav>
 
-					{/* 3. Search Textfield using daisyUI label.input with CMD/CTRL + K and Dropdown Popover */}
+					{/* 3. Search Textfield using daisyUI label.input (higher input height, uniform gap with no margin) */}
 					<search
 						ref={searchContainerRef}
-						class='relative flex-1 min-w-0 mx-1 sm:mx-2 md:mx-4'
+						class='relative flex-1 min-w-0'
 						aria-label='Site search'
 					>
-						<label class='input input-xs sm:input-sm w-full'>
+						<label class='input input-sm w-full h-9 sm:h-9 md:h-10 text-xs sm:text-sm flex items-center'>
 							<svg
 								class='h-[1em] opacity-50 shrink-0'
 								xmlns='http://www.w3.org/2000/svg'
@@ -337,7 +378,7 @@ export function Header() {
 										setIsSearchDropdownOpen(true)
 									}
 								}}
-								aria-label='Search tasks, strategies, and glossary'
+								aria-label='Search tasks, milestones, strategies, and glossary'
 								data-testid='search-input'
 							/>
 							{isMac ? (
@@ -452,7 +493,7 @@ export function Header() {
 					</search>
 
 					{/* Theme Controller using a swap (sun/moon toggle) for desktop */}
-					<div class='hidden md:flex items-center shrink-0 mr-1'>
+					<div class='hidden md:flex items-center shrink-0'>
 						<label
 							class='swap swap-rotate btn btn-ghost btn-sm btn-square text-base-content/70 hover:text-base-content'
 							aria-label='Toggle light and dark theme'
@@ -557,11 +598,11 @@ export function Header() {
 						)}
 					</div>
 
-					{/* 5. Mobile Hamburger Menu Toggle (< md) */}
+					{/* 5. Mobile Hamburger Menu Toggle (< md: on the right side of navbar) */}
 					<button
 						type='button'
 						onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-						class='md:hidden btn btn-ghost btn-sm btn-square'
+						class='md:hidden btn btn-ghost btn-sm btn-square shrink-0'
 						aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
 						aria-expanded={isMobileMenuOpen}
 						data-testid='mobile-menu-toggle'
@@ -591,9 +632,52 @@ export function Header() {
 				{/* Mobile Dropdown Panel (< md) */}
 				{isMobileMenuOpen && (
 					<section
-						class='md:hidden py-2.5 px-1 border-t border-base-200/80 flex flex-col gap-2 bg-base-100/95 animate-fadeIn'
+						class='md:hidden py-3 px-2 border-t border-base-200/80 flex flex-col gap-2.5 bg-base-100/98 shadow-lg animate-fadeIn'
 						aria-label='Mobile navigation menu'
 					>
+						{/* Mobile Brand Name Header & Theme Toggle */}
+						<div class='flex items-center justify-between pb-2 border-b border-base-200/60 px-1'>
+							<span
+								class='font-bold text-base tracking-tight px-1 select-none'
+								data-testid='mobile-menu-brand-name'
+							>
+								{projectName}
+							</span>
+
+							<label
+								class='swap swap-rotate btn btn-ghost btn-sm btn-square text-base-content/70 hover:text-base-content'
+								aria-label='Toggle light and dark theme'
+							>
+								<input
+									type='checkbox'
+									class='theme-controller'
+									value={DARK_THEME}
+									checked={isDark}
+									onChange={handleThemeToggle}
+									aria-label='Toggle dark theme'
+								/>
+								<svg
+									class='swap-off fill-current w-4 h-4'
+									xmlns='http://www.w3.org/2000/svg'
+									viewBox='0 0 24 24'
+									aria-hidden='true'
+								>
+									<title>Light theme</title>
+									<path d='M5.64,17l-.71.71a1,1,0,0,0,0,1.41,1,1,0,0,0,1.41,0l.71-.71A1,1,0,0,0,5.64,17ZM5,12a1,1,0,0,0-1-1H3a1,1,0,0,0,0,2H4A1,1,0,0,0,5,12Zm7-7a1,1,0,0,0,1-1V3a1,1,0,0,0-2,0V4A1,1,0,0,0,12,5ZM5.64,7.05a1,1,0,0,0,.7.29,1,1,0,0,0,.71-.29,1,1,0,0,0,0-1.41l-.71-.71A1,1,0,0,0,4.93,6.34Zm12,.29a1,1,0,0,0,.7-.29l.71-.71a1,1,0,1,0-1.41-1.41L17,5.64a1,1,0,0,0,0,1.41A1,1,0,0,0,17.66,7.34ZM21,11H20a1,1,0,0,0,0,2h1a1,1,0,0,0,0-2Zm-9,8a1,1,0,0,0-1,1v1a1,1,0,0,0,2,0V20A1,1,0,0,0,12,19ZM18.36,17A1,1,0,0,0,17,18.36l.71.71a1,1,0,0,0,1.41,0,1,1,0,0,0,0-1.41ZM12,6.5A5.5,5.5,0,1,0,17.5,12,5.51,5.51,0,0,0,12,6.5Zm0,9A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z' />
+								</svg>
+								<svg
+									class='swap-on fill-current w-4 h-4'
+									xmlns='http://www.w3.org/2000/svg'
+									viewBox='0 0 24 24'
+									aria-hidden='true'
+								>
+									<title>Dark theme</title>
+									<path d='M21.64,13a1,1,0,0,0-1.05-.14,8.05,8.05,0,0,1-3.37.73A8.15,8.15,0,0,1,9.08,5.49a8.59,8.59,0,0,1,.25-2A1,1,0,0,0,8,2.36,10.14,10.14,0,1,0,22,14.05A1,1,0,0,0,21.64,13Zm-9.5,6.69A8.14,8.14,0,0,1,7.08,5.22v.27A10.15,10.15,0,0,0,17.22,15.63a9.79,9.79,0,0,0,2.1-.22A8.11,8.11,0,0,1,12.14,19.73Z' />
+								</svg>
+							</label>
+						</div>
+
+						{/* Navigation Tabs */}
 						<nav class='flex flex-col gap-1' aria-label='Mobile Navigation'>
 							{navTabs.map((tab) => {
 								const isSelected = currentTab === tab.id
@@ -601,7 +685,10 @@ export function Header() {
 									<button
 										key={tab.id}
 										type='button'
-										onClick={() => handleTabClick(tab.id)}
+										onClick={() => {
+											handleTabClick(tab.id)
+											setIsMobileMenuOpen(false)
+										}}
 										data-testid={tab.testId}
 										class={`btn btn-sm border-none justify-start ${
 											isSelected ? 'btn-soft btn-primary' : 'btn-ghost'
@@ -615,7 +702,7 @@ export function Header() {
 						</nav>
 
 						{/* Mobile Information Box: Datetime / Live on top of branch */}
-						<div class='pt-2 border-t border-base-200/60 px-2'>
+						<div class='pt-2 border-t border-base-200/60 px-1'>
 							{isLive ? (
 								<div
 									class='flex flex-col items-start gap-0.5 text-base-content/70'
@@ -673,6 +760,25 @@ export function Header() {
 									</div>
 								</div>
 							)}
+						</div>
+
+						{/* Mobile Footer Attribution & Version: inserted under server status / build info with small font */}
+						<div class='pt-2 border-t border-base-200/60 px-1 flex items-center justify-between text-[11px] text-base-content/55 select-none'>
+							<span>Build with ❤️ in 🇪🇺 with 🤖</span>
+							<div class='flex items-center gap-1.5'>
+								<a
+									href='https://github.com/RJuho/jokateko'
+									target='_blank'
+									rel='noopener noreferrer'
+									class='link link-hover font-medium text-base-content/75 hover:text-primary'
+									aria-label='Jokateko GitHub repository'
+								>
+									Jokateko
+								</a>
+								<span class='badge badge-xs badge-ghost font-mono opacity-80'>
+									{displayVersion}
+								</span>
+							</div>
 						</div>
 					</section>
 				)}

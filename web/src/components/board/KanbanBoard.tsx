@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import type { Task } from '../../schemas/models'
 import { columnTasks, config, mode, tasks, upsertTask } from '../../state/store'
 import { Column } from './Column'
@@ -10,6 +10,35 @@ export function KanbanBoard() {
 	const [activeMobileColumn, setActiveMobileColumn] = useState<string>(
 		cols[0]?.id || 'backlog',
 	)
+	const mainRef = useRef<HTMLElement>(null)
+	const [needsColumnNav, setNeedsColumnNav] = useState(false)
+
+	// Detect if window does not fit all columns in one screen (scrollWidth > clientWidth)
+	useEffect(() => {
+		const el = mainRef.current
+		if (!el) return
+
+		function checkOverflow() {
+			if (!el) return
+			const overflows = el.scrollWidth > el.clientWidth + 4
+			setNeedsColumnNav(overflows)
+		}
+
+		checkOverflow()
+
+		const ro =
+			typeof ResizeObserver !== 'undefined'
+				? new ResizeObserver(() => checkOverflow())
+				: null
+		ro?.observe(el)
+
+		window.addEventListener('resize', checkOverflow)
+
+		return () => {
+			ro?.disconnect()
+			window.removeEventListener('resize', checkOverflow)
+		}
+	}, [cols.length])
 
 	function handleDragStart(e: DragEvent, task: Task) {
 		if (e.dataTransfer) {
@@ -61,46 +90,78 @@ export function KanbanBoard() {
 		})
 	}
 
+	function handleBoardScroll() {
+		const el = mainRef.current
+		if (!el) return
+		const scrollLeft = el.scrollLeft
+		const viewCenter = scrollLeft + el.clientWidth / 2
+
+		let closestColId = cols[0]?.id || 'backlog'
+		let minDistance = Infinity
+
+		for (const c of cols) {
+			const colEl = document.getElementById(`kanban-col-${c.id}`)
+			if (colEl) {
+				const colCenter = colEl.offsetLeft + colEl.offsetWidth / 2
+				const distance = Math.abs(viewCenter - colCenter)
+				if (distance < minDistance) {
+					minDistance = distance
+					closestColId = c.id
+				}
+			}
+		}
+
+		if (closestColId !== activeMobileColumn) {
+			setActiveMobileColumn(closestColId)
+		}
+	}
+
 	return (
-		<div class='flex flex-col flex-1 min-h-0 w-full'>
-			{/* Mobile-Only Column Navigation Pills (< md screens) */}
-			<div class='flex md:hidden items-center gap-1.5 overflow-x-auto no-scrollbar px-3 sm:px-4 pt-2 pb-1 border-b border-base-200'>
-				<span class='text-[11px] text-base-content/50 uppercase font-bold tracking-wider shrink-0 mr-1'>
-					Column:
-				</span>
-				{cols.map((c) => {
-					const isSelected = activeMobileColumn === c.id
-					const count = groupedTasks[c.id]?.length || 0
-					return (
-						<button
-							key={c.id}
-							type='button'
-							onClick={() => scrollToColumn(c.id)}
-							class={`btn btn-xs rounded-lg gap-1 whitespace-nowrap ${
-								isSelected ? 'btn-primary' : 'btn-ghost'
-							}`}
-							aria-pressed={isSelected}
-							aria-label={`Scroll to column ${c.name} (${count} tasks)`}
-						>
-							<span
-								class='w-2 h-2 rounded-full'
-								style={{ backgroundColor: c.color }}
-								aria-hidden='true'
-							/>
-							{c.name}
-							<span class='badge badge-xs badge-neutral'>{count}</span>
-						</button>
-					)
-				})}
-			</div>
+		<div class='flex flex-col flex-1 min-h-0 w-full overflow-hidden'>
+			{/* Column Quick Navigation: appears automatically when columns do not fit on one screen */}
+			{needsColumnNav && (
+				<nav
+					class='flex flex-wrap items-center gap-1.5 px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 border-b border-base-200/80 shrink-0 bg-base-100/60 transition-all select-none'
+					aria-label='Column quick navigation'
+					data-testid='column-quick-nav'
+				>
+					{cols.map((c) => {
+						const isSelected = activeMobileColumn === c.id
+						const count = groupedTasks[c.id]?.length || 0
+						return (
+							<button
+								key={c.id}
+								type='button'
+								onClick={() => scrollToColumn(c.id)}
+								class={`btn btn-xs rounded-lg gap-1.5 whitespace-nowrap border-none ${
+									isSelected ? 'btn-primary btn-soft' : 'btn-ghost'
+								}`}
+								aria-pressed={isSelected}
+								aria-label={`Scroll to column ${c.name} (${count} tasks)`}
+								data-testid={`quick-nav-col-${c.id}`}
+							>
+								<span
+									class='w-2 h-2 rounded-full'
+									style={{ backgroundColor: c.color }}
+									aria-hidden='true'
+								/>
+								{c.name}
+								<span class='badge badge-xs badge-neutral'>{count}</span>
+							</button>
+						)
+					})}
+				</nav>
+			)}
 
 			{/* Board Columns: scroll-snap-type x mandatory for single-column mobile view & fixed desktop widths */}
 			<main
-				class='flex-1 overflow-x-auto snap-x snap-mandatory scroll-smooth flex gap-3 sm:gap-4 p-3 sm:p-4 md:p-6 min-h-0 items-start'
+				ref={mainRef}
+				onScroll={handleBoardScroll}
+				class='flex-1 overflow-x-auto snap-x snap-mandatory scroll-smooth flex gap-3 sm:gap-4 p-3 sm:p-4 md:p-6 min-h-0 items-stretch'
 				aria-label='Kanban columns'
 			>
 				{cols.map((col) => (
-					<div key={col.id} class='shrink-0 snap-center'>
+					<div key={col.id} class='shrink-0 snap-center h-full flex flex-col'>
 						<Column
 							column={col}
 							tasks={groupedTasks[col.id] || []}

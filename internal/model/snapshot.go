@@ -12,7 +12,8 @@ type SnapshotConfig struct {
 type BuildConfig struct {
 	Time   string `json:"time,omitempty"`
 	Branch string `json:"branch,omitempty"`
-	Commit string `json:"commit,omitempty"`
+	Commit  string `json:"commit,omitempty"`
+	Version string `json:"version,omitempty"`
 }
 
 // ProjectConfig represents the project name and description for static exports.

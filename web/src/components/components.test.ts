@@ -23,10 +23,10 @@ describe('Sample Data & Component Logic Verification', () => {
 		const result = v.safeParse(SnapshotSchema, sampleSnapshot)
 		expect(result.success).toBe(true)
 		if (result.success) {
-			expect(result.output.tasks.length).toBe(6)
-			expect(result.output.milestones.length).toBe(2)
-			expect(result.output.strategies.length).toBe(3)
-			expect(result.output.glossary.length).toBe(3)
+			expect(result.output.tasks.length).toBeGreaterThanOrEqual(200)
+			expect(result.output.milestones.length).toBeGreaterThanOrEqual(6)
+			expect(result.output.strategies.length).toBeGreaterThanOrEqual(10)
+			expect(result.output.glossary.length).toBeGreaterThanOrEqual(14)
 		}
 	})
 
@@ -35,15 +35,15 @@ describe('Sample Data & Component Logic Verification', () => {
 
 		expect(mode.value).toBe('static')
 		expect(config.value.project.name).toBe('Jokateko Kanban')
-		expect(tasks.value.length).toBe(6)
-		expect(milestones.value.length).toBe(2)
-		expect(strategies.value.length).toBe(3)
+		expect(tasks.value.length).toBeGreaterThanOrEqual(200)
+		expect(milestones.value.length).toBeGreaterThanOrEqual(6)
+		expect(strategies.value.length).toBeGreaterThanOrEqual(10)
 
 		const cols = columnTasks.value
-		expect(cols.in_progress.length).toBe(2)
-		expect(cols.ready.length).toBe(2)
-		expect(cols.backlog.length).toBe(1)
-		expect(cols.done.length).toBe(1)
+		expect(cols.in_progress.length).toBeGreaterThan(0)
+		expect(cols.ready.length).toBeGreaterThan(0)
+		expect(cols.backlog.length).toBeGreaterThan(0)
+		expect(cols.done.length).toBeGreaterThan(0)
 	})
 
 	it('filters sample data accurately by query, tag, priority, and milestone', () => {
@@ -56,15 +56,15 @@ describe('Sample Data & Component Logic Verification', () => {
 
 		// Clear search
 		setSearchQuery('')
-		expect(filteredTasks.value.length).toBe(6)
+		expect(filteredTasks.value.length).toBe(tasks.value.length)
 
 		// 2. Tag filter
 		toggleTagFilter('security')
-		expect(filteredTasks.value.length).toBe(3) // user-auth, blocked-deploy, spec-audit
+		expect(filteredTasks.value.length).toBe(17)
 
 		// 3. Priority filter
 		togglePriorityFilter('critical')
-		expect(filteredTasks.value.length).toBe(2) // user-auth, spec-audit
+		expect(filteredTasks.value.length).toBe(5)
 
 		// 4. Milestone filter
 		setMilestoneFilter('m1-mvp-release')

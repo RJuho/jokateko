@@ -53,7 +53,7 @@ export function Column({
 	return (
 		<section
 			id={`kanban-col-${column.id}`}
-			class={`flex flex-col bg-base-200/40 rounded-2xl border border-base-200 p-3 w-[calc(100vw-2.5rem)] sm:w-80 shrink-0 snap-center transition-all ${
+			class={`flex flex-col bg-base-200/40 rounded-2xl border border-base-200 p-3 w-[calc(100vw-2.5rem)] sm:w-104 shrink-0 snap-center transition-all h-full min-h-0 ${
 				isDragOver ? 'ring-2 ring-primary/40 bg-primary/5' : ''
 			}`}
 			onDragOver={handleDragOver}
@@ -67,10 +67,14 @@ export function Column({
 				class='flex items-center justify-between px-2.5 py-1.5 rounded-full mb-2.5 shadow-xs select-none'
 				style={{ backgroundColor: column.color }}
 			>
-				{/* Left: Circle with task count + Title */}
+				{/* Left: Circle (or non-circle pill if >99 tasks) with task count + Title */}
 				<div class='flex items-center gap-2 min-w-0'>
 					<span
-						class='w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold bg-base-100 text-base-content shadow-2xs shrink-0'
+						class={`${
+							tasks.length > 99
+								? 'px-1.5 h-5 rounded-md min-w-5'
+								: 'w-5 h-5 rounded-full'
+						} flex items-center justify-center text-[11px] font-bold bg-base-100 text-base-content shadow-2xs shrink-0`}
 						data-testid='column-task-count'
 						title={`${tasks.length} tasks in ${column.name}`}
 					>
@@ -112,9 +116,9 @@ export function Column({
 				)}
 			</div>
 
-			{/* Task Cards List: Fixed min-height so empty columns never jump or collapse */}
+			{/* Task Cards List: Responsive column height without double body scrollbar */}
 			<ul
-				class='flex flex-col gap-2.5 overflow-y-auto min-h-[180px] max-h-[calc(100vh-230px)] pr-0.5'
+				class='flex flex-col gap-2.5 overflow-y-auto flex-1 min-h-0 pr-0.5'
 				aria-label={`Tasks in ${column.name}`}
 			>
 				{tasks.map((task) => (

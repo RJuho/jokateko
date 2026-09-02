@@ -83,6 +83,7 @@ export const BuildConfigSchema = v.object({
 	time: v.optional(v.string(), ''),
 	branch: v.optional(v.string(), ''),
 	commit: v.optional(v.string(), ''),
+	version: v.optional(v.string(), ''),
 })
 
 export const SnapshotConfigSchema = v.object({

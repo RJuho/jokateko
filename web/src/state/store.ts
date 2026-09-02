@@ -44,6 +44,7 @@ const initialConfig: SnapshotConfig = {
 		time: '',
 		branch: '',
 		commit: '',
+		version: '0.1.0',
 	},
 }
 

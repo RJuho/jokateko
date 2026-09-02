@@ -84,9 +84,10 @@ func BuildSnapshot(ctx context.Context, cfg *config.Config, st *store.Store) (*m
 				EnforceAllowed: cfg.Tags.EnforceAllowed,
 			},
 			Build: model.BuildConfig{
-				Time:   time.Now().UTC().Format(time.RFC3339),
-				Branch: branch,
-				Commit: commit,
+				Time:    time.Now().UTC().Format(time.RFC3339),
+				Branch:  branch,
+				Commit:  commit,
+				Version: vInfo.Version,
 			},
 		},
 		Tasks:      tasks,
