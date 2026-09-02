@@ -1,9 +1,38 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="sunset" class="bg-base-100 text-base-content">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Jokateko Kanban</title>
+  <style>
+    /* Dark background immediately to prevent flashbang on load */
+    html, body {
+      background-color: #121c24;
+      color: #c6d0f5;
+      color-scheme: dark;
+    }
+    html[data-theme="winter"], body[data-theme="winter"] {
+      background-color: #ffffff;
+      color: #042f2e;
+      color-scheme: light;
+    }
+  </style>
+  <script>
+    try {
+      let theme = localStorage.getItem('theme');
+      if (!theme) {
+        const prefersDark = !window.matchMedia || window.matchMedia('(prefers-color-scheme: dark)').matches;
+        theme = prefersDark ? 'sunset' : 'winter';
+      }
+      document.documentElement.setAttribute('data-theme', theme);
+      if (theme === 'winter') {
+        document.documentElement.style.backgroundColor = '#ffffff';
+        document.documentElement.style.colorScheme = 'light';
+      }
+    } catch {
+      // ignore
+    }
+  </script>
   <link rel="stylesheet" href="./src/styles.css" />
 </head>
 <body class="bg-base-100 text-base-content min-h-screen">

@@ -16,6 +16,12 @@ export interface BoardState {
   columns: ColumnState[];
 }
 
+export interface BuildConfig {
+  time?: string;
+  branch?: string;
+  commit?: string;
+}
+
 export interface Column {
   id: string;
   name: string;
@@ -108,6 +114,7 @@ export interface SnapshotConfig {
   project: ProjectConfig;
   board: BoardConfig;
   tags?: TagsConfig;
+  build?: BuildConfig;
 }
 
 export interface Strategy {

@@ -1,10 +1,11 @@
 import * as v from 'valibot'
 import { type Snapshot, SnapshotSchema } from '../schemas/models'
+import { loadStateFromStorage } from './storage'
 
 export const PAYLOAD_PLACEHOLDER = '/* JOKATEKO_PAYLOAD_PLACEHOLDER */'
 export const SCRIPT_DATA_ID = 'jokateko-data'
 
-export type AppMode = 'live' | 'static'
+export type AppMode = 'client' | 'live' | 'static'
 
 export interface BootstrapResult {
 	mode: AppMode
@@ -69,31 +70,51 @@ export function parseSnapshotContent(content: string | null | undefined): {
 }
 
 /**
- * Detects whether the application boots in Live Mode or Static Mode
- * by inspecting the `<script id="jokateko-data">` DOM element.
+ * Detects whether the application boots in Client Mode, Static Mode, or Live Mode.
+ * Checks localStorage first, then embedded script tag, defaulting to Client mode.
  */
-export function bootstrap(doc: Document = document): BootstrapResult {
-	const scriptEl = doc.getElementById(SCRIPT_DATA_ID)
-	if (!scriptEl) {
-		return {
-			mode: 'live',
-			snapshot: null,
-			warnings: [],
+export function bootstrap(
+	doc: Document = document,
+	options: { checkStorage?: boolean; defaultMode?: AppMode } = {},
+): BootstrapResult {
+	const checkStorage = options.checkStorage ?? true
+	const defaultMode = options.defaultMode ?? 'client'
+
+	// 1. Check saved state in localStorage first
+	if (checkStorage) {
+		const storageRes = loadStateFromStorage()
+		if (storageRes?.snapshot) {
+			return {
+				mode: 'client',
+				snapshot: storageRes.snapshot,
+				warnings: storageRes.warnings,
+			}
 		}
 	}
 
-	const parsed = parseSnapshotContent(scriptEl.textContent)
-	if (!parsed) {
-		return {
-			mode: 'live',
-			snapshot: null,
-			warnings: [],
+	// 2. Check embedded static snapshot script tag
+	const scriptEl = doc.getElementById(SCRIPT_DATA_ID)
+	if (scriptEl) {
+		const parsed = parseSnapshotContent(scriptEl.textContent)
+		if (parsed?.snapshot) {
+			return {
+				mode: 'static',
+				snapshot: parsed.snapshot,
+				warnings: parsed.warnings,
+			}
+		}
+		if (parsed && parsed.warnings.length > 0) {
+			return {
+				mode: 'static',
+				snapshot: null,
+				warnings: parsed.warnings,
+			}
 		}
 	}
 
 	return {
-		mode: 'static',
-		snapshot: parsed.snapshot,
-		warnings: parsed.warnings,
+		mode: defaultMode,
+		snapshot: null,
+		warnings: [],
 	}
 }

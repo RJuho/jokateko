@@ -19,7 +19,7 @@ export function PriorityBadge({
 
 	return (
 		<span
-			class={`badge badge-sm font-semibold uppercase tracking-wider text-[10px] ${colorMap[priority]} ${className}`}
+			class={`badge badge-xs font-semibold uppercase tracking-wider text-[9px] px-1.5 py-0.5 ${colorMap[priority]} ${className}`}
 			role='status'
 			aria-label={`Priority: ${priority}`}
 			data-testid='task-priority-badge'
@@ -55,85 +55,56 @@ export function TagBadge({
 				aria-pressed={selected}
 				aria-label={`Filter by tag ${tag}`}
 			>
-				#{tag}
+				{tag}
 			</button>
 		)
 	}
 
 	return (
-		<span class={`badge badge-sm badge-outline text-xs ${className}`}>
-			#{tag}
+		<span
+			class={`badge badge-sm badge-ghost text-xs ${className}`}
+			data-testid={`tag-${tag}`}
+		>
+			{tag}
 		</span>
 	)
 }
 
-interface ModeBadgeProps {
-	mode: 'live' | 'static'
-	connectionStatus?: 'connected' | 'connecting' | 'disconnected'
+interface MilestoneBadgeProps {
+	milestone: string
 	className?: string
 }
 
-export function ModeBadge({
-	mode,
-	connectionStatus,
+export function MilestoneBadge({
+	milestone,
 	className = '',
-}: ModeBadgeProps) {
-	if (mode === 'live') {
-		const isConnected = connectionStatus === 'connected'
-		return (
-			<span
-				class={`badge badge-sm badge-success gap-1.5 font-medium ${className}`}
-				role='status'
-				aria-label='Live daemon connected'
-				data-testid='mode-indicator-live'
-			>
-				<span
-					class={`inline-block w-1.5 h-1.5 rounded-full ${
-						isConnected ? 'bg-success-content animate-pulse' : 'bg-warning'
-					}`}
-					aria-hidden='true'
-				/>
-				Live
-			</span>
-		)
-	}
-
+}: MilestoneBadgeProps) {
 	return (
 		<span
-			class={`badge badge-sm badge-neutral gap-1.5 font-medium ${className}`}
-			role='status'
-			aria-label='Static snapshot read-only'
-			data-testid='mode-indicator-static'
+			class={`badge badge-xs badge-ghost text-[10px] font-medium text-base-content/70 ${className}`}
+			data-testid={`milestone-${milestone}`}
 		>
-			<span
-				class='inline-block w-1.5 h-1.5 rounded-full bg-base-300'
-				aria-hidden='true'
-			/>
-			Static
+			{milestone}
 		</span>
 	)
 }
 
-interface GenericBadgeProps {
-	children: ComponentChildren
-	variant?: 'primary' | 'secondary' | 'accent' | 'neutral' | 'outline'
-	size?: 'xs' | 'sm' | 'md'
+interface StatusPillProps {
+	status: string
+	children?: ComponentChildren
 	className?: string
 }
 
-export function GenericBadge({
+export function StatusPill({
+	status,
 	children,
-	variant = 'neutral',
-	size = 'sm',
 	className = '',
-}: GenericBadgeProps) {
-	const variantClass =
-		variant === 'outline' ? 'badge-outline' : `badge-${variant}`
-	const sizeClass = size === 'xs' ? 'text-[10px] h-4' : `badge-${size}`
-
+}: StatusPillProps) {
 	return (
-		<span class={`badge ${variantClass} ${sizeClass} ${className}`}>
-			{children}
+		<span
+			class={`badge badge-sm font-semibold uppercase tracking-wider ${className}`}
+		>
+			{children || status}
 		</span>
 	)
 }

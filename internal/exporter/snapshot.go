@@ -6,10 +6,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/RJuho/jokateko/internal/config"
 	"github.com/RJuho/jokateko/internal/model"
 	"github.com/RJuho/jokateko/internal/store"
+	"github.com/RJuho/jokateko/internal/version"
 )
 
 // BuildSnapshot extracts all entities from the store and configuration to form an offline snapshot.
@@ -59,6 +64,12 @@ func BuildSnapshot(ctx context.Context, cfg *config.Config, st *store.Store) (*m
 		glossary = []model.GlossaryTerm{}
 	}
 
+	vInfo := version.Get()
+	branch, commit := resolveGitInfo(".")
+	if commit == "" && vInfo.Commit != "none" {
+		commit = vInfo.Commit
+	}
+
 	snap := &model.Snapshot{
 		Config: model.SnapshotConfig{
 			Project: model.ProjectConfig{
@@ -72,6 +83,11 @@ func BuildSnapshot(ctx context.Context, cfg *config.Config, st *store.Store) (*m
 				Allowed:        cfg.Tags.Allowed,
 				EnforceAllowed: cfg.Tags.EnforceAllowed,
 			},
+			Build: model.BuildConfig{
+				Time:   time.Now().UTC().Format(time.RFC3339),
+				Branch: branch,
+				Commit: commit,
+			},
 		},
 		Tasks:      tasks,
 		Milestones: milestones,
@@ -80,6 +96,25 @@ func BuildSnapshot(ctx context.Context, cfg *config.Config, st *store.Store) (*m
 	}
 
 	return snap, nil
+}
+
+func resolveGitInfo(dir string) (branch, commit string) {
+	headPath := filepath.Join(dir, ".git", "HEAD")
+	data, err := os.ReadFile(headPath)
+	if err != nil {
+		return "", ""
+	}
+	s := strings.TrimSpace(string(data))
+	if strings.HasPrefix(s, "ref: refs/heads/") {
+		branch = strings.TrimPrefix(s, "ref: refs/heads/")
+		refPath := filepath.Join(dir, ".git", "refs", "heads", branch)
+		if refData, err := os.ReadFile(refPath); err == nil {
+			commit = strings.TrimSpace(string(refData))
+		}
+	} else if len(s) == 40 {
+		commit = s
+	}
+	return branch, commit
 }
 
 // SerializeSnapshot serializes a Snapshot into minified, HTML-safe JSON bytes.

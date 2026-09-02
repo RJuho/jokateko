@@ -26,6 +26,11 @@ export const sampleSnapshot: Snapshot = {
 			],
 			enforce_allowed: false,
 		},
+		build: {
+			time: '2026-09-02T05:30:00Z',
+			branch: 'main',
+			commit: '03c4a07',
+		},
 	},
 	tasks: [
 		{

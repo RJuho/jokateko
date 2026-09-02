@@ -1,10 +1,12 @@
-import { useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import type { Priority, Task } from '../../schemas/models'
 import {
 	activeTaskDetailId,
 	config,
+	createTaskInitialColumnId,
 	isCreateTaskModalOpen,
 	milestones,
+	mode,
 	upsertTask,
 } from '../../state/store'
 
@@ -13,13 +15,30 @@ export function CreateTaskModal() {
 	const cols = config.value.board.columns
 	const milestoneList = milestones.value
 
+	function closeModal() {
+		createTaskInitialColumnId.value = null
+		isCreateTaskModalOpen.value = false
+	}
+
+	useEffect(() => {
+		function handleKeyDown(e: KeyboardEvent) {
+			if (e.key === 'Escape') {
+				closeModal()
+			}
+		}
+		window.addEventListener('keydown', handleKeyDown)
+		return () => window.removeEventListener('keydown', handleKeyDown)
+	}, [])
+
 	if (!isOpen) {
 		return null
 	}
 
 	const [title, setTitle] = useState('')
 	const [summary, setSummary] = useState('')
-	const [status, setStatus] = useState(cols[0]?.id || 'backlog')
+	const [status, setStatus] = useState(
+		createTaskInitialColumnId.value || cols[0]?.id || 'backlog',
+	)
 	const [priority, setPriority] = useState<Priority>('medium')
 	const [milestone, setMilestone] = useState('')
 	const [tagsStr, setTagsStr] = useState('')
@@ -29,10 +48,6 @@ export function CreateTaskModal() {
 	)
 	const [isSaving, setIsSaving] = useState(false)
 	const [error, setError] = useState<string | null>(null)
-
-	function closeModal() {
-		isCreateTaskModalOpen.value = false
-	}
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault()
@@ -69,6 +84,33 @@ export function CreateTaskModal() {
 			body,
 		}
 
+		if (mode.value !== 'live') {
+			const total = body
+				.split('\n')
+				.filter((l) => /^\s*-\s*\[[ xX]\]/.test(l)).length
+			const completed = body
+				.split('\n')
+				.filter((l) => /^\s*-\s*\[[xX]\]/.test(l)).length
+			const createdTask: Task = {
+				id: `task-${Date.now().toString(36)}`,
+				title: title.trim(),
+				summary: summary.trim(),
+				status,
+				priority,
+				milestone: milestone.trim() === '' ? undefined : milestone.trim(),
+				tags: parsedTags,
+				dependencies: parsedDeps,
+				body,
+				total_criteria: total,
+				completed_criteria: completed,
+			}
+			upsertTask(createdTask)
+			closeModal()
+			activeTaskDetailId.value = createdTask.id
+			setIsSaving(false)
+			return
+		}
+
 		try {
 			const res = await fetch('/api/tasks', {
 				method: 'POST',
@@ -99,6 +141,16 @@ export function CreateTaskModal() {
 			aria-modal='true'
 			aria-label='Create New Task'
 			data-testid='create-task-modal'
+			onClick={(e) => {
+				if (e.target === e.currentTarget) {
+					closeModal()
+				}
+			}}
+			onKeyDown={(e) => {
+				if (e.key === 'Escape') {
+					closeModal()
+				}
+			}}
 		>
 			<form
 				onSubmit={handleSubmit}

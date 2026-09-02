@@ -11,6 +11,7 @@ import {
 	type Task,
 } from '../schemas/models'
 import type { AppMode } from './bootstrap'
+import { saveStateToStorage } from './storage'
 
 export type Tab = 'board' | 'milestones' | 'strategies' | 'glossary'
 
@@ -39,10 +40,15 @@ const initialConfig: SnapshotConfig = {
 		allowed: [],
 		enforce_allowed: false,
 	},
+	build: {
+		time: '',
+		branch: '',
+		commit: '',
+	},
 }
 
 // Signals
-export const mode = signal<AppMode>('live')
+export const mode = signal<AppMode>('client')
 export const activeTab = signal<Tab>('board')
 export const config = signal<SnapshotConfig>(initialConfig)
 export const tasks = signal<Task[]>([])
@@ -64,6 +70,9 @@ export const filters = signal<FilterState>({
 export const activeTaskDetailId = signal<string | null>(null)
 export const activeTaskEditId = signal<string | null>(null)
 export const isCreateTaskModalOpen = signal<boolean>(false)
+export const createTaskInitialColumnId = signal<string | null>(null)
+export const activeStrategyId = signal<string | null>(null)
+export const activeGlossaryId = signal<string | null>(null)
 
 // Computed
 export const filteredTasks = computed(() => {
@@ -74,12 +83,18 @@ export const filteredTasks = computed(() => {
 	const normalizedQuery = searchQuery.trim().toLowerCase()
 
 	return currentTasks.filter((task) => {
-		// 1. Text search
+		// 1. Text search across title, id, summary, body, and tags
 		if (normalizedQuery !== '') {
 			const inTitle = task.title.toLowerCase().includes(normalizedQuery)
 			const inId = task.id.toLowerCase().includes(normalizedQuery)
-			const inSummary = task.summary.toLowerCase().includes(normalizedQuery)
-			if (!inTitle && !inId && !inSummary) {
+			const inSummary = (task.summary || '')
+				.toLowerCase()
+				.includes(normalizedQuery)
+			const inBody = (task.body || '').toLowerCase().includes(normalizedQuery)
+			const inTags =
+				task.tags?.some((t) => t.toLowerCase().includes(normalizedQuery))
+				?? false
+			if (!inTitle && !inId && !inSummary && !inBody && !inTags) {
 				return false
 			}
 		}
@@ -164,11 +179,30 @@ export const allTags = computed(() => {
 })
 
 // Actions
+export function getCurrentSnapshot(): Snapshot {
+	return {
+		config: config.value,
+		tasks: tasks.value,
+		milestones: milestones.value,
+		strategies: strategies.value,
+		glossary: glossary.value,
+	}
+}
+
+export function persistCurrentState(): void {
+	try {
+		saveStateToStorage(getCurrentSnapshot())
+	} catch (err) {
+		console.warn('Failed to persist current state:', err)
+	}
+}
+
 export function initFromSnapshot(
 	snapshot: Snapshot,
 	warnings: string[] = [],
+	targetMode: AppMode = 'static',
 ): void {
-	mode.value = 'static'
+	mode.value = targetMode
 	config.value = snapshot.config
 	tasks.value = snapshot.tasks
 	milestones.value = snapshot.milestones
@@ -187,6 +221,7 @@ export function upsertTask(task: Task): void {
 	} else {
 		tasks.value = [...tasks.value, task]
 	}
+	persistCurrentState()
 }
 
 export function removeTask(taskId: string): void {
@@ -197,6 +232,7 @@ export function removeTask(taskId: string): void {
 	if (activeTaskEditId.value === taskId) {
 		activeTaskEditId.value = null
 	}
+	persistCurrentState()
 }
 
 export function upsertMilestone(
@@ -210,10 +246,12 @@ export function upsertMilestone(
 	} else {
 		milestones.value = [...milestones.value, milestone]
 	}
+	persistCurrentState()
 }
 
 export function removeMilestone(id: string): void {
 	milestones.value = milestones.value.filter((m) => m.id !== id)
+	persistCurrentState()
 }
 
 export function setSearchQuery(q: string): void {

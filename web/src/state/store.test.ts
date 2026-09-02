@@ -108,7 +108,7 @@ describe('Preact Signals State Store', () => {
 				milestone: 'm1',
 				summary: 'User auth',
 				dependencies: [],
-				body: '',
+				body: 'OAuth2 and session cookies specification',
 				total_criteria: 0,
 				completed_criteria: 0,
 			},
@@ -121,14 +121,22 @@ describe('Preact Signals State Store', () => {
 				milestone: 'm2',
 				summary: 'Admin dashboard',
 				dependencies: [],
-				body: '',
+				body: 'React and Preact components',
 				total_criteria: 0,
 				completed_criteria: 0,
 			},
 		]
 
-		// 1. Search Query
+		// 1. Search Query across title, body, and tags
 		setSearchQuery('login')
+		expect(filteredTasks.value.length).toBe(1)
+		expect(filteredTasks.value[0].id).toBe('t-alpha')
+
+		setSearchQuery('cookies')
+		expect(filteredTasks.value.length).toBe(1)
+		expect(filteredTasks.value[0].id).toBe('t-alpha')
+
+		setSearchQuery('security')
 		expect(filteredTasks.value.length).toBe(1)
 		expect(filteredTasks.value[0].id).toBe('t-alpha')
 

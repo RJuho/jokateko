@@ -16,6 +16,7 @@ import {
 	togglePriorityFilter,
 	toggleTagFilter,
 } from '../state/store'
+import { formatBrowserDateTime } from '../utils/date'
 
 describe('Sample Data & Component Logic Verification', () => {
 	it('validates that sampleSnapshot conforms strictly to Valibot SnapshotSchema', () => {
@@ -68,5 +69,13 @@ describe('Sample Data & Component Logic Verification', () => {
 		// 4. Milestone filter
 		setMilestoneFilter('m1-mvp-release')
 		expect(filteredTasks.value.length).toBe(2)
+	})
+
+	it('formats ISO datetime into browser localized format', () => {
+		const formatted = formatBrowserDateTime('2026-09-02T05:30:00Z')
+		expect(formatted.length).toBeGreaterThan(0)
+		expect(formatted).toContain('2026')
+		expect(formatBrowserDateTime('')).toBe('')
+		expect(formatBrowserDateTime(null)).toBe('')
 	})
 })

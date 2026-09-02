@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'preact/hooks'
+import { useEffect, useMemo, useState } from 'preact/hooks'
+import { navigateTo } from '../../router'
 import type { Task } from '../../schemas/models'
 import {
 	activeTaskDetailId,
 	activeTaskEditId,
 	config,
+	filters,
 	mode,
 	removeTask,
 	tasks,
@@ -17,18 +19,45 @@ export function TaskDetailModal() {
 	const isLive = mode.value === 'live'
 	const cols = config.value.board.columns
 	const [isDeleting, setIsDeleting] = useState(false)
+	const [idCopied, setIdCopied] = useState(false)
+
+	function closeModal() {
+		activeTaskDetailId.value = null
+		const activeMilestone = filters.value.selectedMilestone
+		if (activeMilestone) {
+			navigateTo(`milestone/${activeMilestone}`)
+		} else {
+			navigateTo('board')
+		}
+	}
+
+	// Exit modal when pressing ESC
+	useEffect(() => {
+		function handleKeyDown(e: KeyboardEvent) {
+			if (e.key === 'Escape') {
+				closeModal()
+			}
+		}
+		window.addEventListener('keydown', handleKeyDown)
+		return () => window.removeEventListener('keydown', handleKeyDown)
+	}, [])
 
 	if (!taskId || !task) {
 		return null
 	}
 
-	function closeModal() {
-		activeTaskDetailId.value = null
-	}
+	const currentColumn = cols.find((c) => c.id === task.status)
 
 	function openEditModal() {
 		activeTaskEditId.value = task?.id ?? null
 		activeTaskDetailId.value = null
+	}
+
+	function handleCopyId() {
+		if (!task) return
+		navigator.clipboard.writeText(task.id)
+		setIdCopied(true)
+		setTimeout(() => setIdCopied(false), 1500)
 	}
 
 	async function handleDelete() {
@@ -39,6 +68,13 @@ export function TaskDetailModal() {
 			return
 		}
 		setIsDeleting(true)
+		if (!isLive) {
+			removeTask(task.id)
+			closeModal()
+			setIsDeleting(false)
+			return
+		}
+
 		try {
 			const res = await fetch(`/api/tasks/${encodeURIComponent(task.id)}`, {
 				method: 'DELETE',
@@ -58,32 +94,8 @@ export function TaskDetailModal() {
 		}
 	}
 
-	async function handleStatusChange(newStatus: string) {
-		if (!task || task.status === newStatus) return
-		const prev = task.status
-		upsertTask({ ...task, status: newStatus })
-
-		if (!isLive) return
-		try {
-			const res = await fetch(
-				`/api/tasks/${encodeURIComponent(task.id)}/status`,
-				{
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ status: newStatus }),
-				},
-			)
-			if (!res.ok) {
-				upsertTask({ ...task, status: prev })
-			}
-		} catch (err) {
-			console.warn('Failed to update status:', err)
-			upsertTask({ ...task, status: prev })
-		}
-	}
-
 	async function toggleCheckbox(lineIndex: number, currentChecked: boolean) {
-		if (!task || !isLive) return
+		if (!task) return
 		const lines = (task.body || '').split('\n')
 		const line = lines[lineIndex]
 		if (!line) return
@@ -106,18 +118,20 @@ export function TaskDetailModal() {
 		}
 		upsertTask(updatedTask)
 
-		try {
-			await fetch(`/api/tasks/${encodeURIComponent(task.id)}`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ body: newBody }),
-			})
-		} catch (err) {
-			console.warn('Failed to toggle checkbox on server:', err)
+		if (isLive) {
+			try {
+				await fetch(`/api/tasks/${encodeURIComponent(task.id)}`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ body: newBody }),
+				})
+			} catch (err) {
+				console.warn('Failed to toggle checkbox on server:', err)
+			}
 		}
 	}
 
-	// Parse body for interactive checkboxes & text
+	// Parse body for interactive checkboxes & markdown text
 	const bodyLines = useMemo(() => {
 		return (task.body || '').split('\n').map((line, idx) => {
 			const checkboxMatch = line.match(/^(\s*-\s*\[)([ xX])(\]\s*)(.*)$/)
@@ -140,96 +154,184 @@ export function TaskDetailModal() {
 	}, [task.body])
 
 	return (
+		/* Backdrop: Click outside exits modal */
 		<div
 			class='modal modal-open z-50 bg-neutral/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4'
 			role='dialog'
 			aria-modal='true'
 			aria-label={`Task Details: ${task.title}`}
 			data-testid='task-detail-modal'
+			onClick={(e) => {
+				if (e.target === e.currentTarget) {
+					closeModal()
+				}
+			}}
+			onKeyDown={(e) => {
+				if (e.key === 'Escape') {
+					closeModal()
+				}
+			}}
 		>
-			<div class='modal-box w-full max-w-2xl max-h-[90vh] sm:rounded-2xl rounded-b-none p-5 sm:p-6 overflow-y-auto bg-base-100 shadow-2xl flex flex-col gap-4 border border-base-300'>
-				{/* Modal Top Bar */}
-				<div class='flex items-start justify-between gap-3 border-b border-base-200 pb-3'>
-					<div class='flex flex-col gap-1.5 min-w-0'>
+			<div class='modal-box w-full max-w-2xl max-h-[90vh] sm:rounded-2xl rounded-b-none p-5 sm:p-6 overflow-y-auto bg-base-100 shadow-2xl flex flex-col gap-3.5 border border-base-300'>
+				{/* Modal Top Bar: Board title pill before priority, x/y done badge after priority, copyable ID without # */}
+				{/* No dividing line between top bar and summary */}
+				<div class='flex items-start justify-between gap-3 pb-1'>
+					<div class='flex flex-col gap-2 min-w-0 flex-1'>
+						{/* Top metadata row */}
 						<div class='flex items-center gap-2 flex-wrap'>
-							<PriorityBadge priority={task.priority} />
-							<span class='font-mono text-xs text-base-content/50'>
-								#{task.id}
+							{/* 1. Board Title with solid colored badge (no border) before priority, same size as other badges */}
+							<span
+								class='badge badge-xs font-bold text-slate-900 gap-1 px-1.5 py-0.5 border-0 shadow-2xs select-none'
+								style={{
+									backgroundColor: currentColumn?.color || '#94a3b8',
+								}}
+								title={`Column: ${currentColumn?.name || task.status}`}
+							>
+								<span
+									class='w-1.5 h-1.5 rounded-full shrink-0 bg-slate-900/30'
+									aria-hidden='true'
+								/>
+								<span>{currentColumn?.name || task.status}</span>
 							</span>
-							{task.milestone && (
-								<span class='badge badge-sm badge-ghost text-xs'>
-									{task.milestone}
+
+							{/* 2. Priority Badge (small xs) */}
+							<PriorityBadge priority={task.priority} />
+
+							{/* 3. "x / y done" badge right after priority (only if acceptance criteria exist) */}
+							{task.total_criteria !== undefined && task.total_criteria > 0 && (
+								<span
+									class='badge badge-xs badge-outline text-[10px] font-mono text-base-content/70 px-1.5 py-0.5'
+									title='Acceptance criteria progress'
+								>
+									{task.completed_criteria ?? 0} / {task.total_criteria} done
 								</span>
 							)}
+
+							{/* Milestone badge: clickable to filter board by milestone */}
+							{task.milestone && (
+								<button
+									type='button'
+									onClick={() => navigateTo(`milestone/${task.milestone}`)}
+									class='badge badge-xs badge-ghost hover:badge-primary text-[10px] cursor-pointer transition-all hover:shadow-2xs'
+									title={`Filter board by milestone: ${task.milestone}`}
+									aria-label={`Go to milestone ${task.milestone}`}
+									data-testid='task-modal-milestone-badge'
+								>
+									{task.milestone}
+								</button>
+							)}
+
+							{/* 4. Task ID: clickable to copy, no "#" */}
+							<button
+								type='button'
+								onClick={handleCopyId}
+								class='font-mono text-xs text-base-content/50 hover:text-base-content hover:bg-base-200/60 px-1.5 py-0.5 rounded transition-colors ml-auto sm:ml-0'
+								title={idCopied ? 'Copied to clipboard!' : 'Click to copy ID'}
+								aria-label={`Copy task ID ${task.id}`}
+							>
+								{idCopied ? 'copied!' : task.id}
+							</button>
 						</div>
+
+						{/* Task Title */}
 						<h2 class='text-lg sm:text-xl font-bold text-base-content leading-snug'>
 							{task.title}
 						</h2>
+
+						{/* Tags under title, no "Tags:" label */}
+						{task.tags && task.tags.length > 0 && (
+							<div class='flex flex-wrap items-center gap-1 pt-0.5'>
+								{task.tags.map((tag) => (
+									<TagBadge key={tag} tag={tag} />
+								))}
+							</div>
+						)}
 					</div>
+
+					{/* Top Right Close Button (✕) */}
 					<button
 						type='button'
 						onClick={closeModal}
-						class='btn btn-sm btn-ghost btn-circle shrink-0'
+						class='btn btn-sm btn-ghost btn-circle shrink-0 text-base-content/60 hover:text-base-content'
 						aria-label='Close task details'
 					>
 						✕
 					</button>
 				</div>
 
-				{/* Status Selector / Badge */}
-				<div class='flex items-center justify-between gap-2 bg-base-200/50 p-3 rounded-xl'>
-					<span class='text-xs font-semibold text-base-content/70 uppercase tracking-wider'>
-						Column / Status:
-					</span>
-					{isLive ? (
-						<select
-							value={task.status}
-							onChange={(e) =>
-								handleStatusChange((e.target as HTMLSelectElement).value)
-							}
-							class='select select-sm select-bordered text-xs font-semibold rounded-lg'
-							aria-label='Change task column status'
-						>
-							{cols.map((col) => (
-								<option key={col.id} value={col.id}>
-									{col.name}
-								</option>
-							))}
-						</select>
-					) : (
-						<span class='badge badge-sm badge-neutral font-semibold uppercase'>
-							{task.status}
-						</span>
+				{/* Summary sits cleanly under top bar, no "Summary" label or box */}
+				{task.summary && (
+					<p class='text-sm text-base-content/85 leading-relaxed'>
+						{task.summary}
+					</p>
+				)}
+
+				{/* The ONLY line in task modal: between summary and body text */}
+				<hr class='border-base-200 my-1' />
+
+				{/* Task Body Text & Interactive Checklists (starts right after summary line, no extra label) */}
+				<div class='text-sm font-sans space-y-2'>
+					{bodyLines.map((line) => {
+						if (line.type === 'checkbox') {
+							return (
+								<label
+									key={line.index}
+									class={`flex items-start gap-2.5 p-1 rounded-md transition-colors cursor-pointer ${
+										isLive ? 'hover:bg-base-200/60' : 'cursor-default'
+									}`}
+								>
+									<input
+										type='checkbox'
+										checked={line.checked}
+										disabled={!isLive}
+										onChange={() => toggleCheckbox(line.index, line.checked)}
+										class='checkbox checkbox-primary checkbox-xs mt-0.5'
+										aria-label={`Mark criterion: ${line.text}`}
+									/>
+									<span
+										class={`text-xs leading-relaxed ${
+											line.checked
+												? 'line-through text-base-content/40'
+												: 'text-base-content'
+										}`}
+									>
+										{line.text}
+									</span>
+								</label>
+							)
+						}
+
+						if (line.text.startsWith('#')) {
+							return (
+								<div
+									key={line.index}
+									class='font-bold text-sm text-base-content pt-2'
+								>
+									{line.text.replace(/^#+\s*/, '')}
+								</div>
+							)
+						}
+
+						return (
+							<p
+								key={line.index}
+								class='text-xs text-base-content/80 leading-relaxed whitespace-pre-wrap'
+							>
+								{line.text}
+							</p>
+						)
+					})}
+
+					{(!task.body || task.body.trim() === '') && (
+						<p class='text-xs text-base-content/40 italic'>
+							No body specification provided.
+						</p>
 					)}
 				</div>
 
-				{/* Summary */}
-				{task.summary && (
-					<div class='bg-base-200/30 p-3.5 rounded-xl border border-base-200'>
-						<h3 class='text-xs font-bold uppercase tracking-wider text-base-content/50 mb-1'>
-							Summary
-						</h3>
-						<p class='text-sm text-base-content/85 leading-relaxed'>
-							{task.summary}
-						</p>
-					</div>
-				)}
-
-				{/* Tags */}
-				{task.tags && task.tags.length > 0 && (
-					<div class='flex flex-wrap items-center gap-1.5'>
-						<span class='text-xs font-semibold text-base-content/50 mr-1 uppercase'>
-							Tags:
-						</span>
-						{task.tags.map((tag) => (
-							<TagBadge key={tag} tag={tag} />
-						))}
-					</div>
-				)}
-
-				{/* Dependencies */}
+				{/* Dependencies (if any) */}
 				{task.dependencies && task.dependencies.length > 0 && (
-					<div class='flex flex-col gap-1.5 border border-base-200 p-3 rounded-xl bg-base-200/20'>
+					<div class='flex flex-col gap-1.5 border border-base-200 p-3 rounded-xl bg-base-200/20 mt-2'>
 						<h3 class='text-xs font-bold uppercase tracking-wider text-base-content/50'>
 							Dependencies ({task.dependencies.length})
 						</h3>
@@ -270,82 +372,9 @@ export function TaskDetailModal() {
 					</div>
 				)}
 
-				{/* Acceptance Criteria & Body */}
-				<div class='flex flex-col gap-2 pt-1'>
-					<div class='flex items-center justify-between'>
-						<h3 class='text-xs font-bold uppercase tracking-wider text-base-content/50'>
-							Spec & Acceptance Criteria
-						</h3>
-						{task.total_criteria !== undefined && task.total_criteria > 0 && (
-							<span class='badge badge-sm badge-outline text-xs'>
-								{task.completed_criteria ?? 0} / {task.total_criteria} done
-							</span>
-						)}
-					</div>
-
-					<div class='p-3.5 bg-base-200/30 rounded-xl border border-base-200 text-sm font-sans space-y-2'>
-						{bodyLines.map((line) => {
-							if (line.type === 'checkbox') {
-								return (
-									<label
-										key={line.index}
-										class={`flex items-start gap-2.5 p-1 rounded-md transition-colors cursor-pointer ${
-											isLive ? 'hover:bg-base-200/60' : 'cursor-default'
-										}`}
-									>
-										<input
-											type='checkbox'
-											checked={line.checked}
-											disabled={!isLive}
-											onChange={() => toggleCheckbox(line.index, line.checked)}
-											class='checkbox checkbox-primary checkbox-xs mt-0.5'
-											aria-label={`Mark criterion: ${line.text}`}
-										/>
-										<span
-											class={`text-xs leading-relaxed ${
-												line.checked
-													? 'line-through text-base-content/40'
-													: 'text-base-content'
-											}`}
-										>
-											{line.text}
-										</span>
-									</label>
-								)
-							}
-
-							if (line.text.startsWith('#')) {
-								return (
-									<div
-										key={line.index}
-										class='font-bold text-sm text-base-content pt-2'
-									>
-										{line.text.replace(/^#+\s*/, '')}
-									</div>
-								)
-							}
-
-							return (
-								<p
-									key={line.index}
-									class='text-xs text-base-content/80 leading-relaxed whitespace-pre-wrap'
-								>
-									{line.text}
-								</p>
-							)
-						})}
-
-						{(!task.body || task.body.trim() === '') && (
-							<p class='text-xs text-base-content/40 italic'>
-								No body specification provided.
-							</p>
-						)}
-					</div>
-				</div>
-
-				{/* Modal Actions */}
-				<div class='modal-action flex items-center justify-between pt-2 border-t border-base-200 mt-2'>
-					{isLive ? (
+				{/* Modal Actions: No "Close" button at the end */}
+				{isLive && (
+					<div class='modal-action flex items-center justify-between pt-2 border-t border-base-200 mt-2'>
 						<button
 							type='button'
 							onClick={handleDelete}
@@ -355,31 +384,17 @@ export function TaskDetailModal() {
 						>
 							{isDeleting ? 'Deleting...' : 'Delete'}
 						</button>
-					) : (
-						<div />
-					)}
 
-					<div class='flex items-center gap-2'>
-						{isLive && (
-							<button
-								type='button'
-								onClick={openEditModal}
-								class='btn btn-primary btn-sm'
-								aria-label='Edit this task'
-							>
-								Edit Task
-							</button>
-						)}
 						<button
 							type='button'
-							onClick={closeModal}
-							class='btn btn-ghost btn-sm'
-							aria-label='Close modal'
+							onClick={openEditModal}
+							class='btn btn-primary btn-sm'
+							aria-label='Edit this task'
 						>
-							Close
+							Edit Task
 						</button>
 					</div>
-				</div>
+				)}
 			</div>
 		</div>
 	)

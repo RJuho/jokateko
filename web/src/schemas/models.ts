@@ -79,10 +79,17 @@ export const TagsConfigSchema = v.object({
 	enforce_allowed: v.optional(v.boolean(), false),
 })
 
+export const BuildConfigSchema = v.object({
+	time: v.optional(v.string(), ''),
+	branch: v.optional(v.string(), ''),
+	commit: v.optional(v.string(), ''),
+})
+
 export const SnapshotConfigSchema = v.object({
 	project: ProjectConfigSchema,
 	board: BoardConfigSchema,
 	tags: v.optional(TagsConfigSchema),
+	build: v.optional(BuildConfigSchema),
 })
 
 export const SnapshotSchema = v.object({
@@ -118,6 +125,7 @@ export type GlossaryTerm = v.InferOutput<typeof GlossaryTermSchema>
 export type ColumnState = v.InferOutput<typeof ColumnStateSchema>
 export type BoardState = v.InferOutput<typeof BoardStateSchema>
 export type SnapshotConfig = v.InferOutput<typeof SnapshotConfigSchema>
+export type BuildConfig = v.InferOutput<typeof BuildConfigSchema>
 export type Snapshot = v.InferOutput<typeof SnapshotSchema>
 export type TaskInput = v.InferInput<typeof TaskSchema>
 export type SnapshotInput = v.InferInput<typeof SnapshotSchema>

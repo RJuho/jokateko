@@ -1,10 +1,11 @@
-import { useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import type { Priority, Task } from '../../schemas/models'
 import {
 	activeTaskDetailId,
 	activeTaskEditId,
 	config,
 	milestones,
+	mode,
 	tasks,
 	upsertTask,
 } from '../../state/store'
@@ -14,6 +15,20 @@ export function TaskEditModal() {
 	const task = tasks.value.find((t) => t.id === taskId)
 	const cols = config.value.board.columns
 	const milestoneList = milestones.value
+
+	function closeModal() {
+		activeTaskEditId.value = null
+	}
+
+	useEffect(() => {
+		function handleKeyDown(e: KeyboardEvent) {
+			if (e.key === 'Escape') {
+				closeModal()
+			}
+		}
+		window.addEventListener('keydown', handleKeyDown)
+		return () => window.removeEventListener('keydown', handleKeyDown)
+	}, [])
 
 	if (!taskId || !task) {
 		return null
@@ -29,10 +44,6 @@ export function TaskEditModal() {
 	const [body, setBody] = useState(task.body || '')
 	const [isSaving, setIsSaving] = useState(false)
 	const [error, setError] = useState<string | null>(null)
-
-	function closeModal() {
-		activeTaskEditId.value = null
-	}
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault()
@@ -72,6 +83,33 @@ export function TaskEditModal() {
 			body,
 		}
 
+		if (mode.value !== 'live') {
+			const total = body
+				.split('\n')
+				.filter((l) => /^\s*-\s*\[[ xX]\]/.test(l)).length
+			const completed = body
+				.split('\n')
+				.filter((l) => /^\s*-\s*\[[xX]\]/.test(l)).length
+			const updatedTask: Task = {
+				...task,
+				title: title.trim(),
+				summary: summary.trim(),
+				status,
+				priority,
+				milestone: milestone.trim() === '' ? null : milestone.trim(),
+				tags: parsedTags,
+				dependencies: parsedDeps,
+				body,
+				total_criteria: total,
+				completed_criteria: completed,
+			}
+			upsertTask(updatedTask)
+			closeModal()
+			activeTaskDetailId.value = updatedTask.id
+			setIsSaving(false)
+			return
+		}
+
 		try {
 			const res = await fetch(`/api/tasks/${encodeURIComponent(task.id)}`, {
 				method: 'PUT',
@@ -102,6 +140,16 @@ export function TaskEditModal() {
 			aria-modal='true'
 			aria-label={`Edit Task: ${task.title}`}
 			data-testid='task-edit-modal'
+			onClick={(e) => {
+				if (e.target === e.currentTarget) {
+					closeModal()
+				}
+			}}
+			onKeyDown={(e) => {
+				if (e.key === 'Escape') {
+					closeModal()
+				}
+			}}
 		>
 			<form
 				onSubmit={handleSubmit}

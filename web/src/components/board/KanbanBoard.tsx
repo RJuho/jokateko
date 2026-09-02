@@ -42,20 +42,29 @@ export function KanbanBoard() {
 				},
 			)
 			if (!res.ok) {
-				const data = await res.json().catch(() => ({}))
-				throw new Error(data.error || `HTTP ${res.status}`)
+				throw new Error(`HTTP ${res.status}`)
 			}
 		} catch (err) {
-			console.warn('Failed to update task status on server:', err)
+			console.error('Failed to update task status:', err)
 			// Rollback on error
 			upsertTask({ ...task, status: prevStatus })
 		}
 	}
 
+	function scrollToColumn(colId: string) {
+		setActiveMobileColumn(colId)
+		const el = document.getElementById(`kanban-col-${colId}`)
+		el?.scrollIntoView({
+			behavior: 'smooth',
+			inline: 'center',
+			block: 'nearest',
+		})
+	}
+
 	return (
 		<div class='flex flex-col flex-1 min-h-0 w-full'>
-			{/* Mobile-Only Column Quick-Tab Pills (< md screens) */}
-			<div class='flex md:hidden items-center gap-1.5 overflow-x-auto no-scrollbar px-4 pt-3 pb-1 border-b border-base-200'>
+			{/* Mobile-Only Column Navigation Pills (< md screens) */}
+			<div class='flex md:hidden items-center gap-1.5 overflow-x-auto no-scrollbar px-3 sm:px-4 pt-2 pb-1 border-b border-base-200'>
 				<span class='text-[11px] text-base-content/50 uppercase font-bold tracking-wider shrink-0 mr-1'>
 					Column:
 				</span>
@@ -66,12 +75,12 @@ export function KanbanBoard() {
 						<button
 							key={c.id}
 							type='button'
-							onClick={() => setActiveMobileColumn(c.id)}
+							onClick={() => scrollToColumn(c.id)}
 							class={`btn btn-xs rounded-lg gap-1 whitespace-nowrap ${
 								isSelected ? 'btn-primary' : 'btn-ghost'
 							}`}
 							aria-pressed={isSelected}
-							aria-label={`View column ${c.name} (${count} tasks)`}
+							aria-label={`Scroll to column ${c.name} (${count} tasks)`}
 						>
 							<span
 								class='w-2 h-2 rounded-full'
@@ -85,28 +94,21 @@ export function KanbanBoard() {
 				})}
 			</div>
 
-			{/* Board Content */}
-			{/* Desktop (md+): Multi-column horizontal scrolling */}
-			{/* Mobile (< md): Displays active column or allows full swipe */}
+			{/* Board Columns: scroll-snap-type x mandatory for single-column mobile view & fixed desktop widths */}
 			<main
-				class='flex-1 overflow-x-auto snap-x snap-mandatory flex gap-4 p-4 md:p-6 min-h-0 items-start'
+				class='flex-1 overflow-x-auto snap-x snap-mandatory scroll-smooth flex gap-3 sm:gap-4 p-3 sm:p-4 md:p-6 min-h-0 items-start'
 				aria-label='Kanban columns'
 			>
-				{cols.map((col) => {
-					const isHiddenOnMobile =
-						activeMobileColumn !== col.id ? 'hidden md:flex' : 'flex md:flex'
-
-					return (
-						<div key={col.id} class={`${isHiddenOnMobile} flex-col shrink-0`}>
-							<Column
-								column={col}
-								tasks={groupedTasks[col.id] || []}
-								onTaskDrop={handleTaskDrop}
-								onDragStart={handleDragStart}
-							/>
-						</div>
-					)
-				})}
+				{cols.map((col) => (
+					<div key={col.id} class='shrink-0 snap-center'>
+						<Column
+							column={col}
+							tasks={groupedTasks[col.id] || []}
+							onTaskDrop={handleTaskDrop}
+							onDragStart={handleDragStart}
+						/>
+					</div>
+				))}
 			</main>
 		</div>
 	)

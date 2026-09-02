@@ -21,26 +21,26 @@ function createMockDocument(scriptContent: string | null): Document {
 }
 
 describe('Bootstrap Loader & Error Boundary', () => {
-	it('boots into Live mode when script tag does not exist', () => {
+	it('boots into Client mode by default when script tag does not exist', () => {
 		const doc = createMockDocument(null)
-		const result = bootstrap(doc)
-		expect(result.mode).toBe('live')
+		const result = bootstrap(doc, { checkStorage: false })
+		expect(result.mode).toBe('client')
 		expect(result.snapshot).toBeNull()
 		expect(result.warnings).toEqual([])
 	})
 
-	it('boots into Live mode when script tag contains placeholder comment', () => {
+	it('boots into Client mode when script tag contains placeholder comment', () => {
 		const doc = createMockDocument(`\n  ${PAYLOAD_PLACEHOLDER}\n  `)
-		const result = bootstrap(doc)
-		expect(result.mode).toBe('live')
+		const result = bootstrap(doc, { checkStorage: false })
+		expect(result.mode).toBe('client')
 		expect(result.snapshot).toBeNull()
 		expect(result.warnings).toEqual([])
 	})
 
-	it('boots into Live mode when script tag is empty', () => {
+	it('boots into Client mode when script tag is empty', () => {
 		const doc = createMockDocument('   ')
-		const result = bootstrap(doc)
-		expect(result.mode).toBe('live')
+		const result = bootstrap(doc, { checkStorage: false })
+		expect(result.mode).toBe('client')
 		expect(result.snapshot).toBeNull()
 	})
 

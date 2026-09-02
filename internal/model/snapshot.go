@@ -5,6 +5,14 @@ type SnapshotConfig struct {
 	Project ProjectConfig `json:"project"`
 	Board   BoardConfig   `json:"board"`
 	Tags    TagsConfig    `json:"tags,omitzero"`
+	Build   BuildConfig   `json:"build,omitzero"`
+}
+
+// BuildConfig represents build timestamp and VCS metadata embedded into static exports.
+type BuildConfig struct {
+	Time   string `json:"time,omitempty"`
+	Branch string `json:"branch,omitempty"`
+	Commit string `json:"commit,omitempty"`
 }
 
 // ProjectConfig represents the project name and description for static exports.
