@@ -388,6 +388,7 @@ export function TaskDetailModal() {
 							onClick={openEditModal}
 							class='btn btn-primary btn-sm'
 							aria-label='Edit this task'
+							data-testid='edit-task-button'
 						>
 							Edit Task
 						</button>

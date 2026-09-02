@@ -29,6 +29,7 @@ import {
 	mode,
 	strategies,
 	tasks,
+	validationWarnings,
 } from './state/store'
 
 export function App() {
@@ -40,9 +41,16 @@ export function App() {
 		if (res.mode === 'client') {
 			if (res.snapshot) {
 				initFromSnapshot(res.snapshot, res.warnings, 'client')
+			} else if (res.warnings.length > 0) {
+				validationWarnings.value = res.warnings
 			}
-		} else if (res.mode === 'static' && res.snapshot) {
-			initFromSnapshot(res.snapshot, res.warnings, 'static')
+		} else if (res.mode === 'static') {
+			if (res.snapshot) {
+				initFromSnapshot(res.snapshot, res.warnings, 'static')
+			} else {
+				mode.value = 'static'
+				validationWarnings.value = res.warnings
+			}
 		} else if (res.mode === 'live') {
 			mode.value = 'live'
 			fetchLiveBoard()

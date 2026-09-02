@@ -572,7 +572,7 @@ flowchart TD
   - Runner: `bunx playwright test`
   - Browser: Chromium headless
 
-- [ ] **11.2 E2E Test Scenarios**
+- [x] **11.2 E2E Test Scenarios**
   - `tests/e2e/board.spec.ts`:
     - Launch `jokateko serve`
     - Verify board renders with all columns from `config.toml`

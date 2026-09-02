@@ -82,21 +82,15 @@ export function bootstrap(
 	options: { checkStorage?: boolean; defaultMode?: AppMode } = {},
 ): BootstrapResult {
 	const checkStorage = options.checkStorage ?? true
-	const defaultMode = options.defaultMode ?? 'client'
+	const isHttp =
+		typeof window !== 'undefined'
+		&& Boolean(
+			window.location
+				&& (window.location.protocol === 'http:'
+					|| window.location.protocol === 'https:'),
+		)
 
-	// 1. Check saved state in localStorage first
-	if (checkStorage) {
-		const storageRes = loadStateFromStorage()
-		if (storageRes?.snapshot) {
-			return {
-				mode: 'client',
-				snapshot: storageRes.snapshot,
-				warnings: storageRes.warnings,
-			}
-		}
-	}
-
-	// 2. Check embedded static snapshot script tag
+	// 1. Check embedded static snapshot script tag first
 	const scriptEl = doc.getElementById(SCRIPT_DATA_ID)
 	if (scriptEl) {
 		const parsed = parseSnapshotContent(scriptEl.textContent)
@@ -116,8 +110,29 @@ export function bootstrap(
 		}
 	}
 
+	// 2. If served over HTTP/HTTPS, boot into Live mode unless explicitly configured otherwise
+	if (isHttp && options.defaultMode !== 'client') {
+		return {
+			mode: options.defaultMode ?? 'live',
+			snapshot: null,
+			warnings: [],
+		}
+	}
+
+	// 3. In non-HTTP or client mode, check saved state in localStorage
+	if (checkStorage) {
+		const storageRes = loadStateFromStorage()
+		if (storageRes?.snapshot) {
+			return {
+				mode: 'client',
+				snapshot: storageRes.snapshot,
+				warnings: storageRes.warnings,
+			}
+		}
+	}
+
 	return {
-		mode: defaultMode,
+		mode: options.defaultMode ?? (isHttp ? 'live' : 'client'),
 		snapshot: null,
 		warnings: [],
 	}

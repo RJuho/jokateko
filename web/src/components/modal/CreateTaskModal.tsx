@@ -195,6 +195,7 @@ export function CreateTaskModal() {
 							class='input input-sm input-bordered w-full rounded-lg'
 							required
 							aria-label='New task title'
+							data-testid='task-create-title-input'
 						/>
 					</div>
 
@@ -217,6 +218,7 @@ export function CreateTaskModal() {
 							rows={2}
 							required
 							aria-label='New task summary'
+							data-testid='task-create-summary-input'
 						/>
 					</div>
 
@@ -396,6 +398,7 @@ export function CreateTaskModal() {
 						disabled={isSaving}
 						class='btn btn-primary btn-sm'
 						aria-label='Create task'
+						data-testid='create-task-submit-button'
 					>
 						{isSaving ? 'Creating...' : 'Create Task'}
 					</button>

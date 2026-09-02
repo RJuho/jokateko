@@ -195,6 +195,7 @@ export function TaskEditModal() {
 							class='input input-sm input-bordered w-full rounded-lg'
 							required
 							aria-label='Task title'
+							data-testid='task-edit-title-input'
 						/>
 					</div>
 
@@ -216,6 +217,7 @@ export function TaskEditModal() {
 							rows={2}
 							required
 							aria-label='Task summary'
+							data-testid='task-edit-summary-input'
 						/>
 					</div>
 
@@ -395,6 +397,7 @@ export function TaskEditModal() {
 						disabled={isSaving}
 						class='btn btn-primary btn-sm'
 						aria-label='Save changes'
+						data-testid='save-task-button'
 					>
 						{isSaving ? 'Saving...' : 'Save Changes'}
 					</button>
