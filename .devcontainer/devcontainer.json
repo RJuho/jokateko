@@ -4,8 +4,16 @@
 		"dockerfile": "Dockerfile"
 	},
 	"remoteUser": "bun",
-	"forwardPorts": [4321, 8080],
+	"forwardPorts": [3000, 4321, 8080],
 	"portsAttributes": {
+		"3000": {
+			"label": "Jokateko Web",
+			"onAutoForward": "notify"
+		},
+		"4321": {
+			"label": "Web dev server",
+			"onAutoForward": "notify"
+		},
 		"8080": {
 			"label": "Caw Server",
 			"onAutoForward": "notify"
@@ -17,7 +25,6 @@
 				"oven.bun-vscode",
 				"biomejs.biome",
 				"bradlc.vscode-tailwindcss",
-				"qwtel.sqlite-viewer",
 				"golang.Go",
 				"ms-vscode.makefile-tools"
 			],
@@ -27,8 +34,8 @@
 				"[css]": {
 					"editor.defaultFormatter": "bradlc.vscode-tailwindcss"
 				},
-				"biome.lsp.bin": "node_modules/@biomejs/biome/bin/biome",
-				"biome.configurationPath": "biome.json",
+				"biome.lsp.bin": "web/node_modules/@biomejs/biome/bin/biome",
+				"biome.configurationPath": "web/biome.json",
 				"editor.defaultFormatter": "biomejs.biome",
 				"editor.formatOnSave": true,
 				"editor.codeActionsOnSave": {
@@ -36,5 +43,6 @@
 				}
 			}
 		}
-	}
+	},
+	"onCreateCommand": "go install golang.org/x/tools/gopls@latest"
 }
