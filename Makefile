@@ -1,4 +1,4 @@
-.PHONY: all build test clean generate install-tools ui-build lint
+.PHONY: all build test clean generate install-tools ui-build lint e2e-test
 
 # Binary name and output directory
 BINARY_NAME := jokateko
@@ -45,3 +45,7 @@ lint:
 # Clean built artifacts
 clean:
 	rm -rf $(BIN_DIR)
+
+# Run Playwright end-to-end tests
+e2e-test:
+	bunx playwright test

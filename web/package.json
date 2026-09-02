@@ -9,6 +9,7 @@
 		"check:tailwind": "bun run scripts/check-tailwind.ts",
 		"check": "biome check && bun run scripts/check-tailwind.ts",
 		"dev": "bun --hot scripts/dev.ts",
+		"test:e2e": "bunx playwright test --config ../playwright.config.ts",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
@@ -22,6 +23,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.11",
+		"@playwright/test": "^1.62.1",
 		"@types/bun": "^1.4.0",
 		"@types/node": "latest",
 		"typescript": "latest"
