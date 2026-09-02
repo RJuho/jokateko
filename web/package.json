@@ -5,8 +5,9 @@
 	"type": "module",
 	"scripts": {
 		"build": "bun run scripts/bundle.ts",
-		"check:fix": "biome check --write",
-		"check": "biome check",
+		"check:fix": "biome check --write && bun run scripts/check-tailwind.ts --fix",
+		"check:tailwind": "bun run scripts/check-tailwind.ts",
+		"check": "biome check && bun run scripts/check-tailwind.ts",
 		"dev": "bun --hot scripts/dev.ts",
 		"typecheck": "tsc --noEmit"
 	},

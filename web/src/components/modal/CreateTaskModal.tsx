@@ -45,9 +45,7 @@ export function CreateTaskModal() {
 	const [milestone, setMilestone] = useState('')
 	const [tagsStr, setTagsStr] = useState('')
 	const [depsStr, setDepsStr] = useState('')
-	const [body, setBody] = useState(
-		'## Acceptance Criteria\n- [ ] Initial requirement\n\n## Implementation Notes\n',
-	)
+	const [body, setBody] = useState('')
 	const [isSaving, setIsSaving] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 
@@ -256,7 +254,7 @@ export function CreateTaskModal() {
 								<span>Priority</span>
 								{priorityList.find((p) => p.id === priority)?.color && (
 									<span
-										class='w-2.5 h-2.5 rounded-full inline-block shadow-2xs'
+										class='inline-block size-2.5 rounded-full shadow-2xs'
 										style={{
 											backgroundColor: priorityList.find(
 												(p) => p.id === priority,
@@ -373,6 +371,7 @@ export function CreateTaskModal() {
 						<textarea
 							id='task-create-body'
 							value={body}
+							placeholder='Enter task description or acceptance criteria (Markdown)...'
 							onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)}
 							class='textarea textarea-sm textarea-bordered w-full rounded-lg font-mono text-xs'
 							rows={6}

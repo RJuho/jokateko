@@ -253,7 +253,7 @@ export function TaskEditModal() {
 								<span>Priority</span>
 								{priorityList.find((p) => p.id === priority)?.color && (
 									<span
-										class='w-2.5 h-2.5 rounded-full inline-block shadow-2xs'
+										class='inline-block size-2.5 rounded-full shadow-2xs'
 										style={{
 											backgroundColor: priorityList.find(
 												(p) => p.id === priority,

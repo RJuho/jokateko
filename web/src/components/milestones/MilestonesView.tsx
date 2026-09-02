@@ -75,7 +75,7 @@ export function MilestonesView() {
 										<div class='flex items-center gap-1 text-[11px] font-mono text-base-content/60'>
 											<svg
 												xmlns='http://www.w3.org/2000/svg'
-												class='h-3.5 w-3.5'
+												class='size-3.5'
 												fill='none'
 												viewBox='0 0 24 24'
 												stroke='currentColor'
@@ -94,12 +94,12 @@ export function MilestonesView() {
 									)}
 								</div>
 
-								<h3 class='text-base font-bold text-base-content leading-snug'>
+								<h3 class='text-base/snug font-bold text-base-content'>
 									{m.title}
 								</h3>
 
 								{m.summary && (
-									<p class='text-xs text-base-content/70 leading-relaxed line-clamp-3'>
+									<p class='line-clamp-3 text-xs/relaxed text-base-content/70'>
 										{m.summary}
 									</p>
 								)}

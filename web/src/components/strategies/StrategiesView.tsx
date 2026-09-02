@@ -187,7 +187,7 @@ export function StrategiesView() {
 				<h1 class='text-2xl font-black tracking-tight text-base-content'>
 					{t('architectural_strategies')}
 				</h1>
-				<p class='text-sm text-base-content/60 leading-relaxed'>
+				<p class='text-sm/relaxed text-base-content/60'>
 					{t('strategies_subtitle')}
 				</p>
 			</div>
@@ -303,7 +303,7 @@ export function StrategiesView() {
 									>
 										{copiedLink === s.id ? (
 											<svg
-												class='w-3.5 h-3.5 text-success'
+												class='size-3.5 text-success'
 												fill='none'
 												viewBox='0 0 24 24'
 												stroke='currentColor'
@@ -319,7 +319,7 @@ export function StrategiesView() {
 											</svg>
 										) : (
 											<svg
-												class='w-3.5 h-3.5'
+												class='size-3.5'
 												fill='none'
 												viewBox='0 0 24 24'
 												stroke='currentColor'
@@ -347,7 +347,7 @@ export function StrategiesView() {
 								aria-label={`Strategy: ${s.title}`}
 							>
 								{/* Title */}
-								<h3 class='text-base font-bold text-base-content leading-snug group-hover:text-primary transition-colors'>
+								<h3 class='text-base/snug font-bold text-base-content transition-colors group-hover:text-primary'>
 									{s.title}
 								</h3>
 
@@ -367,7 +367,7 @@ export function StrategiesView() {
 
 								{/* Summary: Kept as is */}
 								{s.summary && (
-									<p class='text-xs sm:text-sm text-base-content/80 leading-relaxed pt-0.5'>
+									<p class='pt-0.5 text-xs/relaxed text-base-content/80 sm:text-sm'>
 										{s.summary}
 									</p>
 								)}

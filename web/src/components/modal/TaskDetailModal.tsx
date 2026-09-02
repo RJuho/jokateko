@@ -188,7 +188,7 @@ export function TaskDetailModal() {
 								title={`Column: ${currentColumn?.name || task.status}`}
 							>
 								<span
-									class='w-1.5 h-1.5 rounded-full shrink-0 bg-slate-900/30'
+									class='size-1.5 shrink-0 rounded-full bg-slate-900/30'
 									aria-hidden='true'
 								/>
 								<span>{currentColumn?.name || task.status}</span>
@@ -234,7 +234,7 @@ export function TaskDetailModal() {
 						</div>
 
 						{/* Task Title */}
-						<h2 class='text-lg sm:text-xl font-bold text-base-content leading-snug'>
+						<h2 class='text-lg/snug font-bold text-base-content sm:text-xl'>
 							{task.title}
 						</h2>
 
@@ -261,9 +261,7 @@ export function TaskDetailModal() {
 
 				{/* Summary sits cleanly under top bar, no "Summary" label or box */}
 				{task.summary && (
-					<p class='text-sm text-base-content/85 leading-relaxed'>
-						{task.summary}
-					</p>
+					<p class='text-sm/relaxed text-base-content/85'>{task.summary}</p>
 				)}
 
 				{/* The ONLY line in task modal: between summary and body text */}
@@ -315,7 +313,7 @@ export function TaskDetailModal() {
 						return (
 							<p
 								key={line.index}
-								class='text-xs text-base-content/80 leading-relaxed whitespace-pre-wrap'
+								class='text-xs/relaxed whitespace-pre-wrap text-base-content/80'
 							>
 								{line.text}
 							</p>

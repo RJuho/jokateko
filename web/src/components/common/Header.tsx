@@ -412,7 +412,7 @@ export function Header() {
 						{isSearchDropdownOpen
 							&& filters.value.searchQuery.trim().length > 0 && (
 								<section
-									class='absolute left-0 right-0 top-full mt-1.5 z-50 bg-base-100/98 border border-base-200 shadow-2xl rounded-2xl p-2 flex flex-col gap-1.5 backdrop-blur-md animate-fadeIn'
+									class='animate-fadeIn absolute inset-x-0 top-full z-50 mt-1.5 flex flex-col gap-1.5 rounded-2xl border border-base-200 bg-base-100/98 p-2 shadow-2xl backdrop-blur-md'
 									data-testid='search-results-popover'
 									aria-label={t('arial_search_results')}
 									onKeyDown={(e) => {
@@ -490,7 +490,7 @@ export function Header() {
 									</div>
 
 									{!hasAnyResults && (
-										<div class='px-2 py-2 text-center text-xs text-base-content/50'>
+										<div class='p-2 text-center text-xs text-base-content/50'>
 											{t('no_matching_results')}
 										</div>
 									)}
@@ -516,7 +516,7 @@ export function Header() {
 
 							{/* sun icon (swap-off: shown when winter / light theme is active) */}
 							<svg
-								class='swap-off fill-current w-4 h-4'
+								class='size-4 swap-off fill-current'
 								xmlns='http://www.w3.org/2000/svg'
 								viewBox='0 0 24 24'
 								aria-hidden='true'
@@ -527,7 +527,7 @@ export function Header() {
 
 							{/* moon icon (swap-on: shown when sunset / dark theme is active) */}
 							<svg
-								class='swap-on fill-current w-4 h-4'
+								class='size-4 swap-on fill-current'
 								xmlns='http://www.w3.org/2000/svg'
 								viewBox='0 0 24 24'
 								aria-hidden='true'
@@ -552,9 +552,9 @@ export function Header() {
 								data-testid='mode-indicator-live'
 							>
 								<div class='flex items-center gap-1.5 text-xs font-medium text-base-content/80'>
-									<span class='relative flex h-2 w-2'>
-										<span class='animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75' />
-										<span class='relative inline-flex rounded-full h-2 w-2 bg-emerald-500' />
+									<span class='relative flex size-2'>
+										<span class='absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75' />
+										<span class='relative inline-flex size-2 rounded-full bg-emerald-500' />
 									</span>
 									<span class='text-[11px] font-mono leading-none'>
 										{connectionStatus.value === 'connected'
@@ -617,7 +617,7 @@ export function Header() {
 					>
 						<svg
 							xmlns='http://www.w3.org/2000/svg'
-							class='h-5 w-5'
+							class='size-5'
 							fill='none'
 							viewBox='0 0 24 24'
 							stroke='currentColor'
@@ -665,7 +665,7 @@ export function Header() {
 									aria-label={t('arial_theme_dark')}
 								/>
 								<svg
-									class='swap-off fill-current w-4 h-4'
+									class='size-4 swap-off fill-current'
 									xmlns='http://www.w3.org/2000/svg'
 									viewBox='0 0 24 24'
 									aria-hidden='true'
@@ -674,7 +674,7 @@ export function Header() {
 									<path d='M5.64,17l-.71.71a1,1,0,0,0,0,1.41,1,1,0,0,0,1.41,0l.71-.71A1,1,0,0,0,5.64,17ZM5,12a1,1,0,0,0-1-1H3a1,1,0,0,0,0,2H4A1,1,0,0,0,5,12Zm7-7a1,1,0,0,0,1-1V3a1,1,0,0,0-2,0V4A1,1,0,0,0,12,5ZM5.64,7.05a1,1,0,0,0,.7.29,1,1,0,0,0,.71-.29,1,1,0,0,0,0-1.41l-.71-.71A1,1,0,0,0,4.93,6.34Zm12,.29a1,1,0,0,0,.7-.29l.71-.71a1,1,0,1,0-1.41-1.41L17,5.64a1,1,0,0,0,0,1.41A1,1,0,0,0,17.66,7.34ZM21,11H20a1,1,0,0,0,0,2h1a1,1,0,0,0,0-2Zm-9,8a1,1,0,0,0-1,1v1a1,1,0,0,0,2,0V20A1,1,0,0,0,12,19ZM18.36,17A1,1,0,0,0,17,18.36l.71.71a1,1,0,0,0,1.41,0,1,1,0,0,0,0-1.41ZM12,6.5A5.5,5.5,0,1,0,17.5,12,5.51,5.51,0,0,0,12,6.5Zm0,9A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z' />
 								</svg>
 								<svg
-									class='swap-on fill-current w-4 h-4'
+									class='size-4 swap-on fill-current'
 									xmlns='http://www.w3.org/2000/svg'
 									viewBox='0 0 24 24'
 									aria-hidden='true'
@@ -717,9 +717,9 @@ export function Header() {
 									data-testid='mode-indicator-live'
 								>
 									<div class='flex items-center gap-1.5'>
-										<span class='relative flex h-2 w-2'>
-											<span class='animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75' />
-											<span class='relative inline-flex rounded-full h-2 w-2 bg-emerald-500' />
+										<span class='relative flex size-2'>
+											<span class='absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75' />
+											<span class='relative inline-flex size-2 rounded-full bg-emerald-500' />
 										</span>
 										<span class='text-xs font-mono font-medium'>
 											{connectionStatus.value === 'connected'

@@ -142,7 +142,7 @@ export function KanbanBoard() {
 								data-testid={`quick-nav-col-${c.id}`}
 							>
 								<span
-									class='w-2 h-2 rounded-full'
+									class='size-2 rounded-full'
 									style={{ backgroundColor: c.color }}
 									aria-hidden='true'
 								/>

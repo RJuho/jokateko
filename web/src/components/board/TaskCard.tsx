@@ -61,7 +61,7 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 						>
 							<svg
 								xmlns='http://www.w3.org/2000/svg'
-								class='h-3 w-3'
+								class='size-3'
 								fill='none'
 								viewBox='0 0 24 24'
 								stroke='currentColor'
@@ -98,13 +98,13 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 				aria-label={`Open task: ${task.title}, Priority: ${task.priority}`}
 			>
 				{/* Card Title */}
-				<h4 class='text-sm font-semibold text-base-content leading-snug line-clamp-2 group-hover:text-primary transition-colors'>
+				<h4 class='line-clamp-2 text-sm/snug font-semibold text-base-content transition-colors group-hover:text-primary'>
 					{task.title}
 				</h4>
 
 				{/* Card Summary */}
 				{task.summary && (
-					<p class='text-xs text-base-content/70 line-clamp-2 leading-relaxed'>
+					<p class='line-clamp-2 text-xs/relaxed text-base-content/70'>
 						{task.summary}
 					</p>
 				)}
@@ -116,7 +116,7 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 						<div class='flex items-center gap-1 text-[11px] text-base-content/60 font-medium'>
 							<svg
 								xmlns='http://www.w3.org/2000/svg'
-								class='h-3.5 w-3.5 text-primary'
+								class='size-3.5 text-primary'
 								fill='none'
 								viewBox='0 0 24 24'
 								stroke='currentColor'

@@ -110,7 +110,7 @@ export function GlossaryView() {
 							{/* Term Header: Title + Link button on left, Term ID (no '#', click to copy) on right */}
 							<div class='flex items-start justify-between gap-2'>
 								<div class='flex items-center gap-1.5 min-w-0'>
-									<h3 class='text-base font-bold text-base-content leading-snug'>
+									<h3 class='text-base/snug font-bold text-base-content'>
 										{term.title}
 									</h3>
 
@@ -128,7 +128,7 @@ export function GlossaryView() {
 									>
 										{copiedLink === term.id ? (
 											<svg
-												class='w-3.5 h-3.5 text-success'
+												class='size-3.5 text-success'
 												fill='none'
 												viewBox='0 0 24 24'
 												stroke='currentColor'
@@ -144,7 +144,7 @@ export function GlossaryView() {
 											</svg>
 										) : (
 											<svg
-												class='w-3.5 h-3.5'
+												class='size-3.5'
 												fill='none'
 												viewBox='0 0 24 24'
 												stroke='currentColor'
@@ -188,7 +188,7 @@ export function GlossaryView() {
 							>
 								{/* Term Summary */}
 								{term.summary && (
-									<p class='text-xs sm:text-sm text-base-content/80 leading-relaxed'>
+									<p class='text-xs/relaxed text-base-content/80 sm:text-sm'>
 										{term.summary}
 									</p>
 								)}

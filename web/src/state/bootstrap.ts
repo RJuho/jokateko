@@ -2,7 +2,11 @@ import * as v from 'valibot'
 import { type Snapshot, SnapshotSchema } from '../schemas/models'
 import { loadStateFromStorage } from './storage'
 
-export const PAYLOAD_PLACEHOLDER = '/* JOKATEKO_PAYLOAD_PLACEHOLDER */'
+export const PAYLOAD_PLACEHOLDER = [
+	'/*',
+	'JOKATEKO_PAYLOAD_PLACEHOLDER',
+	'*/',
+].join(' ')
 export const SCRIPT_DATA_ID = 'jokateko-data'
 
 export type AppMode = 'client' | 'live' | 'static'

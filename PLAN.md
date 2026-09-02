@@ -553,7 +553,7 @@ flowchart TD
     - `web/src/components/strategies/StrategiesView.tsx`: Progressive disclosure view (Tier 1/2/3 filter, expandable markdown specs)
     - `web/src/components/glossary/GlossaryView.tsx`: Alphabetical glossary terminology index
 
-- [ ] **10.9 Bun Native Single-File Bundler Script**
+- [x] **10.9 Bun Native Single-File Bundler Script**
   - File: `web/scripts/bundle.ts`
   - Build pipeline:
     1. Run Tailwind CLI to generate minified CSS

@@ -19,7 +19,7 @@ export function ValidationBanner() {
 			<div class='flex items-start gap-2'>
 				<svg
 					xmlns='http://www.w3.org/2000/svg'
-					class='stroke-current shrink-0 h-5 w-5 mt-0.5'
+					class='mt-0.5 size-5 shrink-0 stroke-current'
 					fill='none'
 					viewBox='0 0 24 24'
 					aria-hidden='true'

@@ -11,7 +11,6 @@ import { CreateTaskModal } from './components/modal/CreateTaskModal'
 import { TaskDetailModal } from './components/modal/TaskDetailModal'
 import { TaskEditModal } from './components/modal/TaskEditModal'
 import { StrategiesView } from './components/strategies/StrategiesView'
-import { sampleSnapshot } from './fixtures/sampleData'
 import { initRouter, updateDocumentTitle } from './router'
 import { bootstrap } from './state/bootstrap'
 import { startSSE, stopSSE } from './state/sse'
@@ -41,18 +40,12 @@ export function App() {
 		if (res.mode === 'client') {
 			if (res.snapshot) {
 				initFromSnapshot(res.snapshot, res.warnings, 'client')
-			} else {
-				initFromSnapshot(sampleSnapshot, [], 'client')
 			}
 		} else if (res.mode === 'static' && res.snapshot) {
 			initFromSnapshot(res.snapshot, res.warnings, 'static')
 		} else if (res.mode === 'live') {
 			mode.value = 'live'
-			fetchLiveBoard().then((success) => {
-				if (!success && tasks.value.length === 0) {
-					initFromSnapshot(sampleSnapshot, [], 'client')
-				}
-			})
+			fetchLiveBoard()
 			fetchLiveEntities()
 			startSSE()
 		}
@@ -79,7 +72,7 @@ export function App() {
 	])
 
 	return (
-		<div class='h-screen h-[100dvh] bg-base-100 flex flex-col font-sans text-base-content overflow-hidden'>
+		<div class='h-dvh bg-base-100 flex flex-col font-sans text-base-content overflow-hidden'>
 			{/* Application Header */}
 			<Header />
 

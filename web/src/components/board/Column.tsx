@@ -94,12 +94,12 @@ export function Column({
 							createTaskInitialColumnId.value = column.id
 							isCreateTaskModalOpen.value = true
 						}}
-						class='w-5 h-5 rounded-full hover:bg-black/15 flex items-center justify-center text-slate-900/80 hover:text-slate-900 transition-colors shrink-0 ml-1.5'
+						class='ml-1.5 flex size-5 shrink-0 items-center justify-center rounded-full text-slate-900/80 transition-colors hover:bg-black/15 hover:text-slate-900'
 						aria-label={`Add new task to ${column.name}`}
 						data-testid={`add-task-${column.id}`}
 					>
 						<svg
-							class='w-3.5 h-3.5'
+							class='size-3.5'
 							fill='none'
 							viewBox='0 0 24 24'
 							stroke='currentColor'
