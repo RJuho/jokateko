@@ -62,13 +62,14 @@ type ServerSecurityConfig struct {
 
 // CSPConfig specifies Content-Security-Policy header rules.
 type CSPConfig struct {
-	Enabled    bool     `toml:"enabled"`
-	DefaultSrc []string `toml:"default_src"`
-	ScriptSrc  []string `toml:"script_src"`
-	StyleSrc   []string `toml:"style_src"`
-	ImgSrc     []string `toml:"img_src"`
-	ConnectSrc []string `toml:"connect_src"`
-	FontSrc    []string `toml:"font_src"`
+	Enabled      bool     `toml:"enabled"`
+	DefaultSrc   []string `toml:"default_src"`
+	ScriptSrc    []string `toml:"script_src"`
+	StyleSrc     []string `toml:"style_src"`
+	StyleSrcAttr []string `toml:"style_src_attr"`
+	ImgSrc       []string `toml:"img_src"`
+	ConnectSrc   []string `toml:"connect_src"`
+	FontSrc      []string `toml:"font_src"`
 }
 
 // BoardConfig defines the Kanban workflow columns.

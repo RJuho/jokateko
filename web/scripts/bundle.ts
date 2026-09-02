@@ -66,17 +66,26 @@ async function main() {
 
 	const [css, js] = await Promise.all([buildCSS(), buildJS()])
 
+	const { createHash } = await import('node:crypto')
+	const scriptSha256 = createHash('sha256').update(js).digest('base64')
+	const styleSha256 = createHash('sha256').update(css).digest('base64')
+
+	const scriptHash = `sha256-${scriptSha256}`
+	const styleHash = `sha256-${styleSha256}`
+
 	console.log(
-		`   ✓ Tailwind CSS compiled (${(css.length / 1024).toFixed(1)} KB)`,
+		`   ✓ Tailwind CSS compiled (${(css.length / 1024).toFixed(1)} KB) -> '${styleHash}'`,
 	)
-	console.log(`   ✓ Preact SPA bundled (${(js.length / 1024).toFixed(1)} KB)`)
+	console.log(
+		`   ✓ Preact SPA bundled (${(js.length / 1024).toFixed(1)} KB) -> '${scriptHash}'`,
+	)
 
 	const template = await Bun.file(templatePath).text()
 
 	// Replace stylesheet link with inlined <style> tag
 	let output = template.replace(
 		/<link\s+rel=["']stylesheet["']\s+href=["'][^"']+["']\s*\/?>/i,
-		`<style>\n${css}\n</style>`,
+		`<style>${css}</style>`,
 	)
 
 	// Ensure the payload placeholder is present inside jokateko-data script tag
@@ -97,7 +106,7 @@ async function main() {
 	// Replace external script tag with inlined bundled JS
 	output = output.replace(
 		/<script\s+type=["']module["']\s+src=["'][^"']+["']\s*><\/script>/i,
-		`<script>\n${js}\n</script>`,
+		`<script>${js}</script>`,
 	)
 
 	if (!existsSync(distDir)) {
@@ -105,6 +114,21 @@ async function main() {
 	}
 
 	await Bun.write(distHtmlPath, output)
+	await Bun.write(resolve(distDir, 'script.sha256'), scriptHash)
+	await Bun.write(resolve(distDir, 'style.sha256'), styleHash)
+	await Bun.write(
+		resolve(distDir, 'hashes.json'),
+		JSON.stringify(
+			{
+				script_hash: `'${scriptHash}'`,
+				style_hash: `'${styleHash}'`,
+				script_sha256: scriptSha256,
+				style_sha256: styleSha256,
+			},
+			null,
+			2,
+		),
+	)
 
 	const duration = (performance.now() - startTime).toFixed(0)
 	const totalSize = (output.length / 1024).toFixed(1)

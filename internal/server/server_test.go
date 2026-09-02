@@ -397,6 +397,27 @@ func TestSecurityHeaders(t *testing.T) {
 		t.Errorf("expected Content-Security-Policy header, got %q", csp)
 	}
 
+	// Verify SHA-256 hashes are injected into script-src and style-src
+	if !strings.Contains(csp, "script-src 'self' 'sha256-") {
+		t.Errorf("expected script-src to contain 'self' and 'sha256-...', got %q", csp)
+	}
+	if !strings.Contains(csp, "style-src 'self' 'sha256-") {
+		t.Errorf("expected style-src to contain 'self' and 'sha256-...', got %q", csp)
+	}
+
+	// Verify unsafe-inline is NOT in script-src or style-src
+	if strings.Contains(csp, "script-src 'self' 'unsafe-inline'") || strings.Contains(csp, "script-src 'unsafe-inline'") {
+		t.Errorf("script-src must NOT contain 'unsafe-inline', got %q", csp)
+	}
+	if strings.Contains(csp, "style-src 'self' 'unsafe-inline'") || strings.Contains(csp, "style-src 'unsafe-inline'") {
+		t.Errorf("style-src must NOT contain 'unsafe-inline', got %q", csp)
+	}
+
+	// Verify style-src-attr is set for element style attributes
+	if !strings.Contains(csp, "style-src-attr 'unsafe-inline'") {
+		t.Errorf("expected style-src-attr 'unsafe-inline', got %q", csp)
+	}
+
 	cors := rec.Header().Get("Access-Control-Allow-Origin")
 	if cors != "http://localhost:8080" {
 		t.Errorf("expected Access-Control-Allow-Origin: http://localhost:8080, got %q", cors)

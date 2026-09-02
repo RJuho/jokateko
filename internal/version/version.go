@@ -17,15 +17,25 @@ var (
 
 	// Date is the UTC build timestamp in ISO 8601 / RFC 3339 format.
 	Date = "unknown"
+
+	// ScriptHash is the CSP sha256 hash of the bundled inline script (e.g. "sha256-..."),
+	// injected at build time via -ldflags.
+	ScriptHash = ""
+
+	// StyleHash is the CSP sha256 hash of the bundled inline stylesheet (e.g. "sha256-..."),
+	// injected at build time via -ldflags.
+	StyleHash = ""
 )
 
 // Info holds structured build metadata for diagnostics and API responses.
 type Info struct {
-	Version   string `json:"version"`
-	Commit    string `json:"commit"`
-	Date      string `json:"date"`
-	GoVersion string `json:"go_version"`
-	Platform  string `json:"platform"`
+	Version    string `json:"version"`
+	Commit     string `json:"commit"`
+	Date       string `json:"date"`
+	ScriptHash string `json:"script_hash,omitempty"`
+	StyleHash  string `json:"style_hash,omitempty"`
+	GoVersion  string `json:"go_version"`
+	Platform   string `json:"platform"`
 }
 
 // Get returns the resolved build and version information.
@@ -33,11 +43,13 @@ type Info struct {
 // missing fields from Go's runtime build info.
 func Get() Info {
 	info := Info{
-		Version:   Version,
-		Commit:    Commit,
-		Date:      Date,
-		GoVersion: runtime.Version(),
-		Platform:  fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+		Version:    Version,
+		Commit:     Commit,
+		Date:       Date,
+		ScriptHash: ScriptHash,
+		StyleHash:  StyleHash,
+		GoVersion:  runtime.Version(),
+		Platform:   fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 	}
 
 	// Fallback to runtime/debug.ReadBuildInfo() if not injected via -ldflags.
