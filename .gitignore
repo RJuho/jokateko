@@ -40,3 +40,6 @@ go.work.sum
 
 # Web build
 web/dist/
+
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
