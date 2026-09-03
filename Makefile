@@ -21,6 +21,7 @@ LDFLAGS = -X 'github.com/RJuho/jokateko/internal/version.Version=$(VERSION)' \
 # Route Go compiler temp directories into workspace filesystem
 GOTMPDIR ?= $(CURDIR)/.gopath/tmp
 export GOTMPDIR
+_mkdir := $(shell mkdir -p $(GOTMPDIR))
 
 all: test build
 
