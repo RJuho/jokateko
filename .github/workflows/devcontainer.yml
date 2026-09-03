@@ -41,8 +41,7 @@ jobs:
       - name: Run Dev Container CI
         uses: devcontainers/ci@v0.3
         with:
-          subfolder: .devcontainer
-          imageName: ghcr.io/${{ github.repository }}-devcontainer
-          cacheFrom: ghcr.io/${{ github.repository }}-devcontainer
+          imageName: ghcr.io/rjuho/jokateko-devcontainer
+          cacheFrom: ghcr.io/rjuho/jokateko-devcontainer
           push: ${{ github.ref == 'refs/heads/main' && 'always' || 'never' }}
           runCmd: make test && make e2e-test && make build && ./bin/jokateko parse

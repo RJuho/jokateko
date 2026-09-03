@@ -20,7 +20,7 @@ jobs:
     name: Cross-Compile Static Binaries
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/${{ github.repository }}-devcontainer:latest
+      image: ghcr.io/rjuho/jokateko-devcontainer:latest
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -72,7 +72,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}-devcontainer
+          images: ghcr.io/rjuho/jokateko-devcontainer
           tags: |
             type=semver,pattern={{version}}
             type=raw,value=latest
@@ -113,7 +113,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/rjuho/jokateko
           tags: |
             type=semver,pattern={{version}}
             type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
@@ -125,7 +125,7 @@ jobs:
           context: .
           file: ./Dockerfile
           build-args: |
-            DEVCONTAINER_IMAGE=ghcr.io/${{ github.repository }}-devcontainer:latest
+            DEVCONTAINER_IMAGE=ghcr.io/rjuho/jokateko-devcontainer:latest
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}

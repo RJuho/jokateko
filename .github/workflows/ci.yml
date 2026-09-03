@@ -20,7 +20,7 @@ jobs:
     name: Codebase Validation
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/${{ github.repository }}-devcontainer:latest
+      image: ghcr.io/rjuho/jokateko-devcontainer:latest
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
