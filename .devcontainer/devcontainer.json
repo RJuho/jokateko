@@ -1,7 +1,10 @@
 {
 	"name": "jokateko",
 	"build": {
-		"dockerfile": "Dockerfile"
+		"dockerfile": "Dockerfile",
+		"cacheFrom": [
+			"ghcr.io/rjuho/jokateko-devcontainer:latest"
+		]
 	},
 	"remoteUser": "bun",
 	"forwardPorts": [3000, 4321, 8080],

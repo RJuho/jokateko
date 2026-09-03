@@ -54,6 +54,7 @@ build:
 
 # Bundle Web UI using Bun
 ui-build:
+	@if [ ! -d web/node_modules ]; then cd web && bun install --frozen-lockfile; fi
 	cd web && bun run build
 
 # Run code diagnostics and vet
@@ -66,6 +67,7 @@ clean:
 
 # Run Playwright end-to-end tests
 e2e-test:
+	@if [ ! -d web/node_modules ]; then cd web && bun install --frozen-lockfile; fi
 	@mkdir -p $(GOTMPDIR)
 	TMPDIR=$(GOTMPDIR) bunx playwright test
 

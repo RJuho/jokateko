@@ -33,10 +33,38 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      - name: Run Tests & Verification
+      - name: Build Web UI
+        run: make ui-build
+
+      - name: Run Go Unit Tests
+        run: make test
+
+      - name: Check for Web or E2E Changes
+        id: changes
         run: |
-          make test
-          make e2e-test
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            DIFF=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          else
+            DIFF=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "web/")
+          fi
+          echo "Detected changed files:"
+          echo "$DIFF"
+          if echo "$DIFF" | grep -qE '^(web/|tests/|playwright\.config\.ts)'; then
+            echo "has_web_changes=true" >> $GITHUB_OUTPUT
+            echo "Web or E2E changes detected -> E2E testing will run."
+          else
+            echo "has_web_changes=false" >> $GITHUB_OUTPUT
+            echo "No Web or E2E changes detected -> Skipping E2E testing."
+          fi
+
+      - name: Run Playwright E2E Tests
+        if: steps.changes.outputs.has_web_changes == 'true' || github.event_name == 'workflow_dispatch'
+        run: make e2e-test
+
+      - name: Build Binary & Validate Project
+        run: |
           make build
           ./bin/jokateko parse
