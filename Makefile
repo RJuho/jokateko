@@ -43,6 +43,7 @@ generate:
 
 # Run all Go tests with CGO disabled
 test:
+	@if [ ! -f web/dist/script.sha256 ]; then $(MAKE) ui-build; fi
 	CGO_ENABLED=0 go test -v ./...
 
 # Build the Go binary with injected link-time version and CSP asset hash flags
