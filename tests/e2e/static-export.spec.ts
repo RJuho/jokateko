@@ -78,7 +78,7 @@ test.describe('Static Export & Offline Execution E2E', () => {
 
 		// 4. Verify initial task card is displayed
 		const taskCard = page.locator(
-			'[data-testid="task-card-260902-initial-setup"]',
+			'[data-testid^="task-card-"][data-testid$="-initial-setup"]',
 		)
 		await expect(taskCard).toBeVisible()
 		await expect(taskCard).toContainText('Initial Project Setup')
@@ -99,7 +99,7 @@ test.describe('Static Export & Offline Execution E2E', () => {
 		await searchInput.fill('non-matching-query-xyz')
 
 		const taskCard = page.locator(
-			'[data-testid="task-card-260902-initial-setup"]',
+			'[data-testid^="task-card-"][data-testid$="-initial-setup"]',
 		)
 		await expect(taskCard).not.toBeVisible()
 

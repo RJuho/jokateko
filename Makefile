@@ -1,4 +1,4 @@
-.PHONY: all build test clean generate install-tools ui-build lint e2e-test
+.PHONY: all build test clean generate install-tools install-ai-tools ui-build lint e2e-test cross-compile docker-build devcontainer-build
 
 # Binary name and output directory
 BINARY_NAME := jokateko
@@ -18,11 +18,22 @@ LDFLAGS = -X 'github.com/RJuho/jokateko/internal/version.Version=$(VERSION)' \
           -X 'github.com/RJuho/jokateko/internal/version.StyleHash=$(STYLE_HASH)' \
           -s -w
 
+# Route Go compiler temp directories into workspace filesystem
+GOTMPDIR ?= $(CURDIR)/.gopath/tmp
+export GOTMPDIR
+
 all: test build
 
 # Install development and code generation tools
 install-tools:
 	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+
+# Install latest AI agent tooling (gopls Go MCP server, Caw CLI, and Google Antigravity CLI)
+install-ai-tools:
+	go install golang.org/x/tools/gopls@latest
+	@mkdir -p /home/bun/.local/bin
+	curl -L https://github.com/04mg/caw/releases/latest/download/caw-linux-amd64 -o /home/bun/.local/bin/caw && chmod +x /home/bun/.local/bin/caw
+	curl -fsSL https://antigravity.google/cli/install.sh | bash
 
 # Generate type-safe queries using sqlc and TypeScript models
 generate:
@@ -53,4 +64,25 @@ clean:
 
 # Run Playwright end-to-end tests
 e2e-test:
-	bunx playwright test
+	@mkdir -p $(GOTMPDIR)
+	TMPDIR=$(GOTMPDIR) bunx playwright test
+
+# Cross-compile static zero-CGO binaries across Linux, macOS, and Windows
+cross-compile:
+	@if [ ! -f web/dist/script.sha256 ]; then $(MAKE) ui-build; fi
+	mkdir -p $(GOTMPDIR) $(BIN_DIR)
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY_NAME)-linux-amd64 ./cmd/jokateko
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY_NAME)-linux-arm64 ./cmd/jokateko
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY_NAME)-darwin-amd64 ./cmd/jokateko
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY_NAME)-darwin-arm64 ./cmd/jokateko
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY_NAME)-windows-amd64.exe ./cmd/jokateko
+	cd $(BIN_DIR) && sha256sum $(BINARY_NAME)-* > checksums.txt
+	rm -rf $(GOTMPDIR)
+
+# Build devcontainer image locally
+devcontainer-build:
+	docker build -t jokateko-devcontainer:latest -f .devcontainer/Dockerfile .
+
+# Build production minimal scratch Docker container image using devcontainer
+docker-build:
+	docker build --build-arg DEVCONTAINER_IMAGE=jokateko-devcontainer:latest -t $(BINARY_NAME):latest .

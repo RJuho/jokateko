@@ -26,7 +26,8 @@
 				"biomejs.biome",
 				"bradlc.vscode-tailwindcss",
 				"golang.Go",
-				"ms-vscode.makefile-tools"
+				"ms-vscode.makefile-tools",
+				"GitHub.vscode-github-actions"
 			],
 			"settings": {
 				"files.eol": "\n",
@@ -43,6 +44,5 @@
 				}
 			}
 		}
-	},
-	"onCreateCommand": "go install golang.org/x/tools/gopls@latest"
+	}
 }
