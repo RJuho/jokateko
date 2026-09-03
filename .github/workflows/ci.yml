@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rjuho/jokateko-devcontainer:latest
+      options: --user root
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
