@@ -1,17 +1,20 @@
 package server
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/RJuho/jokateko/internal/model"
 	"github.com/RJuho/jokateko/internal/parser"
 	"github.com/RJuho/jokateko/internal/store"
+	"github.com/RJuho/jokateko/internal/validator"
 )
 
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
@@ -341,3 +344,198 @@ func slugify(s string) string {
 	}
 	return res
 }
+
+func (s *Server) handleAddTaskDependency(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "task id is required")
+		return
+	}
+
+	var req struct {
+		DependencyID string `json:"dependency_id"`
+		ID           string `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+
+	depID := strings.TrimSpace(cmp.Or(req.DependencyID, req.ID))
+	if depID == "" {
+		writeError(w, http.StatusBadRequest, "dependency_id is required")
+		return
+	}
+
+	if id == depID {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("task %q cannot depend on itself", id))
+		return
+	}
+
+	existing, err := s.store.GetTask(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, fmt.Sprintf("task %q not found", id))
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to get task: "+err.Error())
+		return
+	}
+
+	if _, err := s.store.GetTask(r.Context(), depID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, fmt.Sprintf("dependency task %q not found", depID))
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to get dependency task: "+err.Error())
+		return
+	}
+
+	if slices.Contains(existing.Dependencies, depID) {
+		writeJSON(w, http.StatusOK, existing)
+		return
+	}
+
+	tasks, err := s.store.ListTasks(r.Context(), model.FilterCriteria{})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list tasks for cycle check: "+err.Error())
+		return
+	}
+
+	depsGraph := make(map[string][]string, len(tasks)+1)
+	taskFiles := make(map[string]string, len(tasks)+1)
+	for _, t := range tasks {
+		depsGraph[t.ID] = t.Dependencies
+		taskFiles[t.ID] = t.FilePath
+	}
+	depsGraph[id] = append(slices.Clone(existing.Dependencies), depID)
+
+	cycleDiags := validator.DetectCycles(depsGraph, taskFiles)
+	if len(cycleDiags) > 0 {
+		var msgs []string
+		for _, d := range cycleDiags {
+			if len(d.Context) > 0 {
+				msgs = append(msgs, d.Context...)
+			} else {
+				msgs = append(msgs, d.Message)
+			}
+		}
+		writeError(w, http.StatusConflict, fmt.Sprintf("circular dependency detected: %s", strings.Join(msgs, "; ")))
+		return
+	}
+
+	existing.Dependencies = append(existing.Dependencies, depID)
+	existing.ModTime = time.Now()
+
+	fm := model.TaskFrontmatter{
+		Title:        existing.Title,
+		Status:       existing.Status,
+		Priority:     existing.Priority,
+		Milestone:    existing.Milestone,
+		Tags:         existing.Tags,
+		Summary:      existing.Summary,
+		Dependencies: existing.Dependencies,
+	}
+
+	fileBytes, err := parser.Format(fm, existing.Body)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to format task markdown: "+err.Error())
+		return
+	}
+
+	filePath := existing.FilePath
+	if filePath == "" {
+		tasksDir := s.cfg.Paths.Tasks
+		if !filepath.IsAbs(tasksDir) {
+			tasksDir = filepath.Join(s.workspaceDir, tasksDir)
+		}
+		filePath = filepath.Join(tasksDir, fmt.Sprintf("%s.md", id))
+		existing.FilePath = filePath
+	}
+
+	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to write task file: "+err.Error())
+		return
+	}
+
+	if err := s.store.UpsertTask(r.Context(), existing); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update task in store: "+err.Error())
+		return
+	}
+
+	s.sseHub.Broadcast("task.updated", existing)
+	writeJSON(w, http.StatusOK, existing)
+}
+
+func (s *Server) handleRemoveTaskDependency(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "task id is required")
+		return
+	}
+
+	depID := r.PathValue("depId")
+	if depID == "" {
+		writeError(w, http.StatusBadRequest, "depId is required")
+		return
+	}
+
+	existing, err := s.store.GetTask(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, fmt.Sprintf("task %q not found", id))
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to get task: "+err.Error())
+		return
+	}
+
+	idx := slices.Index(existing.Dependencies, depID)
+	if idx == -1 {
+		writeError(w, http.StatusNotFound, fmt.Sprintf("dependency %q not found on task %q", depID, id))
+		return
+	}
+
+	existing.Dependencies = slices.Delete(existing.Dependencies, idx, idx+1)
+	existing.ModTime = time.Now()
+
+	fm := model.TaskFrontmatter{
+		Title:        existing.Title,
+		Status:       existing.Status,
+		Priority:     existing.Priority,
+		Milestone:    existing.Milestone,
+		Tags:         existing.Tags,
+		Summary:      existing.Summary,
+		Dependencies: existing.Dependencies,
+	}
+
+	fileBytes, err := parser.Format(fm, existing.Body)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to format task markdown: "+err.Error())
+		return
+	}
+
+	filePath := existing.FilePath
+	if filePath == "" {
+		tasksDir := s.cfg.Paths.Tasks
+		if !filepath.IsAbs(tasksDir) {
+			tasksDir = filepath.Join(s.workspaceDir, tasksDir)
+		}
+		filePath = filepath.Join(tasksDir, fmt.Sprintf("%s.md", id))
+		existing.FilePath = filePath
+	}
+
+	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to write task file: "+err.Error())
+		return
+	}
+
+	if err := s.store.UpsertTask(r.Context(), existing); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update task in store: "+err.Error())
+		return
+	}
+
+	s.sseHub.Broadcast("task.updated", existing)
+	writeJSON(w, http.StatusOK, existing)
+}
+

@@ -383,3 +383,166 @@ func TestMCP_Guards(t *testing.T) {
 		t.Errorf("expected success: %+v", comp)
 	}
 }
+
+func TestMCP_TaskDependencies(t *testing.T) {
+	_, _, st, session := setupTestMCP(t)
+
+	// Create task A
+	taskA, err := callToolJSON[internalmcp.TaskDetail](t, session, "create_task", internalmcp.CreateTaskInput{
+		Title:   "Task Alpha",
+		Status:  "ready",
+		Summary: "Alpha summary",
+		Body:    "Alpha body",
+	})
+	if err != nil {
+		t.Fatalf("failed to create task A: %v", err)
+	}
+
+	// Create task B
+	taskB, err := callToolJSON[internalmcp.TaskDetail](t, session, "create_task", internalmcp.CreateTaskInput{
+		Title:   "Task Beta",
+		Status:  "ready",
+		Summary: "Beta summary",
+		Body:    "Beta body",
+	})
+	if err != nil {
+		t.Fatalf("failed to create task B: %v", err)
+	}
+
+	// Create task C
+	taskC, err := callToolJSON[internalmcp.TaskDetail](t, session, "create_task", internalmcp.CreateTaskInput{
+		Title:   "Task Gamma",
+		Status:  "ready",
+		Summary: "Gamma summary",
+		Body:    "Gamma body",
+	})
+	if err != nil {
+		t.Fatalf("failed to create task C: %v", err)
+	}
+
+	// 1. Self-dependency rejection
+	_, err = callToolJSON[internalmcp.TaskDependencyOutput](t, session, "add_task_dependency", internalmcp.AddTaskDependencyInput{
+		ID:           taskA.ID,
+		DependencyID: taskA.ID,
+	})
+	if err == nil {
+		t.Fatal("expected self-dependency to be rejected")
+	}
+	if !strings.Contains(err.Error(), "cannot depend on itself") {
+		t.Errorf("expected 'cannot depend on itself' in error, got: %v", err)
+	}
+
+	// 2. Non-existent task / dependency
+	_, err = callToolJSON[internalmcp.TaskDependencyOutput](t, session, "add_task_dependency", internalmcp.AddTaskDependencyInput{
+		ID:           "non-existent-task",
+		DependencyID: taskA.ID,
+	})
+	if err == nil {
+		t.Fatal("expected error for non-existent target task")
+	}
+
+	_, err = callToolJSON[internalmcp.TaskDependencyOutput](t, session, "add_task_dependency", internalmcp.AddTaskDependencyInput{
+		ID:           taskA.ID,
+		DependencyID: "non-existent-dep",
+	})
+	if err == nil {
+		t.Fatal("expected error for non-existent dependency task")
+	}
+
+	// 3. Add dependency: B depends on A
+	out, err := callToolJSON[internalmcp.TaskDependencyOutput](t, session, "add_task_dependency", internalmcp.AddTaskDependencyInput{
+		ID:           taskB.ID,
+		DependencyID: taskA.ID,
+	})
+	if err != nil {
+		t.Fatalf("failed to add dependency: %v", err)
+	}
+	if !out.Success || len(out.Dependencies) != 1 || out.Dependencies[0] != taskA.ID {
+		t.Fatalf("unexpected dependency output: %+v", out)
+	}
+
+	// Verify in store
+	updatedB, err := st.GetTask(t.Context(), taskB.ID)
+	if err != nil {
+		t.Fatalf("failed to fetch task B: %v", err)
+	}
+	if len(updatedB.Dependencies) != 1 || updatedB.Dependencies[0] != taskA.ID {
+		t.Errorf("store dependency mismatch on task B: %+v", updatedB.Dependencies)
+	}
+
+	// 4. Duplicate edge handling (idempotent, no duplicate entries)
+	outDup, err := callToolJSON[internalmcp.TaskDependencyOutput](t, session, "add_task_dependency", internalmcp.AddTaskDependencyInput{
+		ID:           taskB.ID,
+		DependencyID: taskA.ID,
+	})
+	if err != nil {
+		t.Fatalf("duplicate add_task_dependency failed: %v", err)
+	}
+	if len(outDup.Dependencies) != 1 {
+		t.Errorf("expected exactly 1 dependency after duplicate add, got: %+v", outDup.Dependencies)
+	}
+
+	// 5. Add dependency: C depends on B
+	_, err = callToolJSON[internalmcp.TaskDependencyOutput](t, session, "add_task_dependency", internalmcp.AddTaskDependencyInput{
+		ID:           taskC.ID,
+		DependencyID: taskB.ID,
+	})
+	if err != nil {
+		t.Fatalf("failed to add dependency C -> B: %v", err)
+	}
+
+	// 6. Direct cycle rejection: A depends on B (when B depends on A) -> MUST FAIL
+	_, err = callToolJSON[internalmcp.TaskDependencyOutput](t, session, "add_task_dependency", internalmcp.AddTaskDependencyInput{
+		ID:           taskA.ID,
+		DependencyID: taskB.ID,
+	})
+	if err == nil {
+		t.Fatal("expected cycle rejection (A -> B when B -> A)")
+	}
+	if !strings.Contains(err.Error(), "circular dependency detected") {
+		t.Errorf("expected circular dependency error, got: %v", err)
+	}
+
+	// 7. Transitive cycle rejection: A depends on C (when C -> B -> A) -> MUST FAIL
+	_, err = callToolJSON[internalmcp.TaskDependencyOutput](t, session, "add_task_dependency", internalmcp.AddTaskDependencyInput{
+		ID:           taskA.ID,
+		DependencyID: taskC.ID,
+	})
+	if err == nil {
+		t.Fatal("expected transitive cycle rejection (A -> C when C -> B -> A)")
+	}
+	if !strings.Contains(err.Error(), "circular dependency detected") {
+		t.Errorf("expected circular dependency error, got: %v", err)
+	}
+
+	// 8. Remove non-existent dependency -> MUST FAIL
+	_, err = callToolJSON[internalmcp.TaskDependencyOutput](t, session, "remove_task_dependency", internalmcp.RemoveTaskDependencyInput{
+		ID:           taskB.ID,
+		DependencyID: taskC.ID,
+	})
+	if err == nil {
+		t.Fatal("expected remove_task_dependency to fail for non-existent dependency")
+	}
+
+	// 9. Remove existing dependency: remove A from B
+	remOut, err := callToolJSON[internalmcp.TaskDependencyOutput](t, session, "remove_task_dependency", internalmcp.RemoveTaskDependencyInput{
+		ID:           taskB.ID,
+		DependencyID: taskA.ID,
+	})
+	if err != nil {
+		t.Fatalf("failed to remove dependency: %v", err)
+	}
+	if !remOut.Success || len(remOut.Dependencies) != 0 {
+		t.Fatalf("unexpected remove dependency output: %+v", remOut)
+	}
+
+	// Verify in store
+	updatedBAfterRem, err := st.GetTask(t.Context(), taskB.ID)
+	if err != nil {
+		t.Fatalf("failed to fetch task B after remove: %v", err)
+	}
+	if len(updatedBAfterRem.Dependencies) != 0 {
+		t.Errorf("expected 0 dependencies after remove, got: %+v", updatedBAfterRem.Dependencies)
+	}
+}
+

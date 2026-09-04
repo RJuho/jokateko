@@ -565,3 +565,127 @@ func TestMilestoneDeletionSafeguards(t *testing.T) {
 	}
 }
 
+func TestTaskDependenciesEndpoints(t *testing.T) {
+	srv, _, st, _ := setupTestServer(t)
+
+	// Create task A
+	taskA := map[string]any{
+		"id":      "260901-task-a",
+		"title":   "Task A",
+		"status":  "todo",
+		"summary": "Task A summary",
+		"body":    "# Task A",
+	}
+	bodyA, _ := json.Marshal(taskA)
+	req := httptest.NewRequest(http.MethodPost, "/api/tasks", bytes.NewReader(bodyA))
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("failed to create task A, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Create task B
+	taskB := map[string]any{
+		"id":      "260902-task-b",
+		"title":   "Task B",
+		"status":  "todo",
+		"summary": "Task B summary",
+		"body":    "# Task B",
+	}
+	bodyB, _ := json.Marshal(taskB)
+	req = httptest.NewRequest(http.MethodPost, "/api/tasks", bytes.NewReader(bodyB))
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("failed to create task B, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// 1. Self dependency rejection (400)
+	selfDepPayload, _ := json.Marshal(map[string]string{"dependency_id": "260901-task-a"})
+	req = httptest.NewRequest(http.MethodPost, "/api/tasks/260901-task-a/dependencies", bytes.NewReader(selfDepPayload))
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for self-dependency, got %d", rec.Code)
+	}
+
+	// 2. Non-existent dependency (404)
+	missingDepPayload, _ := json.Marshal(map[string]string{"dependency_id": "non-existent"})
+	req = httptest.NewRequest(http.MethodPost, "/api/tasks/260901-task-a/dependencies", bytes.NewReader(missingDepPayload))
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found for missing dependency task, got %d", rec.Code)
+	}
+
+	// 3. Add dependency: B depends on A
+	addDepPayload, _ := json.Marshal(map[string]string{"dependency_id": "260901-task-a"})
+	req = httptest.NewRequest(http.MethodPost, "/api/tasks/260902-task-b/dependencies", bytes.NewReader(addDepPayload))
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK adding dependency, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var resTask model.Task
+	_ = json.Unmarshal(rec.Body.Bytes(), &resTask)
+	if len(resTask.Dependencies) != 1 || resTask.Dependencies[0] != "260901-task-a" {
+		t.Errorf("unexpected dependencies in response: %+v", resTask.Dependencies)
+	}
+
+	// 4. Duplicate edge handling (200 OK, idempotent, no duplicates)
+	req = httptest.NewRequest(http.MethodPost, "/api/tasks/260902-task-b/dependencies", bytes.NewReader(addDepPayload))
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on duplicate dependency add, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var resDup model.Task
+	_ = json.Unmarshal(rec.Body.Bytes(), &resDup)
+	if len(resDup.Dependencies) != 1 {
+		t.Errorf("expected 1 dependency after duplicate add, got: %d", len(resDup.Dependencies))
+	}
+
+	// 5. Cycle rejection (409 Conflict) when adding A -> B (since B already depends on A)
+	cyclePayload, _ := json.Marshal(map[string]string{"dependency_id": "260902-task-b"})
+	req = httptest.NewRequest(http.MethodPost, "/api/tasks/260901-task-a/dependencies", bytes.NewReader(cyclePayload))
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409 Conflict on circular dependency, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "circular dependency detected") {
+		t.Errorf("expected circular dependency error message, got: %s", rec.Body.String())
+	}
+
+	// 6. Remove non-existent dependency (404)
+	req = httptest.NewRequest(http.MethodDelete, "/api/tasks/260902-task-b/dependencies/non-existent-dep", nil)
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found removing non-existent dependency, got %d", rec.Code)
+	}
+
+	// 7. Remove existing dependency (200 OK)
+	req = httptest.NewRequest(http.MethodDelete, "/api/tasks/260902-task-b/dependencies/260901-task-a", nil)
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK removing dependency, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var resRemoved model.Task
+	_ = json.Unmarshal(rec.Body.Bytes(), &resRemoved)
+	if len(resRemoved.Dependencies) != 0 {
+		t.Errorf("expected 0 dependencies after removal, got: %+v", resRemoved.Dependencies)
+	}
+
+	// Verify in store
+	taskInStore, err := st.GetTask(t.Context(), "260902-task-b")
+	if err != nil {
+		t.Fatalf("failed to get task from store: %v", err)
+	}
+	if len(taskInStore.Dependencies) != 0 {
+		t.Errorf("expected 0 dependencies in store, got: %+v", taskInStore.Dependencies)
+	}
+}
+
+

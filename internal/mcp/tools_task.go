@@ -12,6 +12,7 @@ import (
 	"github.com/RJuho/jokateko/internal/model"
 	"github.com/RJuho/jokateko/internal/parser"
 	"github.com/RJuho/jokateko/internal/store"
+	"github.com/RJuho/jokateko/internal/validator"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -150,7 +151,25 @@ type DeleteTaskInput struct {
 	Force bool   `json:"force,omitempty" jsonschema:"Force deletion even if other tasks depend on this task"`
 }
 
-// registerTaskTools registers all 9 task tools with the MCP server.
+type AddTaskDependencyInput struct {
+	ID           string `json:"id" jsonschema:"required,Task ID or slug that will depend on dependency_id"`
+	DependencyID string `json:"dependency_id" jsonschema:"required,Task ID or slug of the prerequisite task"`
+}
+
+type RemoveTaskDependencyInput struct {
+	ID           string `json:"id" jsonschema:"required,Task ID or slug"`
+	DependencyID string `json:"dependency_id" jsonschema:"required,Task ID or slug of the dependency to remove"`
+}
+
+type TaskDependencyOutput struct {
+	Success      bool     `json:"success"`
+	ID           string   `json:"id"`
+	DependencyID string   `json:"dependency_id"`
+	Dependencies []string `json:"dependencies"`
+	Message      string   `json:"message"`
+}
+
+// registerTaskTools registers all task tools with the MCP server.
 func (s *Server) registerTaskTools() {
 	// 1. list_tasks
 	mcp.AddTool(s.mcpServer, &mcp.Tool{
@@ -205,6 +224,18 @@ func (s *Server) registerTaskTools() {
 		Name:        "delete_task",
 		Description: "Deletes a task markdown file and removes it from the store. Rejects if other tasks depend on it unless force=true.",
 	}, s.toolDeleteTask)
+
+	// 10. add_task_dependency
+	mcp.AddTool(s.mcpServer, &mcp.Tool{
+		Name:        "add_task_dependency",
+		Description: "Adds an upstream dependency to a task after validating existence and verifying the graph has no circular dependencies.",
+	}, s.toolAddTaskDependency)
+
+	// 11. remove_task_dependency
+	mcp.AddTool(s.mcpServer, &mcp.Tool{
+		Name:        "remove_task_dependency",
+		Description: "Removes an upstream dependency from a task.",
+	}, s.toolRemoveTaskDependency)
 }
 
 func (s *Server) toolListTasks(ctx context.Context, _ *mcp.CallToolRequest, in ListTasksInput) (*mcp.CallToolResult, []TaskSummary, error) {
@@ -849,4 +880,183 @@ func (s *Server) toolDeleteTask(ctx context.Context, _ *mcp.CallToolRequest, in 
 		Message: fmt.Sprintf("Task %q deleted successfully", id),
 	}, nil
 }
+
+func (s *Server) toolAddTaskDependency(ctx context.Context, _ *mcp.CallToolRequest, in AddTaskDependencyInput) (*mcp.CallToolResult, *TaskDependencyOutput, error) {
+	if !s.cfg.MCP.AllowMutations {
+		return nil, nil, errors.New("mutations are disabled in configuration")
+	}
+
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		return nil, nil, errors.New("task id is required")
+	}
+	depID := strings.TrimSpace(in.DependencyID)
+	if depID == "" {
+		return nil, nil, errors.New("dependency_id is required")
+	}
+
+	if id == depID {
+		return nil, nil, fmt.Errorf("task %q cannot depend on itself", id)
+	}
+
+	task, err := s.store.GetTask(ctx, id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, nil, fmt.Errorf("task %q not found", id)
+		}
+		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+	}
+
+	if _, err := s.store.GetTask(ctx, depID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, nil, fmt.Errorf("dependency task %q not found", depID)
+		}
+		return nil, nil, fmt.Errorf("failed to get dependency task %q: %w", depID, err)
+	}
+
+	if slices.Contains(task.Dependencies, depID) {
+		return nil, &TaskDependencyOutput{
+			Success:      true,
+			ID:           id,
+			DependencyID: depID,
+			Dependencies: task.Dependencies,
+			Message:      fmt.Sprintf("Dependency %q already exists on task %q", depID, id),
+		}, nil
+	}
+
+	tasks, err := s.store.ListTasks(ctx, model.FilterCriteria{})
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to list tasks for cycle check: %w", err)
+	}
+
+	depsGraph := make(map[string][]string, len(tasks)+1)
+	taskFiles := make(map[string]string, len(tasks)+1)
+	for _, t := range tasks {
+		depsGraph[t.ID] = t.Dependencies
+		taskFiles[t.ID] = t.FilePath
+	}
+	depsGraph[id] = append(slices.Clone(task.Dependencies), depID)
+
+	cycleDiags := validator.DetectCycles(depsGraph, taskFiles)
+	if len(cycleDiags) > 0 {
+		var msgs []string
+		for _, d := range cycleDiags {
+			if len(d.Context) > 0 {
+				msgs = append(msgs, d.Context...)
+			} else {
+				msgs = append(msgs, d.Message)
+			}
+		}
+		return nil, nil, fmt.Errorf("circular dependency detected: %s", strings.Join(msgs, "; "))
+	}
+
+	task.Dependencies = append(task.Dependencies, depID)
+	task.ModTime = time.Now()
+
+	fm := model.TaskFrontmatter{
+		Title:        task.Title,
+		Status:       task.Status,
+		Priority:     task.Priority,
+		Milestone:    task.Milestone,
+		Tags:         task.Tags,
+		Summary:      task.Summary,
+		Dependencies: task.Dependencies,
+	}
+
+	fileBytes, err := parser.Format(fm, task.Body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to format task markdown: %w", err)
+	}
+
+	filePath := task.FilePath
+	if filePath == "" {
+		filePath = filepath.Join(s.TasksDir(), fmt.Sprintf("%s.md", id))
+		task.FilePath = filePath
+	}
+
+	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
+		return nil, nil, fmt.Errorf("failed to save task file: %w", err)
+	}
+
+	if err := s.store.UpsertTask(ctx, task); err != nil {
+		return nil, nil, fmt.Errorf("failed to update task in store: %w", err)
+	}
+
+	return nil, &TaskDependencyOutput{
+		Success:      true,
+		ID:           id,
+		DependencyID: depID,
+		Dependencies: task.Dependencies,
+		Message:      fmt.Sprintf("Dependency %q added to task %q", depID, id),
+	}, nil
+}
+
+func (s *Server) toolRemoveTaskDependency(ctx context.Context, _ *mcp.CallToolRequest, in RemoveTaskDependencyInput) (*mcp.CallToolResult, *TaskDependencyOutput, error) {
+	if !s.cfg.MCP.AllowMutations {
+		return nil, nil, errors.New("mutations are disabled in configuration")
+	}
+
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		return nil, nil, errors.New("task id is required")
+	}
+	depID := strings.TrimSpace(in.DependencyID)
+	if depID == "" {
+		return nil, nil, errors.New("dependency_id is required")
+	}
+
+	task, err := s.store.GetTask(ctx, id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, nil, fmt.Errorf("task %q not found", id)
+		}
+		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+	}
+
+	idx := slices.Index(task.Dependencies, depID)
+	if idx == -1 {
+		return nil, nil, fmt.Errorf("dependency %q not found on task %q", depID, id)
+	}
+
+	task.Dependencies = slices.Delete(task.Dependencies, idx, idx+1)
+	task.ModTime = time.Now()
+
+	fm := model.TaskFrontmatter{
+		Title:        task.Title,
+		Status:       task.Status,
+		Priority:     task.Priority,
+		Milestone:    task.Milestone,
+		Tags:         task.Tags,
+		Summary:      task.Summary,
+		Dependencies: task.Dependencies,
+	}
+
+	fileBytes, err := parser.Format(fm, task.Body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to format task markdown: %w", err)
+	}
+
+	filePath := task.FilePath
+	if filePath == "" {
+		filePath = filepath.Join(s.TasksDir(), fmt.Sprintf("%s.md", id))
+		task.FilePath = filePath
+	}
+
+	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
+		return nil, nil, fmt.Errorf("failed to save task file: %w", err)
+	}
+
+	if err := s.store.UpsertTask(ctx, task); err != nil {
+		return nil, nil, fmt.Errorf("failed to update task in store: %w", err)
+	}
+
+	return nil, &TaskDependencyOutput{
+		Success:      true,
+		ID:           id,
+		DependencyID: depID,
+		Dependencies: task.Dependencies,
+		Message:      fmt.Sprintf("Dependency %q removed from task %q", depID, id),
+	}, nil
+}
+
 
