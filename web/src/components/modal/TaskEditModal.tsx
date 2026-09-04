@@ -17,9 +17,6 @@ export function TaskEditModal() {
 	const cols = config.value.board.columns
 	const milestoneList = milestones.value
 	const priorityList = configuredPriorities.value
-	const editableStates = config.value.board?.editable_states || ['backlog']
-	const isBodyEditable = editableStates.includes(task.status)
-
 	function closeModal() {
 		activeTaskEditId.value = null
 	}
@@ -37,6 +34,9 @@ export function TaskEditModal() {
 	if (!taskId || !task) {
 		return null
 	}
+
+	const editableStates = config.value.board?.editable_states || ['backlog']
+	const isBodyEditable = editableStates.includes(task.status)
 
 	const [title, setTitle] = useState(task.title)
 	const [summary, setSummary] = useState(task.summary)

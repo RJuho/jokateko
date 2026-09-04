@@ -106,7 +106,7 @@ async function main() {
 	// Replace external script tag with inlined bundled JS
 	output = output.replace(
 		/<script\s+type=["']module["']\s+src=["'][^"']+["']\s*><\/script>/i,
-		`<script>${js}</script>`,
+		() => `<script>${js}</script>`,
 	)
 
 	if (!existsSync(distDir)) {

@@ -17,6 +17,7 @@
 		"@tailwindcss/typography": "^0.5.20",
 		"bun-plugin-tailwind": "latest",
 		"daisyui": "^5",
+		"mermaid": "^11.17.2",
 		"preact": "latest",
 		"tailwindcss": "^4",
 		"valibot": "latest"

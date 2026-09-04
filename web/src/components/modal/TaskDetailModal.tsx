@@ -11,6 +11,10 @@ import {
 	tasks,
 	upsertTask,
 } from '../../state/store'
+import {
+	renderMermaidDiagrams,
+	reRenderMermaidDiagrams,
+} from '../../utils/mermaid'
 import { PriorityBadge, TagBadge } from '../common/Badge'
 
 export function TaskDetailModal() {
@@ -141,14 +145,16 @@ export function TaskDetailModal() {
 				setIsAddingNote(false)
 			}
 		} else {
-			const now =
-				new Date().toISOString().replace('T', ' ').substring(0, 16) + ' UTC'
+			const now = `${new Date()
+				.toISOString()
+				.replace('T', ' ')
+				.substring(0, 16)} UTC`
 			const noteBlock = `### [${now}]\n\n${noteInput.trim()}\n`
 			let newBody = task.body || ''
 			if (newBody.toLowerCase().includes('## notes')) {
-				newBody = newBody.trimEnd() + '\n\n' + noteBlock
+				newBody = `${newBody.trimEnd()}\n\n${noteBlock}`
 			} else {
-				newBody = newBody.trimEnd() + '\n\n## Notes\n\n' + noteBlock
+				newBody = `${newBody.trimEnd()}\n\n## Notes\n\n${noteBlock}`
 			}
 			const total = newBody
 				.split('\n')
@@ -290,6 +296,32 @@ export function TaskDetailModal() {
 		el.addEventListener('click', handleClick)
 		return () => el.removeEventListener('click', handleClick)
 	}, [isLive, task?.id, task?.body])
+
+	// Render Mermaid diagrams within task body and re-render on theme change
+	useEffect(() => {
+		const el = bodyRef.current
+		if (!el) return
+
+		renderMermaidDiagrams(el)
+
+		const observer = new MutationObserver((mutations) => {
+			for (const mutation of mutations) {
+				if (
+					mutation.type === 'attributes'
+					&& mutation.attributeName === 'data-theme'
+				) {
+					reRenderMermaidDiagrams(el)
+				}
+			}
+		})
+
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ['data-theme'],
+		})
+
+		return () => observer.disconnect()
+	}, [task?.id, task?.body_html, isEditingBody])
 
 	return (
 		/* Backdrop: Click outside exits modal */
