@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -211,7 +210,7 @@ func getWebAssetHashes() (string, string) {
 		styleH := version.StyleHash
 
 		if scriptH == "" || styleH == "" {
-			htmlBytes, err := fs.ReadFile(web.Dist, "dist/index.html")
+			htmlBytes, err := web.GetHTML()
 			if err == nil {
 				if scriptH == "" {
 					scriptH = extractTagSHA256(htmlBytes, "script")
@@ -279,13 +278,26 @@ func (s *Server) handleStaticUI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := fs.ReadFile(web.Dist, "dist/index.html")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	// If client accepts gzip encoding, serve pre-compressed asset directly
+	if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		gzData, err := web.GetGzipHTML()
+		if err == nil {
+			w.Header().Set("Content-Encoding", "gzip")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(gzData)
+			return
+		}
+	}
+
+	// Fallback to uncompressed HTML
+	data, err := web.GetHTML()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to read embedded web UI")
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
 }

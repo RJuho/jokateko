@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -37,9 +36,9 @@ func Export(ctx context.Context, cfg *config.Config, st *store.Store, outPath st
 		outPath = "dist-kanban/index.html"
 	}
 
-	templateBytes, err := fs.ReadFile(web.Dist, "dist/index.html")
+	templateBytes, err := web.GetHTML()
 	if err != nil {
-		return 0, fmt.Errorf("failed to read embedded web dist/index.html: %w", err)
+		return 0, fmt.Errorf("failed to read embedded web template: %w", err)
 	}
 
 	snap, err := BuildSnapshot(ctx, cfg, st)

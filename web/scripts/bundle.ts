@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { gzipSync } from 'node:zlib'
 
 const startTime = performance.now()
 const webDir = resolve(import.meta.dir, '..')
@@ -42,7 +43,15 @@ async function buildJS(): Promise<string> {
 	const entrypoint = resolve(webDir, 'src/main.tsx')
 	const result = await Bun.build({
 		entrypoints: [entrypoint],
-		minify: true,
+		minify: {
+			whitespace: true,
+			identifiers: true,
+			syntax: true,
+		},
+		define: {
+			'process.env.NODE_ENV': JSON.stringify('production'),
+		},
+		drop: ['debugger'],
 		target: 'browser',
 	})
 
@@ -114,6 +123,10 @@ async function main() {
 	}
 
 	await Bun.write(distHtmlPath, output)
+	const distGzPath = resolve(distDir, 'index.html.gz')
+	const gzipped = gzipSync(Buffer.from(output, 'utf-8'), { level: 9 })
+	await Bun.write(distGzPath, gzipped)
+
 	await Bun.write(resolve(distDir, 'script.sha256'), scriptHash)
 	await Bun.write(resolve(distDir, 'style.sha256'), styleHash)
 	await Bun.write(
@@ -131,10 +144,11 @@ async function main() {
 	)
 
 	const duration = (performance.now() - startTime).toFixed(0)
-	const totalSize = (output.length / 1024).toFixed(1)
+	const rawSize = (output.length / 1024).toFixed(1)
+	const gzSize = (gzipped.length / 1024).toFixed(1)
 
 	console.log(
-		`✅ Single-file bundle created: web/dist/index.html (${totalSize} KB in ${duration}ms)`,
+		`✅ Single-file bundle created: web/dist/index.html (${rawSize} KB, gzipped: ${gzSize} KB in ${duration}ms)`,
 	)
 }
 

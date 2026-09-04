@@ -2,9 +2,11 @@ package server_test
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -90,6 +92,7 @@ func TestHealthAndVersion(t *testing.T) {
 func TestStaticUI(t *testing.T) {
 	srv, _, _, _ := setupTestServer(t)
 
+	// 1. Uncompressed request (without Accept-Encoding: gzip)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(rec, req)
@@ -101,8 +104,42 @@ func TestStaticUI(t *testing.T) {
 	if !strings.Contains(ct, "text/html") {
 		t.Errorf("expected text/html content-type, got %q", ct)
 	}
+	ce := rec.Header().Get("Content-Encoding")
+	if ce != "" {
+		t.Errorf("expected no Content-Encoding for non-gzip request, got %q", ce)
+	}
+	if !bytes.Contains(rec.Body.Bytes(), []byte("<!DOCTYPE html>")) {
+		t.Errorf("expected <!DOCTYPE html> in uncompressed body")
+	}
 
-	// 404 on nonexistent API endpoint
+	// 2. Compressed request (with Accept-Encoding: gzip)
+	reqGz := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqGz.Header.Set("Accept-Encoding", "gzip, deflate, br")
+	recGz := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(recGz, reqGz)
+
+	if recGz.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for gzip request, got %d", recGz.Code)
+	}
+	if recGz.Header().Get("Content-Encoding") != "gzip" {
+		t.Errorf("expected Content-Encoding: gzip, got %q", recGz.Header().Get("Content-Encoding"))
+	}
+
+	gzReader, err := gzip.NewReader(recGz.Body)
+	if err != nil {
+		t.Fatalf("failed to create gzip reader from response: %v", err)
+	}
+	defer gzReader.Close()
+
+	decompressed, err := io.ReadAll(gzReader)
+	if err != nil {
+		t.Fatalf("failed to decompress gzip response: %v", err)
+	}
+	if !bytes.Contains(decompressed, []byte("<!DOCTYPE html>")) {
+		t.Errorf("expected <!DOCTYPE html> in decompressed gzip body")
+	}
+
+	// 3. 404 on nonexistent API endpoint
 	req = httptest.NewRequest(http.MethodGet, "/api/nonexistent", nil)
 	rec = httptest.NewRecorder()
 	srv.Handler().ServeHTTP(rec, req)
