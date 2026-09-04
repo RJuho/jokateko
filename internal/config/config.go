@@ -3,6 +3,8 @@
 package config
 
 import (
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/RJuho/jokateko/internal/model"
@@ -23,6 +25,16 @@ type Config struct {
 	Tags         TagsConfig               `toml:"tags"`
 	MCP          MCPConfig                `toml:"mcp"`
 	Translations model.TranslationsConfig `toml:"translations"`
+}
+
+// IsTaskEditable reports whether a task in the given status is permitted
+// to have its full specification/body edited.
+func (c *Config) IsTaskEditable(status string) bool {
+	status = strings.TrimSpace(status)
+	if c == nil || len(c.Board.EditableStates) == 0 {
+		return status == "backlog"
+	}
+	return slices.Contains(c.Board.EditableStates, status)
 }
 
 // StrategiesConfig specifies configuration for architectural guidelines and progressive disclosure tiers.
@@ -72,9 +84,10 @@ type CSPConfig struct {
 	FontSrc      []string `toml:"font_src"`
 }
 
-// BoardConfig defines the Kanban workflow columns.
+// BoardConfig defines the Kanban workflow columns and task editing permissions.
 type BoardConfig struct {
-	Columns []ColumnConfig `toml:"columns"`
+	Columns        []ColumnConfig `toml:"columns" json:"columns"`
+	EditableStates []string       `toml:"editable_states" json:"editable_states"`
 }
 
 // ColumnConfig specifies a single workflow column.

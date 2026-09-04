@@ -69,8 +69,9 @@ const initialConfig: SnapshotConfig = {
 			{ id: 'ready', name: 'Ready', color: '#38bdf8' },
 			{ id: 'in_progress', name: 'In Progress', color: '#fbbf24' },
 			{ id: 'in_review', name: 'In Review', color: '#c084fc' },
-			{ id: 'done', name: 'Done', color: '#4ade80' },
+			{ id: 'done', name: 'Done', color: '#34d399' },
 		],
+		editable_states: ['backlog'],
 	},
 	priorities: defaultPriorities,
 	tiers: defaultTiers,
@@ -362,6 +363,7 @@ export async function fetchLiveBoard(): Promise<boolean> {
 						name: c.name,
 						color: c.color,
 					})),
+					editable_states: parsed.output.editable_states || ['backlog'],
 				},
 			}
 

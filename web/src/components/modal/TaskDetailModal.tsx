@@ -48,6 +48,124 @@ export function TaskDetailModal() {
 	}
 
 	const currentColumn = cols.find((c) => c.id === task.status)
+	const editableStates = config.value.board?.editable_states || ['backlog']
+	const isEditable = editableStates.includes(task.status)
+
+	const [isEditingBody, setIsEditingBody] = useState(false)
+	const [editedBody, setEditedBody] = useState(task.body || '')
+	const [isSavingBody, setIsSavingBody] = useState(false)
+	const [saveBodyError, setSaveBodyError] = useState<string | null>(null)
+
+	const [noteInput, setNoteInput] = useState('')
+	const [isAddingNote, setIsAddingNote] = useState(false)
+	const [addNoteError, setAddNoteError] = useState<string | null>(null)
+
+	useEffect(() => {
+		setEditedBody(task?.body || '')
+		setIsEditingBody(false)
+		setSaveBodyError(null)
+		setNoteInput('')
+		setAddNoteError(null)
+	}, [task?.id, task?.status])
+
+	async function handleSaveBody() {
+		if (!task) return
+		setIsSavingBody(true)
+		setSaveBodyError(null)
+
+		const total = editedBody
+			.split('\n')
+			.filter((l) => /^\s*[-*]\s+\[[ xX]\]/.test(l)).length
+		const completed = editedBody
+			.split('\n')
+			.filter((l) => /^\s*[-*]\s+\[[xX]\]/.test(l)).length
+
+		const updatedTask: Task = {
+			...task,
+			body: editedBody,
+			total_criteria: total,
+			completed_criteria: completed,
+		}
+		upsertTask(updatedTask)
+
+		if (isLive) {
+			try {
+				const res = await fetch(`/api/tasks/${encodeURIComponent(task.id)}`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ body: editedBody }),
+				})
+				if (!res.ok) {
+					const data = await res.json().catch(() => ({}))
+					throw new Error(data.error || `HTTP ${res.status}`)
+				}
+				const serverTask = await res.json()
+				upsertTask(serverTask)
+				setIsEditingBody(false)
+			} catch (err) {
+				setSaveBodyError(err instanceof Error ? err.message : String(err))
+			} finally {
+				setIsSavingBody(false)
+			}
+		} else {
+			setIsSavingBody(false)
+			setIsEditingBody(false)
+		}
+	}
+
+	async function handleAddNote() {
+		if (!task || !noteInput.trim()) return
+		setIsAddingNote(true)
+		setAddNoteError(null)
+
+		if (isLive) {
+			try {
+				const res = await fetch(
+					`/api/tasks/${encodeURIComponent(task.id)}/notes`,
+					{
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ note: noteInput.trim() }),
+					},
+				)
+				if (!res.ok) {
+					const data = await res.json().catch(() => ({}))
+					throw new Error(data.error || `HTTP ${res.status}`)
+				}
+				const serverTask = await res.json()
+				upsertTask(serverTask)
+				setNoteInput('')
+			} catch (err) {
+				setAddNoteError(err instanceof Error ? err.message : String(err))
+			} finally {
+				setIsAddingNote(false)
+			}
+		} else {
+			const now =
+				new Date().toISOString().replace('T', ' ').substring(0, 16) + ' UTC'
+			const noteBlock = `### [${now}]\n\n${noteInput.trim()}\n`
+			let newBody = task.body || ''
+			if (newBody.toLowerCase().includes('## notes')) {
+				newBody = newBody.trimEnd() + '\n\n' + noteBlock
+			} else {
+				newBody = newBody.trimEnd() + '\n\n## Notes\n\n' + noteBlock
+			}
+			const total = newBody
+				.split('\n')
+				.filter((l) => /^\s*[-*]\s+\[[ xX]\]/.test(l)).length
+			const completed = newBody
+				.split('\n')
+				.filter((l) => /^\s*[-*]\s+\[[xX]\]/.test(l)).length
+			upsertTask({
+				...task,
+				body: newBody,
+				total_criteria: total,
+				completed_criteria: completed,
+			})
+			setNoteInput('')
+			setIsAddingNote(false)
+		}
+	}
 
 	function openEditModal() {
 		activeTaskEditId.value = task?.id ?? null
@@ -287,8 +405,77 @@ export function TaskDetailModal() {
 				{/* The ONLY line in task modal: between summary and body text */}
 				<hr class='border-base-200 my-1' />
 
-				{/* Task Body: Rendered Markdown with @tailwindcss/typography (prose) and interactive checkboxes */}
-				{task.body_html ? (
+				{/* Section Header with edit spec button if editable */}
+				<div class='my-1 flex items-center justify-between'>
+					<span class='text-xs font-semibold uppercase tracking-wider text-base-content/50'>
+						Specification
+					</span>
+					{isEditable && (
+						<button
+							type='button'
+							onClick={() => {
+								if (isEditingBody) {
+									setEditedBody(task.body || '')
+								}
+								setIsEditingBody(!isEditingBody)
+								setSaveBodyError(null)
+							}}
+							class='btn btn-ghost btn-xs text-primary'
+							aria-label={
+								isEditingBody
+									? 'Cancel editing specification'
+									: 'Edit specification'
+							}
+						>
+							{isEditingBody ? 'Cancel' : 'Edit Spec'}
+						</button>
+					)}
+				</div>
+
+				{/* Task Body Editor (when editing in editable state) */}
+				{isEditable && isEditingBody ? (
+					<div class='flex flex-col gap-2 my-2'>
+						{saveBodyError && (
+							<div class='alert alert-error text-xs py-1.5 px-3 rounded-lg'>
+								<span>{saveBodyError}</span>
+							</div>
+						)}
+						<textarea
+							value={editedBody}
+							onInput={(e) =>
+								setEditedBody((e.target as HTMLTextAreaElement).value)
+							}
+							rows={8}
+							class='textarea textarea-bordered textarea-sm w-full font-mono text-xs rounded-lg'
+							placeholder='Task markdown body and acceptance criteria...'
+							data-testid='task-body-editor'
+							aria-label='Task specification markdown editor'
+						/>
+						<div class='flex justify-end gap-2'>
+							<button
+								type='button'
+								onClick={() => {
+									setEditedBody(task.body || '')
+									setIsEditingBody(false)
+									setSaveBodyError(null)
+								}}
+								class='btn btn-ghost btn-xs'
+							>
+								Cancel
+							</button>
+							<button
+								type='button'
+								onClick={handleSaveBody}
+								disabled={isSavingBody}
+								class='btn btn-primary btn-xs'
+								data-testid='save-body-button'
+							>
+								{isSavingBody ? 'Saving...' : 'Save Spec'}
+							</button>
+						</div>
+					</div>
+				) : /* Rendered Body: Markdown with @tailwindcss/typography (prose) and interactive checkboxes */
+				task.body_html ? (
 					<div
 						ref={bodyRef}
 						class='prose prose-sm max-w-none text-base-content/90 prose-headings:text-base-content prose-headings:font-bold prose-p:text-base-content/85 prose-strong:text-base-content prose-code:text-primary prose-code:bg-base-200/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-base-200 prose-pre:text-base-content'
@@ -305,6 +492,50 @@ export function TaskDetailModal() {
 					<p class='text-xs text-base-content/40 italic'>
 						No body specification provided.
 					</p>
+				)}
+
+				{/* Add Note Section (only visible when in non-editable state) */}
+				{!isEditable && (
+					<div
+						class='flex flex-col gap-2 p-3 bg-base-200/40 rounded-xl border border-base-200 mt-2'
+						data-testid='add-note-section'
+					>
+						<div class='flex items-center justify-between'>
+							<span class='text-xs font-semibold uppercase tracking-wider text-base-content/60'>
+								Add Note
+							</span>
+							<span class='text-[11px] text-base-content/40'>
+								Markdown supported, use - [ ] for checklists
+							</span>
+						</div>
+						{addNoteError && (
+							<div class='alert alert-error text-xs py-1 px-2.5 rounded-lg'>
+								<span>{addNoteError}</span>
+							</div>
+						)}
+						<textarea
+							value={noteInput}
+							onInput={(e) =>
+								setNoteInput((e.target as HTMLTextAreaElement).value)
+							}
+							rows={3}
+							class='textarea textarea-bordered textarea-sm w-full font-mono text-xs rounded-lg'
+							placeholder='Add progress notes or follow-up criteria (e.g. - [ ] Check edge cases)...'
+							data-testid='add-note-input'
+							aria-label='Add note text input'
+						/>
+						<div class='flex justify-end'>
+							<button
+								type='button'
+								onClick={handleAddNote}
+								disabled={isAddingNote || !noteInput.trim()}
+								class='btn btn-primary btn-xs'
+								data-testid='add-note-button'
+							>
+								{isAddingNote ? 'Adding...' : 'Add Note'}
+							</button>
+						</div>
+					</div>
 				)}
 
 				{/* Dependencies (if any) */}

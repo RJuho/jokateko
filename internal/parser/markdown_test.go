@@ -229,3 +229,118 @@ Simple task without any checkbox criteria. Just prose.
 		}
 	})
 }
+
+func TestAppendTaskNote(t *testing.T) {
+	ts := time.Date(2026, 9, 4, 11, 30, 0, 0, time.UTC)
+
+	// 1. Append note when no ## Notes section exists
+	body1 := `# Task Title
+## Acceptance Criteria
+- [x] Item 1
+`
+	res1, err := parser.AppendTaskNote(body1, ts, "First note content")
+	if err != nil {
+		t.Fatalf("failed to append note: %v", err)
+	}
+	if !strings.Contains(res1, "## Notes") {
+		t.Errorf("expected ## Notes header, got:\n%s", res1)
+	}
+	if !strings.Contains(res1, "### [2026-09-04 11:30 UTC]") {
+		t.Errorf("expected timestamp header, got:\n%s", res1)
+	}
+	if !strings.Contains(res1, "First note content") {
+		t.Errorf("expected note content, got:\n%s", res1)
+	}
+
+	// 2. Append second note when ## Notes already exists
+	ts2 := time.Date(2026, 9, 4, 12, 15, 0, 0, time.UTC)
+	res2, err := parser.AppendTaskNote(res1, ts2, "Second note content\n- [ ] Note checkbox item")
+	if err != nil {
+		t.Fatalf("failed to append second note: %v", err)
+	}
+	if strings.Count(res2, "## Notes") != 1 {
+		t.Errorf("expected exactly 1 ## Notes header, got %d:\n%s", strings.Count(res2, "## Notes"), res2)
+	}
+	if !strings.Contains(res2, "### [2026-09-04 12:15 UTC]") {
+		t.Errorf("expected second timestamp header, got:\n%s", res2)
+	}
+
+	// 3. Verify checkbox in notes is extracted as required criteria
+	total, completed, items := parser.ExtractAcceptanceCriteria([]byte(res2))
+	if total != 2 {
+		t.Errorf("expected 2 total criteria (1 in body, 1 in note), got %d", total)
+	}
+	if completed != 1 {
+		t.Errorf("expected 1 completed criterion, got %d", completed)
+	}
+	if items[1].Text != "Note checkbox item" || items[1].Completed {
+		t.Errorf("unexpected note criterion: %+v", items[1])
+	}
+	if !parser.HasOpenCheckboxes([]byte(res2)) {
+		t.Error("expected HasOpenCheckboxes to be true due to open note checkbox")
+	}
+
+	// Verify complete_task fails while note checkbox is open
+	err = parser.VerifyAllCheckboxesCompleted(res2)
+	if err == nil {
+		t.Fatal("expected VerifyAllCheckboxesCompleted to fail with open note checkbox")
+	}
+
+	// 4. Insertion before ## Completion Summary
+	bodyWithSummary := `# Task
+## Acceptance Criteria
+- [x] Done
+
+## Completion Summary
+### Completed At
+2026-09-04T10:00:00Z
+`
+	res3, err := parser.AppendTaskNote(bodyWithSummary, ts, "Post-completion observation")
+	if err != nil {
+		t.Fatalf("failed to append note before completion summary: %v", err)
+	}
+	summaryIdx := strings.Index(res3, "## Completion Summary")
+	notesIdx := strings.Index(res3, "## Notes")
+	if notesIdx == -1 || summaryIdx == -1 || notesIdx >= summaryIdx {
+		t.Errorf("expected ## Notes to be before ## Completion Summary, got:\n%s", res3)
+	}
+}
+
+func TestIsOnlyCheckboxToggle(t *testing.T) {
+	orig := `# Title
+## Criteria
+- [ ] Task item 1
+- [x] Task item 2
+`
+	// Toggling item 1 to checked
+	toggled := `# Title
+## Criteria
+- [x] Task item 1
+- [x] Task item 2
+`
+	if !parser.IsOnlyCheckboxToggle(orig, toggled) {
+		t.Error("expected IsOnlyCheckboxToggle to be true for checkbox toggle")
+	}
+
+	// Editing text in item 1
+	editedText := `# Title
+## Criteria
+- [ ] Task item 1 edited
+- [x] Task item 2
+`
+	if parser.IsOnlyCheckboxToggle(orig, editedText) {
+		t.Error("expected IsOnlyCheckboxToggle to be false when text is edited")
+	}
+
+	// Adding a new item
+	addedItem := `# Title
+## Criteria
+- [ ] Task item 1
+- [x] Task item 2
+- [ ] Task item 3
+`
+	if parser.IsOnlyCheckboxToggle(orig, addedItem) {
+		t.Error("expected IsOnlyCheckboxToggle to be false when item is added")
+	}
+}
+

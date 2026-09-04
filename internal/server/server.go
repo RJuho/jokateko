@@ -98,6 +98,7 @@ func New(cfg *config.Config, workspaceDir string, st *store.Store, wr *writer.Wr
 	mux.HandleFunc("DELETE /api/tasks/{id}", s.handleDeleteTask)
 	mux.HandleFunc("POST /api/tasks/{id}/dependencies", s.handleAddTaskDependency)
 	mux.HandleFunc("DELETE /api/tasks/{id}/dependencies/{depId}", s.handleRemoveTaskDependency)
+	mux.HandleFunc("POST /api/tasks/{id}/notes", s.handleAddTaskNote)
 
 	// Milestones
 	mux.HandleFunc("GET /api/milestones", s.handleListMilestones)

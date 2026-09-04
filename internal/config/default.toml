@@ -45,8 +45,13 @@ connect_src = ["'self'"]
 font_src = ["'self'"]
 
 # ------------------------------------------------------------------------------
-# Workflow Columns
+# Workflow Columns & Task Editing
 # ------------------------------------------------------------------------------
+# List of workflow statuses in which a task's full body specification can be edited.
+# In all other states, tasks are locked and only notes can be appended.
+[board]
+editable_states = ["backlog"]
+
 [[board.columns]]
 id = "backlog"
 name = "Backlog"

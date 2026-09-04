@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -113,3 +114,89 @@ func CompleteTaskBody(body string, completedAt time.Time, whatWasDone, whyRation
 
 	return cleanBody + "\n\n" + summary, nil
 }
+
+// AppendTaskNote appends a timestamped note block under the "## Notes" section of the task body.
+// If "## Notes" does not exist, it is created. If "## Completion Summary" exists, the note is
+// inserted before it so that the completion summary remains the final section.
+func AppendTaskNote(body string, timestamp time.Time, note string) (string, error) {
+	trimmedNote := strings.TrimSpace(note)
+	if trimmedNote == "" {
+		return "", errors.New("note content cannot be empty")
+	}
+
+	ts := timestamp.UTC().Format("2006-01-02 15:04 UTC")
+	noteBlock := fmt.Sprintf("### [%s]\n\n%s\n", ts, trimmedNote)
+
+	// Regex to find ## Notes (case-insensitive)
+	notesHeaderRegex := regexp.MustCompile(`(?mi)^##\s+Notes\s*$`)
+	notesMatch := notesHeaderRegex.FindStringIndex(body)
+
+	// Regex to find ## Completion Summary
+	completionHeaderRegex := regexp.MustCompile(`(?mi)^##\s+Completion Summary\s*$`)
+	completionMatch := completionHeaderRegex.FindStringIndex(body)
+
+	if notesMatch != nil {
+		// Notes header exists. Find where the Notes section ends:
+		// Either at the next "## " heading after notesMatch[1], or at EOF.
+		afterNotes := body[notesMatch[1]:]
+		nextHeadingRegex := regexp.MustCompile(`(?m)^##\s+`)
+		nextHeadingMatch := nextHeadingRegex.FindStringIndex(afterNotes)
+
+		if nextHeadingMatch != nil {
+			// Insert before the next heading
+			insertIdx := notesMatch[1] + nextHeadingMatch[0]
+			var sb strings.Builder
+			sb.WriteString(strings.TrimRight(body[:insertIdx], "\r\n"))
+			sb.WriteString("\n\n")
+			sb.WriteString(noteBlock)
+			sb.WriteString("\n")
+			sb.WriteString(strings.TrimLeft(body[insertIdx:], "\r\n"))
+			return sb.String(), nil
+		}
+
+		// No following ## heading, append at the end
+		var sb strings.Builder
+		sb.WriteString(strings.TrimRight(body, "\r\n"))
+		sb.WriteString("\n\n")
+		sb.WriteString(noteBlock)
+		return sb.String(), nil
+	}
+
+	// Notes header does NOT exist yet.
+	if completionMatch != nil {
+		// Insert ## Notes before ## Completion Summary
+		var sb strings.Builder
+		sb.WriteString(strings.TrimRight(body[:completionMatch[0]], "\r\n"))
+		sb.WriteString("\n\n## Notes\n\n")
+		sb.WriteString(noteBlock)
+		sb.WriteString("\n")
+		sb.WriteString(strings.TrimLeft(body[completionMatch[0]:], "\r\n"))
+		return sb.String(), nil
+	}
+
+	// Append ## Notes at the end of body
+	var sb strings.Builder
+	trimmedBody := strings.TrimRight(body, "\r\n")
+	if trimmedBody != "" {
+		sb.WriteString(trimmedBody)
+		sb.WriteString("\n\n")
+	}
+	sb.WriteString("## Notes\n\n")
+	sb.WriteString(noteBlock)
+	return sb.String(), nil
+}
+
+// IsOnlyCheckboxToggle reports whether the differences between oldBody and newBody
+// consist solely of toggling checkbox states (- [ ] vs - [x]), with no additions,
+// deletions, or edits to other text or criteria.
+func IsOnlyCheckboxToggle(oldBody, newBody string) bool {
+	normalize := func(s string) string {
+		lines := strings.Split(s, "\n")
+		for i, line := range lines {
+			lines[i] = checkboxLineRegex.ReplaceAllString(line, "${1}[ ]${3}")
+		}
+		return strings.TrimSpace(strings.Join(lines, "\n"))
+	}
+	return normalize(oldBody) == normalize(newBody)
+}
+

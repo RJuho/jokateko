@@ -546,3 +546,134 @@ func TestMCP_TaskDependencies(t *testing.T) {
 	}
 }
 
+func TestMCP_TaskNotesAndEditableStates(t *testing.T) {
+	srv, _, st, session := setupTestMCP(t)
+	_ = srv
+
+	// 1. Create a task in backlog with 1 acceptance criterion
+	createOut, err := callToolJSON[internalmcp.TaskDetail](t, session, "create_task", internalmcp.CreateTaskInput{
+		Title:    "Notes and Edit Test",
+		Summary:  "Testing editable states and notes",
+		Priority: "medium",
+		Tags:     []string{"backend"},
+		Body:     "## Acceptance Criteria\n- [ ] Initial criteria\n",
+	})
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	if createOut.Status != "backlog" || createOut.TotalCriteria != 1 {
+		t.Fatalf("unexpected task state: %+v", createOut)
+	}
+
+	// 2. In backlog (editable state), modifying body should SUCCEED
+	newBody := "## Acceptance Criteria\n- [ ] Modified initial criteria\n"
+	updOut, err := callToolJSON[internalmcp.TaskDetail](t, session, "update_task_content", internalmcp.UpdateTaskContentInput{
+		ID:   createOut.ID,
+		Body: &newBody,
+	})
+	if err != nil {
+		t.Fatalf("expected update_task_content body to succeed in backlog: %v", err)
+	}
+	if !strings.Contains(updOut.Body, "Modified initial criteria") {
+		t.Fatalf("expected updated body, got: %s", updOut.Body)
+	}
+
+	// 3. Move task to "ready" (non-editable state by default)
+	_, err = callToolJSON[internalmcp.UpdateTaskStatusOutput](t, session, "update_task_status", internalmcp.UpdateTaskStatusInput{
+		ID:     createOut.ID,
+		Status: "ready",
+	})
+	if err != nil {
+		t.Fatalf("failed to update status to ready: %v", err)
+	}
+
+	// 4. In ready (non-editable state), modifying body specification text should FAIL
+	attemptBody := "## Acceptance Criteria\n- [ ] Attempted rewrite\n"
+	_, err = callToolJSON[internalmcp.TaskDetail](t, session, "update_task_content", internalmcp.UpdateTaskContentInput{
+		ID:   createOut.ID,
+		Body: &attemptBody,
+	})
+	if err == nil {
+		t.Fatal("expected update_task_content body to fail in non-editable status 'ready'")
+	}
+	if !strings.Contains(err.Error(), "only editable in") {
+		t.Errorf("expected error message mentioning editable status, got: %v", err)
+	}
+
+	// 5. In ready, toggling checkbox (- [ ] -> - [x]) should SUCCEED
+	checkedBody := "## Acceptance Criteria\n- [x] Modified initial criteria\n"
+	toggleOut, err := callToolJSON[internalmcp.TaskDetail](t, session, "update_task_content", internalmcp.UpdateTaskContentInput{
+		ID:   createOut.ID,
+		Body: &checkedBody,
+	})
+	if err != nil {
+		t.Fatalf("expected checkbox toggle to succeed in ready status: %v", err)
+	}
+	if toggleOut.CompletedCriteria != 1 {
+		t.Errorf("expected 1 completed criteria, got %d", toggleOut.CompletedCriteria)
+	}
+
+	// 6. Append note with a new required checkbox via add_task_note
+	noteOut, err := callToolJSON[internalmcp.AddTaskNoteOutput](t, session, "add_task_note", internalmcp.AddTaskNoteInput{
+		ID:   createOut.ID,
+		Note: "Investigation complete.\n- [ ] Follow-up bug check",
+	})
+	if err != nil {
+		t.Fatalf("failed to add task note: %v", err)
+	}
+	if !noteOut.Success {
+		t.Fatalf("expected noteOut.Success to be true")
+	}
+	if noteOut.TotalCriteria != 2 || noteOut.CompletedCriteria != 1 {
+		t.Fatalf("expected total 2 and completed 1 criteria, got total %d, completed %d", noteOut.TotalCriteria, noteOut.CompletedCriteria)
+	}
+
+	// Verify in store
+	taskInStore, err := st.GetTask(t.Context(), createOut.ID)
+	if err != nil {
+		t.Fatalf("failed to get task from store: %v", err)
+	}
+	if !strings.Contains(taskInStore.Body, "## Notes") || !strings.Contains(taskInStore.Body, "Follow-up bug check") {
+		t.Errorf("expected notes with follow-up in store body, got:\n%s", taskInStore.Body)
+	}
+
+	// 7. Attempt to complete task -> should FAIL because new checkbox in Notes is not completed!
+	_, err = callToolJSON[internalmcp.CompleteTaskOutput](t, session, "complete_task", internalmcp.CompleteTaskInput{
+		ID:       createOut.ID,
+		Summary:  "Finishing work",
+		WhatDone: "Implemented test feature",
+		WhyDone:  "Required for verification",
+	})
+	if err == nil {
+		t.Fatal("expected complete_task to fail due to unchecked criteria in Notes")
+	}
+	if !strings.Contains(err.Error(), "remain uncompleted") {
+		t.Errorf("expected uncompleted criteria error, got: %v", err)
+	}
+
+	// 8. Toggle the note's checkbox to checked
+	fullyCheckedBody := strings.Replace(taskInStore.Body, "- [ ] Follow-up bug check", "- [x] Follow-up bug check", 1)
+	_, err = callToolJSON[internalmcp.TaskDetail](t, session, "update_task_content", internalmcp.UpdateTaskContentInput{
+		ID:   createOut.ID,
+		Body: &fullyCheckedBody,
+	})
+	if err != nil {
+		t.Fatalf("expected toggling note checkbox to succeed: %v", err)
+	}
+
+	// 9. Complete task -> should SUCCEED now
+	compOut, err := callToolJSON[internalmcp.CompleteTaskOutput](t, session, "complete_task", internalmcp.CompleteTaskInput{
+		ID:       createOut.ID,
+		Summary:  "Finishing work successfully",
+		WhatDone: "Implemented test feature and checked all criteria",
+		WhyDone:  "Required for verification",
+	})
+	if err != nil {
+		t.Fatalf("expected complete_task to succeed now: %v", err)
+	}
+	if compOut.Status != "done" {
+		t.Errorf("expected status 'done', got %s", compOut.Status)
+	}
+}
+
+

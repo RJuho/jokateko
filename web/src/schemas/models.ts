@@ -76,6 +76,7 @@ export const ProjectConfigSchema = v.object({
 
 export const BoardConfigSchema = v.object({
 	columns: v.array(ColumnSchema),
+	editable_states: v.optional(v.array(v.string()), ['backlog']),
 })
 
 export const TagsConfigSchema = v.object({
@@ -135,6 +136,7 @@ export const ColumnStateSchema = v.object({
 export const BoardStateSchema = v.object({
 	project_name: v.string(),
 	columns: v.array(ColumnStateSchema),
+	editable_states: v.optional(v.array(v.string()), ['backlog']),
 })
 
 // Automatically inferred TypeScript types (Single source of truth)

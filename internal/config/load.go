@@ -148,8 +148,9 @@ type rawCSPConfig struct {
 }
 
 type rawBoardConfig struct {
-	Columns    []ColumnConfig         `toml:"columns"`
-	Priorities []model.PriorityConfig `toml:"priorities"`
+	Columns        []ColumnConfig         `toml:"columns"`
+	EditableStates []string               `toml:"editable_states"`
+	Priorities     []model.PriorityConfig `toml:"priorities"`
 }
 
 type rawStrategiesConfig struct {
@@ -258,9 +259,14 @@ func mergeConfig(target *Config, raw *rawConfig) {
 		}
 	}
 
-	// Board columns: if custom columns provided, replace defaults
-	if raw.Board != nil && len(raw.Board.Columns) > 0 {
-		target.Board.Columns = raw.Board.Columns
+	// Board columns & editable states: if custom values provided, replace defaults
+	if raw.Board != nil {
+		if len(raw.Board.Columns) > 0 {
+			target.Board.Columns = raw.Board.Columns
+		}
+		if len(raw.Board.EditableStates) > 0 {
+			target.Board.EditableStates = raw.Board.EditableStates
+		}
 	}
 
 	// Priorities: if custom priorities provided (top-level or under board), replace defaults

@@ -22,8 +22,9 @@ type ColumnState struct {
 
 // BoardState represents the aggregated board snapshot served to the Web UI and MCP clients.
 type BoardState struct {
-	ProjectName string        `json:"project_name"`
-	Columns     []ColumnState `json:"columns"`
+	ProjectName    string        `json:"project_name"`
+	Columns        []ColumnState `json:"columns"`
+	EditableStates []string      `json:"editable_states,omitempty"`
 }
 
 // FilterCriteria defines filtering parameters for task listing and board views.

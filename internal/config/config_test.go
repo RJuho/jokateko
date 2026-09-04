@@ -784,6 +784,52 @@ Never edit .jokateko files directly.
 	}
 }
 
+func TestBoardEditableStates(t *testing.T) {
+	// 1. Default config should have editable_states = ["backlog"]
+	defCfg := config.Default("")
+	if len(defCfg.Board.EditableStates) != 1 || defCfg.Board.EditableStates[0] != "backlog" {
+		t.Errorf("expected default editable_states to be ['backlog'], got %v", defCfg.Board.EditableStates)
+	}
+	if !defCfg.IsTaskEditable("backlog") {
+		t.Error("expected backlog to be editable in default config")
+	}
+	if defCfg.IsTaskEditable("ready") {
+		t.Error("expected ready to not be editable in default config")
+	}
+	if defCfg.IsTaskEditable("in_progress") {
+		t.Error("expected in_progress to not be editable in default config")
+	}
+
+	// 2. Custom config with multiple editable states
+	tempDir := t.TempDir()
+	jokatekoDir := filepath.Join(tempDir, ".jokateko")
+	_ = os.MkdirAll(jokatekoDir, 0755)
+
+	customTOML := `
+[board]
+editable_states = ["backlog", "ready", "custom_draft"]
+`
+	_ = os.WriteFile(filepath.Join(jokatekoDir, "config.toml"), []byte(customTOML), 0644)
+
+	cfg, err := config.Load(tempDir)
+	if err != nil {
+		t.Fatalf("failed to load custom config: %v", err)
+	}
+	if !cfg.IsTaskEditable("backlog") {
+		t.Error("expected backlog to be editable")
+	}
+	if !cfg.IsTaskEditable("ready") {
+		t.Error("expected ready to be editable")
+	}
+	if !cfg.IsTaskEditable("custom_draft") {
+		t.Error("expected custom_draft to be editable")
+	}
+	if cfg.IsTaskEditable("in_progress") {
+		t.Error("expected in_progress to not be editable")
+	}
+}
+
+
 
 
 

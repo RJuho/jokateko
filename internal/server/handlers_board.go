@@ -22,5 +22,11 @@ func (s *Server) handleGetBoard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	editable := s.cfg.Board.EditableStates
+	if len(editable) == 0 {
+		editable = []string{"backlog"}
+	}
+	board.EditableStates = editable
+
 	writeJSON(w, http.StatusOK, board)
 }

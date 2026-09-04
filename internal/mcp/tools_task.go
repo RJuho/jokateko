@@ -169,6 +169,20 @@ type TaskDependencyOutput struct {
 	Message      string   `json:"message"`
 }
 
+type AddTaskNoteInput struct {
+	ID   string `json:"id" jsonschema:"required,Task ID or slug"`
+	Note string `json:"note" jsonschema:"required,Markdown note content to append under ## Notes"`
+}
+
+type AddTaskNoteOutput struct {
+	Success           bool   `json:"success"`
+	ID                string `json:"id"`
+	Note              string `json:"note"`
+	TotalCriteria     int    `json:"total_criteria"`
+	CompletedCriteria int    `json:"completed_criteria"`
+	Message           string `json:"message"`
+}
+
 // registerTaskTools registers all task tools with the MCP server.
 func (s *Server) registerTaskTools() {
 	// 1. list_tasks
@@ -236,6 +250,12 @@ func (s *Server) registerTaskTools() {
 		Name:        "remove_task_dependency",
 		Description: "Removes an upstream dependency from a task.",
 	}, s.toolRemoveTaskDependency)
+
+	// 12. add_task_note
+	mcp.AddTool(s.mcpServer, &mcp.Tool{
+		Name:        "add_task_note",
+		Description: "Appends a timestamped note entry under the ## Notes section of a task without modifying existing specification or criteria.",
+	}, s.toolAddTaskNote)
 }
 
 func (s *Server) toolListTasks(ctx context.Context, _ *mcp.CallToolRequest, in ListTasksInput) (*mcp.CallToolResult, []TaskSummary, error) {
@@ -751,7 +771,14 @@ func (s *Server) toolUpdateTaskContent(ctx context.Context, _ *mcp.CallToolReque
 	if in.Dependencies != nil {
 		task.Dependencies = *in.Dependencies
 	}
-	if in.Body != nil {
+	if in.Body != nil && *in.Body != task.Body {
+		if !s.cfg.IsTaskEditable(task.Status) && !parser.IsOnlyCheckboxToggle(task.Body, *in.Body) {
+			editable := s.cfg.Board.EditableStates
+			if len(editable) == 0 {
+				editable = []string{"backlog"}
+			}
+			return nil, nil, fmt.Errorf("cannot edit task body while task is in %q status; task body is only editable in [%s]; move task to an editable status to revise specification, or use add_task_note to append notes", task.Status, strings.Join(editable, ", "))
+		}
 		task.Body = *in.Body
 	}
 
@@ -1058,5 +1085,79 @@ func (s *Server) toolRemoveTaskDependency(ctx context.Context, _ *mcp.CallToolRe
 		Message:      fmt.Sprintf("Dependency %q removed from task %q", depID, id),
 	}, nil
 }
+
+func (s *Server) toolAddTaskNote(ctx context.Context, _ *mcp.CallToolRequest, in AddTaskNoteInput) (*mcp.CallToolResult, *AddTaskNoteOutput, error) {
+	if !s.cfg.MCP.AllowMutations {
+		return nil, nil, errors.New("mutations are disabled in configuration")
+	}
+
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		return nil, nil, errors.New("task id is required")
+	}
+
+	note := strings.TrimSpace(in.Note)
+	if note == "" {
+		return nil, nil, errors.New("note content is required")
+	}
+
+	task, err := s.store.GetTask(ctx, id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, nil, fmt.Errorf("task %q not found", id)
+		}
+		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+	}
+
+	newBody, err := parser.AppendTaskNote(task.Body, time.Now(), note)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to append note: %w", err)
+	}
+
+	task.Body = newBody
+	total, completed, _ := parser.ExtractAcceptanceCriteria([]byte(newBody))
+	task.TotalCriteria = total
+	task.CompletedCriteria = completed
+	task.ModTime = time.Now()
+
+	fm := model.TaskFrontmatter{
+		Title:        task.Title,
+		Status:       task.Status,
+		Priority:     task.Priority,
+		Milestone:    task.Milestone,
+		Tags:         task.Tags,
+		Summary:      task.Summary,
+		Dependencies: task.Dependencies,
+	}
+
+	fileBytes, err := parser.Format(fm, task.Body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to format task markdown: %w", err)
+	}
+
+	filePath := task.FilePath
+	if filePath == "" {
+		filePath = filepath.Join(s.TasksDir(), fmt.Sprintf("%s.md", id))
+		task.FilePath = filePath
+	}
+
+	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
+		return nil, nil, fmt.Errorf("failed to save task file: %w", err)
+	}
+
+	if err := s.store.UpsertTask(ctx, task); err != nil {
+		return nil, nil, fmt.Errorf("failed to update task in store: %w", err)
+	}
+
+	return nil, &AddTaskNoteOutput{
+		Success:           true,
+		ID:                id,
+		Note:              note,
+		TotalCriteria:     total,
+		CompletedCriteria: completed,
+		Message:           fmt.Sprintf("Note appended to task %q under ## Notes", id),
+	}, nil
+}
+
 
 

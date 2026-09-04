@@ -688,4 +688,115 @@ func TestTaskDependenciesEndpoints(t *testing.T) {
 	}
 }
 
+func TestTaskNotesAndEditableStatesEndpoints(t *testing.T) {
+	srv, _, st, _ := setupTestServer(t)
+
+	// 1. Create a task via POST /api/tasks (starts in backlog)
+	createBody := `{"title":"API Notes Task","summary":"Testing notes and edit endpoints","body":"## Criteria\n- [ ] Initial criterion\n"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(createBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var createdTask model.Task
+	_ = json.Unmarshal(rec.Body.Bytes(), &createdTask)
+	taskID := createdTask.ID
+
+	// 2. In backlog (editable state), PUT with modified body succeeds (200 OK)
+	editBody := `{"body":"## Criteria\n- [ ] Modified criterion\n"}`
+	req = httptest.NewRequest(http.MethodPut, "/api/tasks/"+taskID, strings.NewReader(editBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK modifying body in backlog, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// 3. Transition to "in_progress" (non-editable status)
+	putStatus := `{"status":"in_progress"}`
+	req = httptest.NewRequest(http.MethodPut, "/api/tasks/"+taskID, strings.NewReader(putStatus))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK updating status, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// 4. In in_progress, PUT that changes body text fails with 409 Conflict
+	rewriteBody := `{"body":"## Criteria\n- [ ] Attempted rewrite\n"}`
+	req = httptest.NewRequest(http.MethodPut, "/api/tasks/"+taskID, strings.NewReader(rewriteBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409 Conflict modifying body in in_progress, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// 5. In in_progress, PUT that ONLY toggles checkbox succeeds (200 OK)
+	toggleBody := `{"body":"## Criteria\n- [x] Modified criterion\n"}`
+	req = httptest.NewRequest(http.MethodPut, "/api/tasks/"+taskID, strings.NewReader(toggleBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK toggling checkbox in in_progress, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var toggledTask model.Task
+	_ = json.Unmarshal(rec.Body.Bytes(), &toggledTask)
+	if toggledTask.CompletedCriteria != 1 {
+		t.Errorf("expected completed criteria 1, got %d", toggledTask.CompletedCriteria)
+	}
+
+	// 6. POST /api/tasks/{id}/notes with empty note fails with 400 Bad Request
+	emptyNote := `{"note":""}`
+	req = httptest.NewRequest(http.MethodPost, "/api/tasks/"+taskID+"/notes", strings.NewReader(emptyNote))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request on empty note, got %d", rec.Code)
+	}
+
+	// 7. POST /api/tasks/non-existent/notes fails with 404 Not Found
+	validNote := `{"note":"Valid note content"}`
+	req = httptest.NewRequest(http.MethodPost, "/api/tasks/non-existent/notes", strings.NewReader(validNote))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found on missing task notes, got %d", rec.Code)
+	}
+
+	// 8. POST /api/tasks/{id}/notes appends note and updates criteria
+	noteWithChecklist := `{"note":"Progress report\n- [ ] Verify database indexes"}`
+	req = httptest.NewRequest(http.MethodPost, "/api/tasks/"+taskID+"/notes", strings.NewReader(noteWithChecklist))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on note creation, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var taskWithNote model.Task
+	_ = json.Unmarshal(rec.Body.Bytes(), &taskWithNote)
+	if taskWithNote.TotalCriteria != 2 || taskWithNote.CompletedCriteria != 1 {
+		t.Errorf("expected total 2 and completed 1 criteria, got total %d, completed %d", taskWithNote.TotalCriteria, taskWithNote.CompletedCriteria)
+	}
+	if !strings.Contains(taskWithNote.Body, "## Notes") || !strings.Contains(taskWithNote.Body, "Verify database indexes") {
+		t.Errorf("expected notes in body, got: %s", taskWithNote.Body)
+	}
+
+	// Check store directly
+	inStore, err := st.GetTask(t.Context(), taskID)
+	if err != nil {
+		t.Fatalf("failed to get task from store: %v", err)
+	}
+	if !strings.Contains(inStore.Body, "Verify database indexes") {
+		t.Errorf("store does not reflect appended note: %s", inStore.Body)
+	}
+}
+
+
 

@@ -17,6 +17,8 @@ export function TaskEditModal() {
 	const cols = config.value.board.columns
 	const milestoneList = milestones.value
 	const priorityList = configuredPriorities.value
+	const editableStates = config.value.board?.editable_states || ['backlog']
+	const isBodyEditable = editableStates.includes(task.status)
 
 	function closeModal() {
 		activeTaskEditId.value = null
@@ -82,7 +84,7 @@ export function TaskEditModal() {
 			milestone: milestone.trim() === '' ? null : milestone.trim(),
 			tags: parsedTags,
 			dependencies: parsedDeps,
-			body,
+			body: isBodyEditable ? body : task.body,
 		}
 
 		if (mode.value !== 'live') {
@@ -363,17 +365,22 @@ export function TaskEditModal() {
 
 					{/* Markdown Body */}
 					<div>
-						<label
-							for='task-edit-body'
-							class='label py-1 text-xs font-semibold'
-						>
-							Body & Acceptance Criteria (Markdown)
-						</label>
+						<div class='flex items-center justify-between py-1'>
+							<label for='task-edit-body' class='text-xs font-semibold'>
+								Body & Acceptance Criteria (Markdown)
+							</label>
+							{!isBodyEditable && (
+								<span class='text-[11px] text-warning'>
+									Locked in {task.status} (use Notes for updates)
+								</span>
+							)}
+						</div>
 						<textarea
 							id='task-edit-body'
 							value={body}
+							disabled={!isBodyEditable}
 							onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)}
-							class='textarea textarea-sm textarea-bordered w-full rounded-lg font-mono text-xs'
+							class={`textarea textarea-sm textarea-bordered w-full rounded-lg font-mono text-xs ${!isBodyEditable ? 'bg-base-200/60 cursor-not-allowed opacity-80' : ''}`}
 							rows={6}
 							placeholder='## Acceptance Criteria&#10;- [ ] Criterion 1&#10;- [ ] Criterion 2'
 							aria-label='Task markdown body'
