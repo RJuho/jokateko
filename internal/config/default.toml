@@ -150,6 +150,16 @@ enforce_allowed = true
 enabled = true
 timeout_seconds = 30
 allow_mutations = true
+instructions = """
+Jokateko manages tasks, milestones, architectural strategies, and glossary terms as version-controlled Markdown files in the repository (.jokateko/).
+
+Core Workflow Rules:
+1. Always use get_task to inspect full acceptance criteria before starting work.
+2. Use update_task_item to toggle checklists as items are completed.
+3. Use complete_task when finished to record completion summary and unblock downstream tasks.
+4. Always consult Tier-1 architectural strategies via get_strategy before making architectural decisions.
+5. All modifications to .jokateko/ files must be performed via Jokateko MCP tools rather than direct file edits, ensuring atomic disk persistence and schema validation.
+"""
 
 # ------------------------------------------------------------------------------
 # UI Translations & Aria Accessibility

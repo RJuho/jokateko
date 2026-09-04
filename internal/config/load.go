@@ -162,9 +162,10 @@ type rawTagsConfig struct {
 }
 
 type rawMCPConfig struct {
-	Enabled        *bool `toml:"enabled"`
-	TimeoutSeconds *int  `toml:"timeout_seconds"`
-	AllowMutations *bool `toml:"allow_mutations"`
+	Enabled        *bool   `toml:"enabled"`
+	TimeoutSeconds *int    `toml:"timeout_seconds"`
+	AllowMutations *bool   `toml:"allow_mutations"`
+	Instructions   *string `toml:"instructions"`
 }
 
 // mergeConfig overlays explicit values from rawConfig onto target,
@@ -296,6 +297,9 @@ func mergeConfig(target *Config, raw *rawConfig) {
 		}
 		if raw.MCP.AllowMutations != nil {
 			target.MCP.AllowMutations = *raw.MCP.AllowMutations
+		}
+		if raw.MCP.Instructions != nil {
+			target.MCP.Instructions = *raw.MCP.Instructions
 		}
 	}
 

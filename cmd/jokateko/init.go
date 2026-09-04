@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/RJuho/jokateko/internal/config"
 )
 
 func cmdInit(args []string, stdout, stderr io.Writer) int {
@@ -14,6 +16,7 @@ func cmdInit(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	dirFlag := fs.String("dir", ".", "Directory in which to initialize Jokateko")
 	nameFlag := fs.String("name", "", "Project name (default: directory name)")
+	replaceFlag := fs.Bool("replace", false, "Overwrite existing config.toml with fresh default template")
 
 	if err := fs.Parse(args); err != nil {
 		return 1
@@ -47,50 +50,9 @@ func cmdInit(args []string, stdout, stderr io.Writer) int {
 
 	// 2. Default config.toml
 	configFile := filepath.Join(jokatekoDir, "config.toml")
-	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		defaultConfig := fmt.Sprintf(`version = "0"
-
-[project]
-name = %q
-description = "Local, Markdown-driven Kanban and task management"
-
-[server]
-host = "127.0.0.1"
-port = 8080
-open_browser = true
-
-[board]
-[[board.columns]]
-id = "backlog"
-name = "Backlog"
-color = "#64748b"
-
-[[board.columns]]
-id = "ready"
-name = "Ready"
-color = "#3b82f6"
-
-[[board.columns]]
-id = "in_progress"
-name = "In Progress"
-color = "#f59e0b"
-
-[[board.columns]]
-id = "in_review"
-name = "In Review"
-color = "#8b5cf6"
-
-[[board.columns]]
-id = "done"
-name = "Done"
-color = "#10b981"
-
-[tags]
-enforce_allowed = false
-allowed = ["backend", "frontend", "api", "docs", "bug", "feature"]
-`, projectName)
-
-		if err := os.WriteFile(configFile, []byte(defaultConfig), 0644); err != nil {
+	if _, err := os.Stat(configFile); os.IsNotExist(err) || *replaceFlag {
+		commentedConfig := config.GenerateCommentedConfig(projectName, "Local, Markdown-driven Kanban and task management")
+		if err := os.WriteFile(configFile, []byte(commentedConfig), 0644); err != nil {
 			fmt.Fprintf(stderr, "failed to write config.toml: %v\n", err)
 			return 1
 		}
@@ -142,7 +104,7 @@ title = "MVP Release"
 status = "open"
 target_date = %q
 summary = "Initial usable release of the project"
-tags = ["feature"]
+tags = ["release"]
 +++
 
 # MVP Release
@@ -161,7 +123,7 @@ status = "ready"
 priority = "high"
 summary = "Verify Jokateko project configuration and task workflow"
 milestone = %q
-tags = ["feature"]
+tags = ["release"]
 dependencies = []
 +++
 

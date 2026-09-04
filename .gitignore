@@ -49,3 +49,5 @@ test-results/
 
 # Jokateko runtime cache
 .jokateko/cache/
+.agents/cache/
+

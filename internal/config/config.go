@@ -92,9 +92,10 @@ type TagsConfig struct {
 
 // MCPConfig defines Model Context Protocol settings for AI agents.
 type MCPConfig struct {
-	Enabled        bool `toml:"enabled"`
-	TimeoutSeconds int  `toml:"timeout_seconds"`
-	AllowMutations bool `toml:"allow_mutations"`
+	Enabled        bool   `toml:"enabled"`
+	TimeoutSeconds int    `toml:"timeout_seconds"`
+	AllowMutations bool   `toml:"allow_mutations"`
+	Instructions   string `toml:"instructions"`
 }
 
 // Timeout returns the configured timeout as a time.Duration.

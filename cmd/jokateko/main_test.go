@@ -82,6 +82,19 @@ func TestCLI_InitAndParseCycle(t *testing.T) {
 		}
 	}
 
+	// Verify that the generated config.toml has only [project] active and other sections commented
+	cfgBytes, err := os.ReadFile(filepath.Join(tempDir, ".jokateko", "config.toml"))
+	if err != nil {
+		t.Fatalf("failed to read generated config.toml: %v", err)
+	}
+	cfgStr := string(cfgBytes)
+	if !strings.Contains(cfgStr, `name = "CLI Project"`) {
+		t.Errorf("expected generated config.toml to contain project name, got:\n%s", cfgStr)
+	}
+	if !strings.Contains(cfgStr, "# [server]") || !strings.Contains(cfgStr, "# [[board.columns]]") {
+		t.Errorf("expected [server] and [[board.columns]] sections to be commented out, got:\n%s", cfgStr)
+	}
+
 	// 2. Run 'parse' on initialized project
 	stdout.Reset()
 	stderr.Reset()
@@ -174,4 +187,63 @@ func TestCLI_MCP(t *testing.T) {
 		t.Errorf("expected standalone mode notice in stderr, got:\n%s", stderr.String())
 	}
 }
+
+func TestCLI_InitReplace(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// 1. Initial init
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"init", "-dir", tempDir, "-name", "Original Name"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("initial init failed: %s", stderr.String())
+	}
+
+	configFile := filepath.Join(tempDir, ".jokateko", "config.toml")
+	// Modify the config file with custom text
+	customText := `# Custom User Config
+version = "0"
+[project]
+name = "Modified Custom Name"
+`
+	if err := os.WriteFile(configFile, []byte(customText), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. Running init without --replace should NOT overwrite the config
+	stdout.Reset()
+	stderr.Reset()
+	code = run([]string{"init", "-dir", tempDir, "-name", "Ignored Name"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("second init failed: %s", stderr.String())
+	}
+
+	content, err := os.ReadFile(configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != customText {
+		t.Errorf("expected config not to be overwritten without --replace, got:\n%s", string(content))
+	}
+
+	// 3. Running init with --replace should overwrite the config with fresh default template
+	stdout.Reset()
+	stderr.Reset()
+	code = run([]string{"init", "-dir", tempDir, "-name", "Replaced Name", "--replace"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("init with --replace failed: %s", stderr.String())
+	}
+
+	replacedContent, err := os.ReadFile(configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replacedStr := string(replacedContent)
+	if !strings.Contains(replacedStr, `name = "Replaced Name"`) {
+		t.Errorf("expected config to be overwritten with 'Replaced Name', got:\n%s", replacedStr)
+	}
+	if !strings.Contains(replacedStr, "# [server]") || !strings.Contains(replacedStr, "# [[board.columns]]") {
+		t.Errorf("expected fresh commented config template upon --replace, got:\n%s", replacedStr)
+	}
+}
+
 

@@ -29,8 +29,9 @@ This document outlines the command-line interface for the application. The tool 
 ## Suggested Additional Commands
 
 ### `init`
-**Usage:** `jokateko init`
-**Description:** Scaffolds a new project in the current directory. It generates the base folder structure (`.jokateko/tasks/`, `.jokateko/milestones/`, `.jokateko/strategies/`, `.jokateko/glossary/`), creates the default `AGENTS.md`, and writes the initial TOML configuration file (`.jokateko/config.toml`). This provides a zero-friction onboarding experience.
+**Usage:** `jokateko init [-dir <path>] [-name <project-name>] [--replace]`
+**Description:** Scaffolds a new project in the current directory. It generates the base folder structure (`.jokateko/tasks/`, `.jokateko/milestones/`, `.jokateko/strategies/`, `.jokateko/glossary/`), creates the default starter files, and writes a clean, self-documenting TOML configuration file (`.jokateko/config.toml`) with project settings active and all other sections commented out to inherit compiled-in defaults.
+- `--replace`: Overwrite an existing `.jokateko/config.toml` with the fresh default commented template.
 
 ### `mcp`
 **Usage:** `jokateko mcp`

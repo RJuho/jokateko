@@ -672,5 +672,118 @@ func TestValidateStrategyTiers(t *testing.T) {
 	})
 }
 
+func TestGenerateCommentedConfig(t *testing.T) {
+	projectName := "Custom Project Alpha"
+	projectDesc := "A custom test description for testing"
+
+	commented := config.GenerateCommentedConfig(projectName, projectDesc)
+
+	// Verify header contains version = "0"
+	if !strings.Contains(commented, `version = "0"`) {
+		t.Error("expected commented config to contain active version = \"0\"")
+	}
+
+	// Verify project section is active
+	if !strings.Contains(commented, `name = "Custom Project Alpha"`) {
+		t.Errorf("expected project name to be active and set, got:\n%s", commented)
+	}
+	if !strings.Contains(commented, `description = "A custom test description for testing"`) {
+		t.Errorf("expected project description to be active and set, got:\n%s", commented)
+	}
+
+	// Verify other sections are commented out
+	expectedCommented := []string{
+		"# [paths]",
+		"# tasks = ",
+		"# [server]",
+		"# host = ",
+		"# port = ",
+		"# [[board.columns]]",
+		"# [tags]",
+		"# [mcp]",
+		"# enabled = ",
+	}
+	for _, exp := range expectedCommented {
+		if !strings.Contains(commented, exp) {
+			t.Errorf("expected commented config to contain %q, but was missing or uncommented", exp)
+		}
+	}
+
+	// Verify that loading this generated config via config.Load produces a valid *Config
+	tempDir := t.TempDir()
+	jokatekoDir := filepath.Join(tempDir, ".jokateko")
+	if err := os.MkdirAll(jokatekoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	configFile := filepath.Join(jokatekoDir, "config.toml")
+	if err := os.WriteFile(configFile, []byte(commented), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := config.Load(tempDir)
+	if err != nil {
+		t.Fatalf("config.Load failed on generated commented config: %v", err)
+	}
+
+	if cfg.Project.Name != projectName {
+		t.Errorf("expected project name %q, got %q", projectName, cfg.Project.Name)
+	}
+	if cfg.Project.Description != projectDesc {
+		t.Errorf("expected project description %q, got %q", projectDesc, cfg.Project.Description)
+	}
+
+	// Inherits standard defaults for omitted/commented sections
+	if cfg.Server.Port != 8080 {
+		t.Errorf("expected default port 8080, got %d", cfg.Server.Port)
+	}
+	if len(cfg.Board.Columns) != 5 {
+		t.Errorf("expected 5 default columns, got %d", len(cfg.Board.Columns))
+	}
+	if len(cfg.Tags.Allowed) != 11 {
+		t.Errorf("expected 11 default tags, got %d", len(cfg.Tags.Allowed))
+	}
+	if !cfg.MCP.Enabled {
+		t.Error("expected default MCP.Enabled to be true")
+	}
+	if !strings.Contains(cfg.MCP.Instructions, "Jokateko manages tasks") {
+		t.Errorf("expected default MCP instructions to be inherited, got: %q", cfg.MCP.Instructions)
+	}
+}
+
+func TestMCPInstructionsConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	jokatekoDir := filepath.Join(tempDir, ".jokateko")
+	if err := os.MkdirAll(jokatekoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	customTOML := `version = "0"
+
+[project]
+name = "MCP Instructions Test"
+description = "Testing MCP custom instructions"
+
+[mcp]
+instructions = """
+Always inspect Tier-1 strategies.
+Never edit .jokateko files directly.
+"""
+`
+	if err := os.WriteFile(filepath.Join(jokatekoDir, "config.toml"), []byte(customTOML), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := config.Load(tempDir)
+	if err != nil {
+		t.Fatalf("config.Load failed: %v", err)
+	}
+
+	expectedGuidance := "Always inspect Tier-1 strategies.\nNever edit .jokateko files directly.\n"
+	if cfg.MCP.Instructions != expectedGuidance {
+		t.Errorf("expected custom instructions %q, got %q", expectedGuidance, cfg.MCP.Instructions)
+	}
+}
+
+
 
 

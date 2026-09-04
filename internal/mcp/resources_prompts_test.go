@@ -4,7 +4,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/RJuho/jokateko/internal/config"
+	internalmcp "github.com/RJuho/jokateko/internal/mcp"
 	"github.com/RJuho/jokateko/internal/model"
+	"github.com/RJuho/jokateko/internal/store"
+	"github.com/RJuho/jokateko/internal/writer"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -157,3 +161,31 @@ func TestMCP_Prompts(t *testing.T) {
 		t.Errorf("expected prompt to now recommend task-blocked-high, got:\n%s", text2)
 	}
 }
+
+func TestMCP_Instructions(t *testing.T) {
+	server, _, _, _ := setupTestMCP(t)
+
+	// 1. Default instructions should match DefaultInstructions
+	if server.Instructions() != internalmcp.DefaultInstructions {
+		t.Errorf("expected default instructions, got:\n%s", server.Instructions())
+	}
+	if !strings.Contains(server.Instructions(), "All modifications to .jokateko/ files must be performed via Jokateko MCP tools") {
+		t.Errorf("expected default instructions to contain MCP mutation guidance")
+	}
+
+	// 2. Custom instructions override default
+	dir := t.TempDir()
+	cfg := config.Default(dir)
+	cfg.MCP.Instructions = "Custom project guidance for AI agents."
+	st, err := store.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	wr := writer.New(nil)
+	customServer := internalmcp.New(cfg, dir, st, wr)
+	if customServer.Instructions() != "Custom project guidance for AI agents." {
+		t.Errorf("expected custom instructions, got: %q", customServer.Instructions())
+	}
+}
+
