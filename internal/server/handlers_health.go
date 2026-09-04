@@ -31,3 +31,21 @@ func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleVersion(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, version.Get())
 }
+
+func (s *Server) handleAbout(w http.ResponseWriter, _ *http.Request) {
+	info := version.Get()
+	report := version.GetLicenses()
+	resp := map[string]any{
+		"name":         "Jokateko",
+		"description":  "Local, Markdown-driven Kanban and task management for developers and AI agents",
+		"repository":   "https://github.com/RJuho/jokateko",
+		"license":      report.Project.License,
+		"license_text": report.Project.Text,
+		"build":        info,
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) handleLicenses(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, version.GetLicenses())
+}

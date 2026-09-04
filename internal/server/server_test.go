@@ -87,6 +87,38 @@ func TestHealthAndVersion(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK, got %d", rec.Code)
 	}
+
+	// About
+	req = httptest.NewRequest(http.MethodGet, "/api/about", nil)
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for /api/about, got %d", rec.Code)
+	}
+	var about map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &about); err != nil {
+		t.Fatalf("failed to decode about response: %v", err)
+	}
+	if about["name"] != "Jokateko" || about["license"] != "MIT" {
+		t.Errorf("unexpected about response: %+v", about)
+	}
+
+	// Licenses
+	req = httptest.NewRequest(http.MethodGet, "/api/licenses", nil)
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for /api/licenses, got %d", rec.Code)
+	}
+	var licenses map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &licenses); err != nil {
+		t.Fatalf("failed to decode licenses response: %v", err)
+	}
+	if _, ok := licenses["project"]; !ok {
+		t.Errorf("expected project in licenses response: %+v", licenses)
+	}
 }
 
 func TestStaticUI(t *testing.T) {

@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/RJuho/jokateko/internal/version"
 )
 
 func TestCLI_Version(t *testing.T) {
@@ -245,5 +247,91 @@ name = "Modified Custom Name"
 		t.Errorf("expected fresh commented config template upon --replace, got:\n%s", replacedStr)
 	}
 }
+
+func TestCLI_About(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"about"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d. stderr: %s", code, stderr.String())
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "Jokateko") {
+		t.Errorf("expected about output to contain Jokateko, got: %s", out)
+	}
+	if !strings.Contains(out, "MIT License") {
+		t.Errorf("expected about output to contain MIT License, got: %s", out)
+	}
+	if !strings.Contains(out, "jokateko licenses") {
+		t.Errorf("expected about output to cross-reference 'jokateko licenses', got: %s", out)
+	}
+
+	// JSON format
+	stdout.Reset()
+	stderr.Reset()
+	code = run([]string{"about", "-json"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("expected exit code 0 for about -json, got %d. stderr: %s", code, stderr.String())
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &parsed); err != nil {
+		t.Fatalf("failed to parse about json: %v", err)
+	}
+	if parsed["name"] != "Jokateko" || parsed["license"] != "MIT" {
+		t.Errorf("unexpected about JSON output: %+v", parsed)
+	}
+}
+
+func TestCLI_Licenses(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"licenses"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d. stderr: %s", code, stderr.String())
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "Jokateko Open Source Licenses") {
+		t.Errorf("expected licenses header, got: %s", out)
+	}
+	if !strings.Contains(out, "Go Backend Dependencies") || !strings.Contains(out, "Web Frontend Dependencies") {
+		t.Errorf("expected Go and Web dependencies sections, got: %s", out)
+	}
+	if !strings.Contains(out, "jokateko about") {
+		t.Errorf("expected cross-reference to 'jokateko about', got: %s", out)
+	}
+
+	// Full flag format
+	stdout.Reset()
+	stderr.Reset()
+	code = run([]string{"licenses", "-full"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("expected exit code 0 for licenses -full, got %d. stderr: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "JOKATEKO (MIT)") {
+		t.Errorf("expected full license header, got: %s", stdout.String())
+	}
+
+	// JSON format
+	stdout.Reset()
+	stderr.Reset()
+	code = run([]string{"licenses", "-json"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("expected exit code 0 for licenses -json, got %d. stderr: %s", code, stderr.String())
+	}
+
+	var parsed struct {
+		Project  version.ProjectLicense   `json:"project"`
+		Packages []version.PackageLicense `json:"packages"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &parsed); err != nil {
+		t.Fatalf("failed to parse licenses json: %v", err)
+	}
+	if parsed.Project.License != "MIT" {
+		t.Errorf("expected project license to be MIT, got %s", parsed.Project.License)
+	}
+	if len(parsed.Packages) == 0 {
+		t.Errorf("expected packages array not to be empty")
+	}
+}
+
 
 

@@ -45,6 +45,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdMCP(subArgs, stdout, stderr)
 	case "version", "-v", "--version", "-version":
 		return cmdVersion(subArgs, stdout, stderr)
+	case "about":
+		return cmdAbout(subArgs, stdout, stderr)
+	case "licenses", "license":
+		return cmdLicenses(subArgs, stdout, stderr)
 	case "help", "-h", "--help", "-help":
 		printUsage(stdout)
 		return 0
@@ -53,8 +57,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 }
-
-
 
 func printUsage(out io.Writer) {
 	fmt.Fprintf(out, `Jokateko - Markdown-driven Kanban & task management for developers and AI agents
@@ -69,6 +71,8 @@ Available Commands:
   build       Export self-contained static HTML offline snapshot
   mcp         Run MCP stdio server or proxy to active serve daemon
   version     Print binary version, commit, date, and architecture
+  about       Display project information, build metadata, and MIT license
+  licenses    List third-party open-source dependencies and licenses
   help        Display this help message
 
 Flags:

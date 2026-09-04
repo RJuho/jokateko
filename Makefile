@@ -36,18 +36,21 @@ install-ai-tools:
 	curl -L https://github.com/04mg/caw/releases/latest/download/caw-linux-amd64 -o /home/bun/.local/bin/caw && chmod +x /home/bun/.local/bin/caw
 	curl -fsSL https://antigravity.google/cli/install.sh | bash
 
-# Generate type-safe queries using sqlc and TypeScript models
+# Generate type-safe queries using sqlc, TypeScript models, and open-source licenses
 generate:
 	sqlc generate -f internal/store/sqlc.yaml
 	go run ./cmd/gentypes
+	go run ./cmd/genlicenses
 
 # Run all Go tests with CGO disabled
 test:
+	@if [ ! -f internal/version/licenses.json ]; then go run ./cmd/genlicenses; fi
 	@if [ ! -f web/dist/script.sha256 ]; then $(MAKE) ui-build; fi
 	CGO_ENABLED=0 go test -v ./...
 
 # Build the Go binary with injected link-time version and CSP asset hash flags
 build:
+	@if [ ! -f internal/version/licenses.json ]; then go run ./cmd/genlicenses; fi
 	@if [ ! -f web/dist/script.sha256 ]; then $(MAKE) ui-build; fi
 	mkdir -p $(BIN_DIR)
 	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/jokateko

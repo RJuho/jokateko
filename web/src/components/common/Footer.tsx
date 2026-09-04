@@ -1,4 +1,4 @@
-import { config } from '../../state/store'
+import { config, isAboutModalOpen } from '../../state/store'
 import { t } from '../../utils/i18n'
 
 export function Footer() {
@@ -33,6 +33,15 @@ export function Footer() {
 				<span class='badge badge-xs badge-ghost font-mono opacity-80'>
 					{displayVersion}
 				</span>
+				<span class='opacity-30'>•</span>
+				<button
+					type='button'
+					onClick={() => (isAboutModalOpen.value = true)}
+					class='link link-hover hover:text-primary transition-colors cursor-pointer'
+					data-testid='footer-licenses-trigger'
+				>
+					Licenses
+				</button>
 			</div>
 		</footer>
 	)

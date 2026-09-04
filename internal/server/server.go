@@ -73,6 +73,8 @@ func New(cfg *config.Config, workspaceDir string, st *store.Store, wr *writer.Wr
 	// Health & System
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/version", s.handleVersion)
+	mux.HandleFunc("GET /api/about", s.handleAbout)
+	mux.HandleFunc("GET /api/licenses", s.handleLicenses)
 
 	// Model Context Protocol (MCP) Endpoint
 	mcpHandlerFunc := func(w http.ResponseWriter, r *http.Request) {

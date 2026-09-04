@@ -1,9 +1,9 @@
 +++
 title = 'Open Source License Generator, CLI Commands (about, licenses), and Web Modal'
-status = 'ready'
+status = 'done'
 priority = 'high'
-tags = ['feature', 'cli', 'frontend', 'docs']
-summary = "Adopt the MIT License for Jokateko, automate third-party license extraction across Go and Frontend dependencies, and provide 'about' and 'licenses' CLI commands and a Web UI modal."
+tags = ['cli', 'docs', 'feature', 'frontend']
+summary = 'Automated open source license generator, CLI commands (about, licenses), API endpoints, and Web UI modal implemented and verified.'
 +++
 
 # Open Source License Generator, CLI Commands (about, licenses), and Web Modal
@@ -30,10 +30,19 @@ Jokateko is an auditable, single-binary distribution. To ensure complete open-so
    - Display a searchable table/list of third-party dependencies with license tags and expandable license texts.
 
 ## Acceptance Criteria
-- [ ] Add MIT `LICENSE` file to the root of the repository
-- [ ] Build automated license extraction generator for Go and Web dependencies with zero manual picking
-- [ ] Embed harvested licenses directly into the Jokateko executable
-- [ ] Implement `jokateko about` CLI command displaying project metadata and pointing to `licenses`
-- [ ] Implement `jokateko licenses` CLI command listing all third-party licenses and pointing to `about`
-- [ ] Add "About & Licenses" modal to Web UI with searchable dependency licenses and full text views
-- [ ] Add unit tests for CLI commands and Playwright E2E test for the Web UI About & Licenses modal
+- [x] Add MIT `LICENSE` file to the root of the repository
+- [x] Build automated license extraction generator for Go and Web dependencies with zero manual picking
+- [x] Embed harvested licenses directly into the Jokateko executable
+- [x] Implement `jokateko about` CLI command displaying project metadata and pointing to `licenses`
+- [x] Implement `jokateko licenses` CLI command listing all third-party licenses and pointing to `about`
+- [x] Add "About & Licenses" modal to Web UI with searchable dependency licenses and full text views
+- [x] Add unit tests for CLI commands and Playwright E2E test for the Web UI About & Licenses modal
+
+## Completion Summary
+- **Completed At:** 2026-09-04T15:47:46Z
+
+### What Was Done
+Added root MIT LICENSE file; created automated build-time license harvester 'cmd/genlicenses' extracting SPDX licenses from Go modules and npm packages into embedded JSON; added 'jokateko about' and 'jokateko licenses' CLI commands with table, full-text, and JSON formatting; added /api/about and /api/licenses HTTP endpoints; created Preact 'AboutModal' component with package search, ecosystem filter tabs, license viewer, and responsive triggers in Header and Footer; added comprehensive CLI tests and Playwright E2E tests.
+
+### Why / Rationale
+Ensures transparency and compliance with open source licenses across all Go and Web dependencies with zero manual maintenance burden, accessible via CLI commands, HTTP endpoints, and Web UI.

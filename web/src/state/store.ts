@@ -124,6 +124,7 @@ export const filters = signal<FilterState>({
 export const activeTaskDetailId = signal<string | null>(null)
 export const activeTaskEditId = signal<string | null>(null)
 export const isCreateTaskModalOpen = signal<boolean>(false)
+export const isAboutModalOpen = signal<boolean>(false)
 export const createTaskInitialColumnId = signal<string | null>(null)
 export const activeStrategyId = signal<string | null>(null)
 export const activeGlossaryId = signal<string | null>(null)

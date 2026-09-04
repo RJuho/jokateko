@@ -12,6 +12,7 @@ import {
 	connectionStatus,
 	filters,
 	glossary,
+	isAboutModalOpen,
 	milestones,
 	mode,
 	setSearchQuery,
@@ -538,6 +539,33 @@ export function Header() {
 						</label>
 					</div>
 
+					{/* About & Licenses Trigger */}
+					<div class='hidden md:flex items-center shrink-0'>
+						<button
+							type='button'
+							onClick={() => (isAboutModalOpen.value = true)}
+							class='btn btn-ghost btn-sm btn-square text-base-content/70 hover:text-base-content'
+							title='About & Licenses'
+							aria-label='About Jokateko and Open Source Licenses'
+							data-testid='about-modal-trigger'
+						>
+							<svg
+								class='size-4'
+								fill='none'
+								viewBox='0 0 24 24'
+								stroke='currentColor'
+								stroke-width='2'
+								aria-hidden='true'
+							>
+								<path
+									stroke-linecap='round'
+									stroke-linejoin='round'
+									d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+								/>
+							</svg>
+						</button>
+					</div>
+
 					{/* 4. Information Box: Datetime / Live status stacked ON TOP of branch & commit */}
 					<div class='hidden md:flex items-center shrink-0'>
 						{isLive ? (
@@ -707,6 +735,31 @@ export function Header() {
 									</button>
 								)
 							})}
+							<button
+								type='button'
+								onClick={() => {
+									setIsMobileMenuOpen(false)
+									isAboutModalOpen.value = true
+								}}
+								data-testid='mobile-about-modal-trigger'
+								class='btn btn-sm btn-ghost justify-start gap-2 text-base-content/80'
+							>
+								<svg
+									class='size-4'
+									fill='none'
+									viewBox='0 0 24 24'
+									stroke='currentColor'
+									stroke-width='2'
+									aria-hidden='true'
+								>
+									<path
+										stroke-linecap='round'
+										stroke-linejoin='round'
+										d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+									/>
+								</svg>
+								<span>About & Licenses</span>
+							</button>
 						</nav>
 
 						{/* Mobile Information Box: Datetime / Live on top of branch */}
