@@ -9,7 +9,7 @@ More resources:
 - [Valibot documentation](https://valibot.dev/llms.txt)
 - [daisyUI documentation](https://daisyui.com/llms.txt)
 
-Remember check SKILLS and MCP for more help.
+Remember to check SKILLS and inspect the active MCP server to see what tools are available and review their schemas.
 
 ## 1. Project Overview
 This project is a local, Markdown-driven Kanban and task management tool designed for both human developers and AI agents. It operates on a "Tasks-as-Code" and "Spec-First" methodology, where the repository files are the absolute source of truth. The architecture relies on a local backend that handles safe file writing and provides structured Model Context Protocol (MCP) interfaces to AI agents.
@@ -41,3 +41,18 @@ AI-generated code is subjected to deterministic automated feedback loops.
 *   **Go Backend:** Write tests using the standard `testing` library. Run validations via `go test ./...`.
 *   **Web UI (E2E):** The UI is validated using Playwright. Agents must utilize `data-testid` attributes in the DOM to ensure reliable targeting.
 *   **Configuration:** TOML configuration files must be validated using the `parse` / `lint` command to ensure schema compliance.
+
+## 5. Jokateko MCP & Mutation Guidelines (Crucial)
+AI agents MUST NOT perform raw file edits, creations, or deletions directly inside the `.jokateko/` repository directory (such as `.jokateko/tasks/`, `.jokateko/milestones/`, `.jokateko/strategies/`, or `.jokateko/glossary/`).
+
+**Tool Discovery:** Always check with the active MCP server (or MCP environment tools list) to discover what tools are available and inspect their latest parameter schemas.
+
+All operations on tasks, milestones, strategies, and glossary terms MUST be executed exclusively through the provided Jokateko Model Context Protocol (MCP) tools:
+*   **Tasks:** `create_task`, `get_task`, `list_tasks`, `update_task_content`, `update_task_status`, `update_task_item`, `add_task_note`, `complete_task`, `delete_task`
+*   **Dependencies:** `add_task_dependency`, `remove_task_dependency`
+*   **Milestones:** `create_milestone`, `get_milestone`, `list_milestones`, `update_milestone`, `delete_milestone`
+*   **Strategies:** `create_strategy`, `get_strategy`, `list_strategies`, `update_strategy`, `delete_strategy`
+*   **Glossary:** `create_glossary_term`, `lookup_glossary`, `update_glossary_term`, `delete_glossary_term`
+*   **Discovery & Search:** `get_board_state`, `list_tags`, `search_tasks`, `search_milestones`, `search_strategies`, `search_glossary`, `search_all`
+
+**Why:** The Jokateko backend guarantees atomic file persistence, cyclic dependency checks, automatic slugification, frontmatter validation, cache suppression, and Server-Sent Events (SSE) broadcasting to the live Web UI. Direct filesystem mutations bypass these safety mechanisms and will cause desynchronization or corrupt repository state.

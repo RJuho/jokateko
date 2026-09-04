@@ -22,7 +22,8 @@ const DefaultInstructions = "Jokateko manages tasks, milestones, architectural s
 	"2. Use update_task_item to toggle checklists as items are completed.\n" +
 	"3. Use complete_task when finished to record completion summary and unblock downstream tasks.\n" +
 	"4. Always consult Tier-1 architectural strategies via get_strategy before making architectural decisions.\n" +
-	"5. All modifications to .jokateko/ files must be performed via Jokateko MCP tools rather than direct file edits, ensuring atomic disk persistence and schema validation."
+	"5. All modifications to .jokateko/ files must be performed via Jokateko MCP tools rather than direct file edits, ensuring atomic disk persistence and schema validation.\n" +
+	"6. Never edit files in .jokateko/ directly with file writing tools; direct writes bypass schema validation, cycle checks, and live UI event broadcasting."
 
 // DeleteEntityOutput represents the standard result of an entity deletion operation.
 type DeleteEntityOutput struct {

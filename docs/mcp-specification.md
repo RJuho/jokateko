@@ -13,6 +13,15 @@ Jokateko exposes a standard Model Context Protocol interface to empower AI codin
 2. **Progressive Disclosure:** Architecture rules and strategies are tiered. Agents query `list_strategies` to view short summaries and tier levels, then fetch `get_strategy` for detailed guidelines only when relevant.
 3. **Filesystem as Single Source of Truth:** Every MCP mutation (`create_task`, `update_task_status`, etc.) writes atomically to Markdown files on disk. In-memory SQLite is kept synchronized via `fsnotify`.
 
+### 1.1 Safe Mutations via MCP (Never Raw Edits)
+AI agents **must not** create, edit, or delete `.jokateko/` markdown files directly on disk. All mutations must be executed through the Jokateko MCP tools:
+- **Integrity & Validation:** The MCP server validates tags against `tags.allowed`, enforces status column rules, checks priority validity, and checks milestone existence.
+- **Workflow State Guards:** Prevents unauthorized edits to task bodies in non-editable states (`board.editable_states`), while allowing notes and checkbox toggles.
+- **Cycle Detection:** Validates task dependency DAGs preventing circular references.
+- **Atomic Operations:** Uses `internal/writer` with cache suppression to prevent file watcher echo loops and race conditions.
+- **Real-Time UI Updates:** Dispatches Server-Sent Events (SSE) so browser clients reflect changes instantly.
+- **Dynamic Tool Discovery:** Agents should inspect the active MCP server (`tools/list` or client registry) to discover all available tools, options, and schemas.
+
 ---
 
 ## 2. Server Operational Modes
@@ -256,8 +265,90 @@ Updates metadata fields and/or the Markdown body of an existing task.
 - **Behavior:**
   - Enforces `tags.allowed` validation if tags are updated.
   - Enforces `Closed Milestone Guard` if milestone is changed.
+  - Enforces `board.editable_states` (default `["backlog"]`): if the task is in a non-editable state, rewriting the specification body is rejected unless it is solely a checkbox state toggle (`- [ ]` <-> `- [x]`).
   - Updates specified fields while preserving existing unmodified fields.
   - Atomically rewrites file to disk.
+
+#### `add_task_note`
+Appends a timestamped note and optional follow-up checklist items to an existing task under a `## Notes` section. Usable in all workflow states.
+- **Input Parameters:**
+  - `id` (string, required): Task slug.
+  - `note` (string, required): Markdown note text to append.
+- **Behavior:**
+  - Formats note with an ISO UTC timestamp: `### [YYYY-MM-DD HH:MM UTC]\n\n<note>\n`.
+  - Appends to or creates a `## Notes` section at the end of the task specification.
+  - Recounts acceptance criteria: any checklist items (`- [ ]`) in the note are tracked as required criteria and block `complete_task` until resolved.
+  - Atomically saves the task file and updates store metrics.
+- **Output:**
+  ```json
+  {
+    "success": true,
+    "id": "260901-setup-database",
+    "note": "Investigation complete.\n- [ ] Check migration edge cases",
+    "total_criteria": 3,
+    "completed_criteria": 2,
+    "message": "Note added to task 260901-setup-database"
+  }
+  ```
+
+#### `add_task_dependency`
+Adds a prerequisite dependency to a task, enforcing directed acyclic graph (DAG) cycle prevention.
+- **Input Parameters:**
+  - `id` (string, required): Task slug that will depend on `dependency_id`.
+  - `dependency_id` (string, required): Task slug of the prerequisite task.
+- **Behavior:**
+  - Validates that both tasks exist.
+  - Rejects self-dependencies (`id == dependency_id`).
+  - Detects and rejects direct circular dependencies (`A -> B -> A`) and transitive cycles (`A -> B -> C -> A`).
+  - Idempotent: adding an already existing dependency succeeds without duplicates.
+  - Atomically writes updated `dependencies` to task frontmatter and updates SQLite DAG cache.
+- **Output:**
+  ```json
+  {
+    "success": true,
+    "id": "260902-auth-endpoints",
+    "dependency_id": "260901-setup-database",
+    "dependencies": ["260901-setup-database"],
+    "message": "Added dependency 260901-setup-database to task 260902-auth-endpoints"
+  }
+  ```
+
+#### `remove_task_dependency`
+Removes a prerequisite dependency from a task.
+- **Input Parameters:**
+  - `id` (string, required): Task slug.
+  - `dependency_id` (string, required): Prerequisite task slug to remove.
+- **Behavior:**
+  - Validates that the task exists and that `dependency_id` is an active dependency.
+  - Removes the dependency from the task frontmatter and atomically saves the file.
+- **Output:**
+  ```json
+  {
+    "success": true,
+    "id": "260902-auth-endpoints",
+    "dependency_id": "260901-setup-database",
+    "dependencies": [],
+    "message": "Removed dependency 260901-setup-database from task 260902-auth-endpoints"
+  }
+  ```
+
+#### `delete_task`
+Deletes a task Markdown file and removes it from the store with downstream dependency safety checks.
+- **Input Parameters:**
+  - `id` (string, required): Task slug.
+  - `force` (boolean, optional, default `false`): Delete even if other tasks depend on this task.
+- **Behavior:**
+  - If other tasks depend on this task and `force=false`, deletion is blocked with a descriptive error listing the downstream tasks.
+  - When `force=true`, downstream tasks are updated to clean up the removed dependency.
+  - Atomically deletes the file from disk and SQLite.
+- **Output:**
+  ```json
+  {
+    "success": true,
+    "id": "260901-setup-database",
+    "message": "Task \"260901-setup-database\" deleted successfully"
+  }
+  ```
 
 ---
 
@@ -312,6 +403,24 @@ Updates milestone metadata fields (e.g. status transition between `open` and `cl
   - Updates specified fields while preserving existing unmodified frontmatter.
   - Atomically overwrites file on disk.
 
+#### `delete_milestone`
+Deletes a milestone Markdown file and removes it from the store with task assignment protection.
+- **Input Parameters:**
+  - `id` (string, required): Milestone slug.
+  - `force` (boolean, optional, default `false`): Delete even if tasks are currently attached to this milestone.
+- **Behavior:**
+  - If tasks are attached to this milestone and `force=false`, deletion is blocked with an error listing the attached tasks.
+  - When `force=true`, assigned tasks have their milestone association cleared.
+  - Atomically deletes the milestone file from disk and store.
+- **Output:**
+  ```json
+  {
+    "success": true,
+    "id": "260915-mvp-release",
+    "message": "Milestone \"260915-mvp-release\" deleted successfully"
+  }
+  ```
+
 ---
 
 ### 3.3 Strategy & Progressive Disclosure Tools
@@ -339,6 +448,41 @@ Retrieves the full markdown document of a specific architectural strategy.
 - **Input Parameters:**
   - `id` (string, required): Strategy slug (e.g. `architecture`).
 
+#### `create_strategy`
+Creates a new architectural guideline or decision record markdown file inside `.jokateko/strategies/`.
+- **Input Parameters:**
+  - `title` (string, required): Descriptive title for the guideline.
+  - `tier` (integer, required): Architectural tier (1: Core Invariants, 2: Domain Patterns, 3: Implementation Specs).
+  - `summary` (string, required): 1-2 sentence high-level summary.
+  - `tags` (array of strings, optional): Categorization tags.
+  - `body` (string, optional): Full Markdown body detailing architectural guidelines, rules, and invariants.
+- **Behavior:**
+  - Auto-slugifies filename from title.
+  - Atomically writes file to disk and indexes in SQLite.
+
+#### `update_strategy`
+Updates metadata or content of an existing strategy.
+- **Input Parameters:**
+  - `id` (string, required): Strategy slug.
+  - `title` (string, optional)
+  - `tier` (integer, optional): 1, 2, or 3.
+  - `summary` (string, optional)
+  - `tags` (array of strings, optional)
+  - `body` (string, optional)
+
+#### `delete_strategy`
+Deletes an architectural strategy file and removes it from the store.
+- **Input Parameters:**
+  - `id` (string, required): Strategy slug.
+- **Output:**
+  ```json
+  {
+    "success": true,
+    "id": "architecture",
+    "message": "Strategy \"architecture\" deleted successfully"
+  }
+  ```
+
 ---
 
 ### 3.4 Glossary & Board State Tools
@@ -347,6 +491,36 @@ Retrieves the full markdown document of a specific architectural strategy.
 Looks up standardized project terms.
 - **Input Parameters:**
   - `term` (string, optional): Specific term to find. If omitted, returns all terms and definitions.
+
+#### `create_glossary_term`
+Creates a new project glossary term markdown file inside `.jokateko/glossary/`.
+- **Input Parameters:**
+  - `title` (string, required): Term title or name.
+  - `summary` (string, required): Short definition of the term.
+  - `tags` (array of strings, optional): Categorization tags.
+  - `body` (string, optional): Extended markdown description, examples, or notes.
+
+#### `update_glossary_term`
+Updates definition, summary, or body of an existing glossary term.
+- **Input Parameters:**
+  - `id` (string, required): Glossary term slug.
+  - `title` (string, optional)
+  - `summary` (string, optional)
+  - `tags` (array of strings, optional)
+  - `body` (string, optional)
+
+#### `delete_glossary_term`
+Deletes a glossary term file and removes it from the store.
+- **Input Parameters:**
+  - `id` (string, required): Glossary term slug.
+- **Output:**
+  ```json
+  {
+    "success": true,
+    "id": "tasks-as-code",
+    "message": "Glossary term \"tasks-as-code\" deleted successfully"
+  }
+  ```
 
 #### `get_board_state`
 Returns column hierarchy and aggregated task counts.
