@@ -136,6 +136,12 @@ func (s *Server) handleDeleteMilestone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	force := r.URL.Query().Get("force") == "true"
+	if !force && ms.TotalTasks > 0 {
+		writeError(w, http.StatusConflict, fmt.Sprintf("cannot delete milestone %q: %d task(s) are assigned to it. Set ?force=true to delete anyway", id, ms.TotalTasks))
+		return
+	}
+
 	if ms.FilePath != "" {
 		_ = s.writer.RemoveFile(ms.FilePath)
 	}

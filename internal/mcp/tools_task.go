@@ -145,7 +145,12 @@ type UpdateTaskContentInput struct {
 	Body            *string   `json:"body,omitempty" jsonschema:"New markdown body"`
 }
 
-// registerTaskTools registers all 8 task tools with the MCP server.
+type DeleteTaskInput struct {
+	ID    string `json:"id" jsonschema:"required,Task ID or slug (e.g. 260901-setup-database)"`
+	Force bool   `json:"force,omitempty" jsonschema:"Force deletion even if other tasks depend on this task"`
+}
+
+// registerTaskTools registers all 9 task tools with the MCP server.
 func (s *Server) registerTaskTools() {
 	// 1. list_tasks
 	mcp.AddTool(s.mcpServer, &mcp.Tool{
@@ -194,6 +199,12 @@ func (s *Server) registerTaskTools() {
 		Name:        "update_task_content",
 		Description: "Updates metadata fields and/or the Markdown body of an existing task.",
 	}, s.toolUpdateTaskContent)
+
+	// 9. delete_task
+	mcp.AddTool(s.mcpServer, &mcp.Tool{
+		Name:        "delete_task",
+		Description: "Deletes a task markdown file and removes it from the store. Rejects if other tasks depend on it unless force=true.",
+	}, s.toolDeleteTask)
 }
 
 func (s *Server) toolListTasks(ctx context.Context, _ *mcp.CallToolRequest, in ListTasksInput) (*mcp.CallToolResult, []TaskSummary, error) {
@@ -792,3 +803,50 @@ func slugify(s string) string {
 	}
 	return res
 }
+
+func (s *Server) toolDeleteTask(ctx context.Context, _ *mcp.CallToolRequest, in DeleteTaskInput) (*mcp.CallToolResult, *DeleteEntityOutput, error) {
+	if !s.cfg.MCP.AllowMutations {
+		return nil, nil, errors.New("mutations are disabled in configuration")
+	}
+
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		return nil, nil, errors.New("task id is required")
+	}
+
+	task, err := s.store.GetTask(ctx, id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, nil, fmt.Errorf("task %q not found", id)
+		}
+		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+	}
+
+	if !in.Force {
+		downstream, err := s.store.GetDownstreamTasks(ctx, id)
+		if err == nil && len(downstream) > 0 {
+			downstreamIDs := make([]string, len(downstream))
+			for i, d := range downstream {
+				downstreamIDs[i] = d.ID
+			}
+			return nil, nil, fmt.Errorf("cannot delete task %q: %d task(s) depend on it (%s). Set force=true to delete anyway", id, len(downstream), strings.Join(downstreamIDs, ", "))
+		}
+	}
+
+	if task.FilePath != "" {
+		if err := s.writer.RemoveFile(task.FilePath); err != nil {
+			return nil, nil, fmt.Errorf("failed to remove task file: %w", err)
+		}
+	}
+
+	if err := s.store.DeleteTask(ctx, id); err != nil {
+		return nil, nil, fmt.Errorf("failed to delete task from store: %w", err)
+	}
+
+	return nil, &DeleteEntityOutput{
+		Success: true,
+		ID:      id,
+		Message: fmt.Sprintf("Task %q deleted successfully", id),
+	}, nil
+}
+

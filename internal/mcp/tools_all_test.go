@@ -3,6 +3,7 @@ package mcp_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	internalmcp "github.com/RJuho/jokateko/internal/mcp"
@@ -388,3 +389,174 @@ func TestMCP_StrategyAndGlossaryGuards(t *testing.T) {
 		}
 	})
 }
+
+func TestMCP_DeleteTools(t *testing.T) {
+	_, dir, _, session := setupTestMCP(t)
+
+	// 1. Task Deletion with Dependency Safeguards
+	t.Run("delete_task with dependency guards", func(t *testing.T) {
+		taskA, err := callToolJSON[internalmcp.TaskDetail](t, session, "create_task", internalmcp.CreateTaskInput{
+			Title:   "Upstream Blocker Task",
+			Summary: "Must be done first",
+			Body:    "Acceptance criteria",
+		})
+		if err != nil {
+			t.Fatalf("failed to create task A: %v", err)
+		}
+
+		taskB, err := callToolJSON[internalmcp.TaskDetail](t, session, "create_task", internalmcp.CreateTaskInput{
+			Title:        "Downstream Dependent Task",
+			Summary:      "Depends on task A",
+			Dependencies: []string{taskA.ID},
+			Body:         "Acceptance criteria",
+		})
+		if err != nil {
+			t.Fatalf("failed to create task B: %v", err)
+		}
+
+		// Try to delete task A without force -> should be rejected
+		_, err = callToolJSON[internalmcp.DeleteEntityOutput](t, session, "delete_task", internalmcp.DeleteTaskInput{
+			ID:    taskA.ID,
+			Force: false,
+		})
+		if err == nil || !strings.Contains(err.Error(), "depend on it") {
+			t.Fatalf("expected error mentioning dependency blockage, got: %v", err)
+		}
+
+		// Delete task A with force: true -> should succeed
+		delOut, err := callToolJSON[internalmcp.DeleteEntityOutput](t, session, "delete_task", internalmcp.DeleteTaskInput{
+			ID:    taskA.ID,
+			Force: true,
+		})
+		if err != nil {
+			t.Fatalf("force delete_task failed: %v", err)
+		}
+		if !delOut.Success || delOut.ID != taskA.ID {
+			t.Errorf("unexpected delete output: %+v", delOut)
+		}
+
+		// Verify task A file is gone
+		taskAFile := filepath.Join(dir, ".jokateko", "tasks", taskA.ID+".md")
+		if _, err := os.Stat(taskAFile); !os.IsNotExist(err) {
+			t.Errorf("expected task file %s to be removed", taskAFile)
+		}
+
+		// Delete task B
+		_, err = callToolJSON[internalmcp.DeleteEntityOutput](t, session, "delete_task", internalmcp.DeleteTaskInput{
+			ID: taskB.ID,
+		})
+		if err != nil {
+			t.Fatalf("delete_task B failed: %v", err)
+		}
+	})
+
+	// 2. Milestone Deletion with Assigned Task Safeguards
+	t.Run("delete_milestone with task assignment guards", func(t *testing.T) {
+		ms, err := callToolJSON[internalmcp.MilestoneDetail](t, session, "create_milestone", internalmcp.CreateMilestoneInput{
+			Title:   "Guarded Milestone",
+			Summary: "Has assigned tasks",
+			Body:    "Milestone body",
+		})
+		if err != nil {
+			t.Fatalf("failed to create milestone: %v", err)
+		}
+
+		task, err := callToolJSON[internalmcp.TaskDetail](t, session, "create_task", internalmcp.CreateTaskInput{
+			Title:     "Assigned Task",
+			Summary:   "Attached to Guarded Milestone",
+			Milestone: ms.ID,
+			Body:      "Body",
+		})
+		if err != nil {
+			t.Fatalf("failed to create task for milestone: %v", err)
+		}
+
+		// Try to delete milestone without force -> should be rejected
+		_, err = callToolJSON[internalmcp.DeleteEntityOutput](t, session, "delete_milestone", internalmcp.DeleteMilestoneInput{
+			ID:    ms.ID,
+			Force: false,
+		})
+		if err == nil || !strings.Contains(err.Error(), "assigned to it") {
+			t.Fatalf("expected error mentioning assigned tasks, got: %v", err)
+		}
+
+		// Delete milestone with force: true -> should succeed
+		delOut, err := callToolJSON[internalmcp.DeleteEntityOutput](t, session, "delete_milestone", internalmcp.DeleteMilestoneInput{
+			ID:    ms.ID,
+			Force: true,
+		})
+		if err != nil {
+			t.Fatalf("force delete_milestone failed: %v", err)
+		}
+		if !delOut.Success || delOut.ID != ms.ID {
+			t.Errorf("unexpected delete output: %+v", delOut)
+		}
+
+		msFile := filepath.Join(dir, ".jokateko", "milestones", ms.ID+".md")
+		if _, err := os.Stat(msFile); !os.IsNotExist(err) {
+			t.Errorf("expected milestone file to be removed")
+		}
+
+		// Cleanup task
+		_, _ = callToolJSON[internalmcp.DeleteEntityOutput](t, session, "delete_task", internalmcp.DeleteTaskInput{
+			ID:    task.ID,
+			Force: true,
+		})
+	})
+
+	// 3. Strategy Deletion
+	t.Run("delete_strategy removes file and store entry", func(t *testing.T) {
+		strat, err := callToolJSON[internalmcp.StrategyDetail](t, session, "create_strategy", internalmcp.CreateStrategyInput{
+			Title:   "Temporary Strategy",
+			Tier:    1,
+			Summary: "To be deleted",
+			Body:    "Rule body",
+		})
+		if err != nil {
+			t.Fatalf("failed to create strategy: %v", err)
+		}
+
+		delOut, err := callToolJSON[internalmcp.DeleteEntityOutput](t, session, "delete_strategy", internalmcp.DeleteStrategyInput{
+			ID: strat.ID,
+		})
+		if err != nil {
+			t.Fatalf("delete_strategy failed: %v", err)
+		}
+		if !delOut.Success || delOut.ID != strat.ID {
+			t.Errorf("unexpected delete output: %+v", delOut)
+		}
+
+		stratFile := filepath.Join(dir, ".jokateko", "strategies", strat.ID+".md")
+		if _, err := os.Stat(stratFile); !os.IsNotExist(err) {
+			t.Errorf("expected strategy file to be removed")
+		}
+	})
+
+	// 4. Glossary Term Deletion
+	t.Run("delete_glossary_term removes file and store entry", func(t *testing.T) {
+		term, err := callToolJSON[internalmcp.GlossaryEntry](t, session, "create_glossary_term", internalmcp.CreateGlossaryTermInput{
+			Title:   "Temporary Glossary Term",
+			Summary: "To be deleted",
+			Body:    "Definition",
+		})
+		if err != nil {
+			t.Fatalf("failed to create glossary term: %v", err)
+		}
+
+		delOut, err := callToolJSON[internalmcp.DeleteEntityOutput](t, session, "delete_glossary_term", internalmcp.DeleteGlossaryTermInput{
+			ID: term.ID,
+		})
+		if err != nil {
+			t.Fatalf("delete_glossary_term failed: %v", err)
+		}
+		if !delOut.Success || delOut.ID != term.ID {
+			t.Errorf("unexpected delete output: %+v", delOut)
+		}
+
+		termFile := filepath.Join(dir, ".jokateko", "glossary", term.ID+".md")
+		if _, err := os.Stat(termFile); !os.IsNotExist(err) {
+			t.Errorf("expected glossary file to be removed")
+		}
+	})
+}
+

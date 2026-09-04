@@ -24,6 +24,13 @@ const DefaultInstructions = "Jokateko manages tasks, milestones, architectural s
 	"4. Always consult Tier-1 architectural strategies via get_strategy before making architectural decisions.\n" +
 	"5. All modifications to .jokateko/ files must be performed via Jokateko MCP tools rather than direct file edits, ensuring atomic disk persistence and schema validation."
 
+// DeleteEntityOutput represents the standard result of an entity deletion operation.
+type DeleteEntityOutput struct {
+	Success bool   `json:"success"`
+	ID      string `json:"id"`
+	Message string `json:"message"`
+}
+
 // Server encapsulates the Jokateko Model Context Protocol server.
 type Server struct {
 	mcpServer    *mcp.Server

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -423,3 +424,144 @@ func TestSecurityHeaders(t *testing.T) {
 		t.Errorf("expected Access-Control-Allow-Origin: http://localhost:8080, got %q", cors)
 	}
 }
+
+func TestTaskDeletionSafeguards(t *testing.T) {
+	srv, dir, st, _ := setupTestServer(t)
+
+	// Create task A
+	taskAPayload := map[string]any{
+		"id":       "260901-task-a",
+		"title":    "Task A",
+		"status":   "todo",
+		"priority": "medium",
+		"tags":     []string{"backend"},
+		"summary":  "Base task",
+		"body":     "# Task A",
+	}
+	bodyA, _ := json.Marshal(taskAPayload)
+	req := httptest.NewRequest(http.MethodPost, "/api/tasks", bytes.NewReader(bodyA))
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for task A, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Create task B that depends on task A
+	taskBPayload := map[string]any{
+		"id":           "260902-task-b",
+		"title":        "Task B",
+		"status":       "todo",
+		"priority":     "medium",
+		"tags":         []string{"backend"},
+		"summary":      "Dependent task",
+		"dependencies": []string{"260901-task-a"},
+		"body":         "# Task B",
+	}
+	bodyB, _ := json.Marshal(taskBPayload)
+	req = httptest.NewRequest(http.MethodPost, "/api/tasks", bytes.NewReader(bodyB))
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for task B, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Attempt to delete task A without force -> should return 409 Conflict
+	req = httptest.NewRequest(http.MethodDelete, "/api/tasks/260901-task-a", nil)
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409 Conflict deleting task with dependents, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "depend on it") {
+		t.Errorf("expected conflict message mentioning dependencies, got %s", rec.Body.String())
+	}
+
+	// Delete task A with force=true -> should succeed with 200 OK
+	req = httptest.NewRequest(http.MethodDelete, "/api/tasks/260901-task-a?force=true", nil)
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK with force=true, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify task A is removed from store and filesystem
+	_, err := st.GetTask(t.Context(), "260901-task-a")
+	if !errors.Is(err, store.ErrNotFound) {
+		t.Errorf("expected task A to be deleted from store, got error: %v", err)
+	}
+	taskFilePath := filepath.Join(dir, ".jokateko", "tasks", "260901-task-a.md")
+	if _, err := os.Stat(taskFilePath); !os.IsNotExist(err) {
+		t.Errorf("expected task file to be removed from %s", taskFilePath)
+	}
+}
+
+func TestMilestoneDeletionSafeguards(t *testing.T) {
+	srv, dir, st, _ := setupTestServer(t)
+
+	// Create milestone
+	msPayload := map[string]any{
+		"id":          "260915-mvp",
+		"title":       "MVP Milestone",
+		"status":      "open",
+		"target_date": "2026-09-15",
+		"tags":        []string{"mvp"},
+		"summary":     "MVP roadmap target",
+		"body":        "# MVP Roadmap",
+	}
+	bodyMS, _ := json.Marshal(msPayload)
+	req := httptest.NewRequest(http.MethodPost, "/api/milestones", bytes.NewReader(bodyMS))
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for milestone, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Create task assigned to milestone
+	taskPayload := map[string]any{
+		"id":        "260901-assigned-task",
+		"title":     "Assigned Task",
+		"status":    "todo",
+		"priority":  "medium",
+		"milestone": "260915-mvp",
+		"tags":      []string{"backend"},
+		"summary":   "Task assigned to milestone",
+		"body":      "# Assigned Task",
+	}
+	bodyTask, _ := json.Marshal(taskPayload)
+	req = httptest.NewRequest(http.MethodPost, "/api/tasks", bytes.NewReader(bodyTask))
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for task, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Attempt to delete milestone without force -> should return 409 Conflict
+	req = httptest.NewRequest(http.MethodDelete, "/api/milestones/260915-mvp", nil)
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409 Conflict deleting milestone with assigned tasks, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "are assigned to it") {
+		t.Errorf("expected conflict message mentioning assigned tasks, got %s", rec.Body.String())
+	}
+
+	// Delete milestone with force=true -> should succeed with 200 OK
+	req = httptest.NewRequest(http.MethodDelete, "/api/milestones/260915-mvp?force=true", nil)
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK with force=true, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify milestone is removed from store and filesystem
+	_, err := st.GetMilestone(t.Context(), "260915-mvp")
+	if !errors.Is(err, store.ErrNotFound) {
+		t.Errorf("expected milestone to be deleted from store, got error: %v", err)
+	}
+	msFilePath := filepath.Join(dir, ".jokateko", "milestones", "260915-mvp.md")
+	if _, err := os.Stat(msFilePath); !os.IsNotExist(err) {
+		t.Errorf("expected milestone file to be removed from %s", msFilePath)
+	}
+}
+

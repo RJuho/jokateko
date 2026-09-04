@@ -59,6 +59,10 @@ type UpdateStrategyInput struct {
 	Body    string   `json:"body,omitempty" jsonschema:"Updated markdown body"`
 }
 
+type DeleteStrategyInput struct {
+	ID string `json:"id" jsonschema:"required,Strategy ID or slug (e.g. architecture, pure-go-dependencies)"`
+}
+
 func (s *Server) registerStrategyTools() {
 	// 1. list_strategies
 	mcp.AddTool(s.mcpServer, &mcp.Tool{
@@ -83,6 +87,12 @@ func (s *Server) registerStrategyTools() {
 		Name:        "update_strategy",
 		Description: "Updates an existing architectural strategy's metadata or markdown body.",
 	}, s.toolUpdateStrategy)
+
+	// 5. delete_strategy
+	mcp.AddTool(s.mcpServer, &mcp.Tool{
+		Name:        "delete_strategy",
+		Description: "Deletes an architectural strategy file and removes it from the store.",
+	}, s.toolDeleteStrategy)
 }
 
 func (s *Server) toolListStrategies(ctx context.Context, _ *mcp.CallToolRequest, in ListStrategiesInput) (*mcp.CallToolResult, []StrategySummary, error) {
@@ -303,3 +313,39 @@ func (s *Server) toolUpdateStrategy(ctx context.Context, _ *mcp.CallToolRequest,
 		FilePath: updated.FilePath,
 	}, nil
 }
+
+func (s *Server) toolDeleteStrategy(ctx context.Context, _ *mcp.CallToolRequest, in DeleteStrategyInput) (*mcp.CallToolResult, *DeleteEntityOutput, error) {
+	if !s.cfg.MCP.AllowMutations {
+		return nil, nil, errors.New("mutations are disabled in configuration")
+	}
+
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		return nil, nil, errors.New("strategy id is required")
+	}
+
+	strat, err := s.store.GetStrategy(ctx, id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, nil, fmt.Errorf("strategy %q not found", id)
+		}
+		return nil, nil, fmt.Errorf("failed to get strategy %q: %w", id, err)
+	}
+
+	if strat.FilePath != "" {
+		if err := s.writer.RemoveFile(strat.FilePath); err != nil {
+			return nil, nil, fmt.Errorf("failed to remove strategy file: %w", err)
+		}
+	}
+
+	if err := s.store.DeleteStrategy(ctx, id); err != nil {
+		return nil, nil, fmt.Errorf("failed to delete strategy from store: %w", err)
+	}
+
+	return nil, &DeleteEntityOutput{
+		Success: true,
+		ID:      id,
+		Message: fmt.Sprintf("Strategy %q deleted successfully", id),
+	}, nil
+}
+

@@ -291,6 +291,19 @@ func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	force := r.URL.Query().Get("force") == "true"
+	if !force {
+		downstream, err := s.store.GetDownstreamTasks(r.Context(), id)
+		if err == nil && len(downstream) > 0 {
+			downstreamIDs := make([]string, len(downstream))
+			for i, d := range downstream {
+				downstreamIDs[i] = d.ID
+			}
+			writeError(w, http.StatusConflict, fmt.Sprintf("cannot delete task %q: %d task(s) depend on it (%s). Set ?force=true to delete anyway", id, len(downstream), strings.Join(downstreamIDs, ", ")))
+			return
+		}
+	}
+
 	if existing.FilePath != "" {
 		if err := s.writer.RemoveFile(existing.FilePath); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to remove task file: "+err.Error())

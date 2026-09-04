@@ -71,6 +71,11 @@ type UpdateMilestoneInput struct {
 	Body       *string   `json:"body,omitempty" jsonschema:"Milestone roadmap markdown body"`
 }
 
+type DeleteMilestoneInput struct {
+	ID    string `json:"id" jsonschema:"required,Milestone ID or slug"`
+	Force bool   `json:"force,omitempty" jsonschema:"Force deletion even if tasks are assigned to this milestone"`
+}
+
 func (s *Server) registerMilestoneTools() {
 	// 1. list_milestones
 	mcp.AddTool(s.mcpServer, &mcp.Tool{
@@ -95,6 +100,12 @@ func (s *Server) registerMilestoneTools() {
 		Name:        "update_milestone",
 		Description: "Updates milestone metadata (status, target date, summary, or body).",
 	}, s.toolUpdateMilestone)
+
+	// 5. delete_milestone
+	mcp.AddTool(s.mcpServer, &mcp.Tool{
+		Name:        "delete_milestone",
+		Description: "Deletes a milestone file and removes it from the store. Rejects if tasks are assigned unless force=true.",
+	}, s.toolDeleteMilestone)
 }
 
 func (s *Server) toolListMilestones(ctx context.Context, _ *mcp.CallToolRequest, in ListMilestonesInput) (*mcp.CallToolResult, []MilestoneSummary, error) {
@@ -349,3 +360,43 @@ func (s *Server) toolUpdateMilestone(ctx context.Context, _ *mcp.CallToolRequest
 		FilePath:           filePath,
 	}, nil
 }
+
+func (s *Server) toolDeleteMilestone(ctx context.Context, _ *mcp.CallToolRequest, in DeleteMilestoneInput) (*mcp.CallToolResult, *DeleteEntityOutput, error) {
+	if !s.cfg.MCP.AllowMutations {
+		return nil, nil, errors.New("mutations are disabled in configuration")
+	}
+
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		return nil, nil, errors.New("milestone id is required")
+	}
+
+	ms, err := s.store.GetMilestone(ctx, id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, nil, fmt.Errorf("milestone %q not found", id)
+		}
+		return nil, nil, fmt.Errorf("failed to get milestone %q: %w", id, err)
+	}
+
+	if !in.Force && ms.TotalTasks > 0 {
+		return nil, nil, fmt.Errorf("cannot delete milestone %q: %d task(s) are assigned to it. Set force=true to delete anyway", id, ms.TotalTasks)
+	}
+
+	if ms.FilePath != "" {
+		if err := s.writer.RemoveFile(ms.FilePath); err != nil {
+			return nil, nil, fmt.Errorf("failed to remove milestone file: %w", err)
+		}
+	}
+
+	if err := s.store.DeleteMilestone(ctx, id); err != nil {
+		return nil, nil, fmt.Errorf("failed to delete milestone from store: %w", err)
+	}
+
+	return nil, &DeleteEntityOutput{
+		Success: true,
+		ID:      id,
+		Message: fmt.Sprintf("Milestone %q deleted successfully", id),
+	}, nil
+}
+

@@ -42,6 +42,10 @@ type UpdateGlossaryTermInput struct {
 	Body    string   `json:"body,omitempty" jsonschema:"Updated extended markdown description"`
 }
 
+type DeleteGlossaryTermInput struct {
+	ID string `json:"id" jsonschema:"required,Glossary term slug (e.g. tasks-as-code)"`
+}
+
 func (s *Server) registerGlossaryTools() {
 	// 1. lookup_glossary
 	mcp.AddTool(s.mcpServer, &mcp.Tool{
@@ -60,6 +64,12 @@ func (s *Server) registerGlossaryTools() {
 		Name:        "update_glossary_term",
 		Description: "Updates an existing glossary term's definition, summary, tags, or extended body.",
 	}, s.toolUpdateGlossaryTerm)
+
+	// 4. delete_glossary_term
+	mcp.AddTool(s.mcpServer, &mcp.Tool{
+		Name:        "delete_glossary_term",
+		Description: "Deletes a glossary term file and removes it from the store.",
+	}, s.toolDeleteGlossaryTerm)
 }
 
 func (s *Server) toolLookupGlossary(ctx context.Context, _ *mcp.CallToolRequest, in LookupGlossaryInput) (*mcp.CallToolResult, []GlossaryEntry, error) {
@@ -248,3 +258,39 @@ func (s *Server) toolUpdateGlossaryTerm(ctx context.Context, _ *mcp.CallToolRequ
 		Body:    updated.Body,
 	}, nil
 }
+
+func (s *Server) toolDeleteGlossaryTerm(ctx context.Context, _ *mcp.CallToolRequest, in DeleteGlossaryTermInput) (*mcp.CallToolResult, *DeleteEntityOutput, error) {
+	if !s.cfg.MCP.AllowMutations {
+		return nil, nil, errors.New("mutations are disabled in configuration")
+	}
+
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		return nil, nil, errors.New("glossary term id is required")
+	}
+
+	term, err := s.store.GetGlossaryTerm(ctx, id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, nil, fmt.Errorf("glossary term %q not found", id)
+		}
+		return nil, nil, fmt.Errorf("failed to get glossary term %q: %w", id, err)
+	}
+
+	if term.FilePath != "" {
+		if err := s.writer.RemoveFile(term.FilePath); err != nil {
+			return nil, nil, fmt.Errorf("failed to remove glossary term file: %w", err)
+		}
+	}
+
+	if err := s.store.DeleteGlossaryTerm(ctx, id); err != nil {
+		return nil, nil, fmt.Errorf("failed to delete glossary term from store: %w", err)
+	}
+
+	return nil, &DeleteEntityOutput{
+		Success: true,
+		ID:      id,
+		Message: fmt.Sprintf("Glossary term %q deleted successfully", id),
+	}, nil
+}
+
