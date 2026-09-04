@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { navigateTo } from '../../router'
 import {
 	activeStrategyId,
@@ -8,6 +8,10 @@ import {
 } from '../../state/store'
 import { getContrastTextColor } from '../../utils/colors'
 import { t } from '../../utils/i18n'
+import {
+	renderMermaidDiagrams,
+	reRenderMermaidDiagrams,
+} from '../../utils/mermaid'
 import { TagBadge } from '../common/Badge'
 
 export function StrategiesView() {
@@ -21,7 +25,35 @@ export function StrategiesView() {
 	const [copiedId, setCopiedId] = useState<string | null>(null)
 	const [copiedLink, setCopiedLink] = useState<string | null>(null)
 
+	const listRef = useRef<HTMLDivElement>(null)
+
 	const searchQuery = filters.value.searchQuery.trim().toLowerCase()
+
+	// Render Mermaid diagrams in open strategy bodies and update on theme change
+	useEffect(() => {
+		const el = listRef.current
+		if (!el) return
+
+		renderMermaidDiagrams(el)
+
+		const observer = new MutationObserver((mutations) => {
+			for (const mutation of mutations) {
+				if (
+					mutation.type === 'attributes'
+					&& mutation.attributeName === 'data-theme'
+				) {
+					reRenderMermaidDiagrams(el)
+				}
+			}
+		})
+
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ['data-theme'],
+		})
+
+		return () => observer.disconnect()
+	}, [openedStrategyIds, activeStrategyId.value, allStrategies])
 
 	// If initial or current URL anchor has a strategy, ensure it is open and scroll into it
 	useEffect(() => {
@@ -232,7 +264,7 @@ export function StrategiesView() {
 			</div>
 
 			{/* Strategies List */}
-			<div class='flex flex-col gap-3.5'>
+			<div ref={listRef} class='flex flex-col gap-3.5'>
 				{visibleStrategies.map((s) => {
 					const isOpened =
 						openedStrategyIds.has(s.id) || activeStrategyId.value === s.id

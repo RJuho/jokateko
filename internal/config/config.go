@@ -78,6 +78,7 @@ type CSPConfig struct {
 	DefaultSrc   []string `toml:"default_src"`
 	ScriptSrc    []string `toml:"script_src"`
 	StyleSrc     []string `toml:"style_src"`
+	StyleSrcElem []string `toml:"style_src_elem"`
 	StyleSrcAttr []string `toml:"style_src_attr"`
 	ImgSrc       []string `toml:"img_src"`
 	ConnectSrc   []string `toml:"connect_src"`

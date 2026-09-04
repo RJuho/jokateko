@@ -456,6 +456,11 @@ func TestSecurityHeaders(t *testing.T) {
 		t.Errorf("expected style-src-attr 'unsafe-inline', got %q", csp)
 	}
 
+	// Verify style-src-elem allows inline style elements for dynamic Mermaid diagrams
+	if !strings.Contains(csp, "style-src-elem 'self' 'unsafe-inline'") {
+		t.Errorf("expected style-src-elem 'self' 'unsafe-inline', got %q", csp)
+	}
+
 	cors := rec.Header().Get("Access-Control-Allow-Origin")
 	if cors != "http://localhost:8080" {
 		t.Errorf("expected Access-Control-Allow-Origin: http://localhost:8080, got %q", cors)
@@ -832,6 +837,68 @@ func TestTaskNotesAndEditableStatesEndpoints(t *testing.T) {
 	}
 	if !strings.Contains(inStore.Body, "Verify database indexes") {
 		t.Errorf("store does not reflect appended note: %s", inStore.Body)
+	}
+}
+
+func TestUpdateTaskStatus(t *testing.T) {
+	srv, _, st, _ := setupTestServer(t)
+
+	// 1. Create a task via POST /api/tasks (starts in backlog)
+	createBody := `{"title":"Status Change Task","summary":"Testing PUT /api/tasks/{id}/status","body":"## Criteria\n- [ ] Ready item\n"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(createBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var createdTask model.Task
+	_ = json.Unmarshal(rec.Body.Bytes(), &createdTask)
+	taskID := createdTask.ID
+
+	// 2. PUT /api/tasks/{id}/status to "in_progress" (200 OK)
+	statusBody := `{"status":"in_progress"}`
+	req = httptest.NewRequest(http.MethodPut, "/api/tasks/"+taskID+"/status", strings.NewReader(statusBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK updating status, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var updatedTask model.Task
+	_ = json.Unmarshal(rec.Body.Bytes(), &updatedTask)
+	if updatedTask.Status != "in_progress" {
+		t.Errorf("expected status in_progress, got %q", updatedTask.Status)
+	}
+
+	// Verify in store
+	taskInStore, err := st.GetTask(t.Context(), taskID)
+	if err != nil {
+		t.Fatalf("failed to get task from store: %v", err)
+	}
+	if taskInStore.Status != "in_progress" {
+		t.Errorf("expected status in store to be in_progress, got %q", taskInStore.Status)
+	}
+
+	// 3. PUT with invalid column status returns 400 Bad Request
+	badBody := `{"status":"non_existent_column"}`
+	req = httptest.NewRequest(http.MethodPut, "/api/tasks/"+taskID+"/status", strings.NewReader(badBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 Bad Request on invalid column status, got %d", rec.Code)
+	}
+
+	// 4. PUT for non-existent task returns 404 Not Found
+	req = httptest.NewRequest(http.MethodPut, "/api/tasks/non-existent-task/status", strings.NewReader(statusBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("expected 404 Not Found on missing task, got %d", rec.Code)
 	}
 }
 

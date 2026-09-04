@@ -20,8 +20,27 @@ export interface CustomTask {
 	body?: string
 }
 
+export interface CustomStrategy {
+	id: string
+	title: string
+	tier: number
+	summary: string
+	tags?: string[]
+	body?: string
+}
+
+export interface CustomGlossaryTerm {
+	id: string
+	title: string
+	summary: string
+	tags?: string[]
+	body?: string
+}
+
 export async function startTestServer(options?: {
 	customTasks?: CustomTask[]
+	customStrategies?: CustomStrategy[]
+	customGlossary?: CustomGlossaryTerm[]
 }): Promise<TestServerInstance> {
 	const dir = mkdtempSync(join(tmpdir(), 'jokateko-e2e-'))
 	const binaryPath = '/workspaces/jokateko/bin/jokateko'
@@ -50,6 +69,39 @@ summary = "${task.summary}"
 ${task.body || '## Acceptance Criteria\n- [ ] Task requirement\n'}
 `
 			writeFileSync(taskPath, content, 'utf8')
+		}
+	}
+
+	// 2b. Write any custom strategies
+	if (options?.customStrategies) {
+		for (const s of options.customStrategies) {
+			const stratPath = join(dir, '.jokateko', 'strategies', `${s.id}.md`)
+			const content = `+++
+title = "${s.title}"
+tier = ${s.tier}
+summary = "${s.summary}"
+tags = [${(s.tags || []).map((t) => `"${t}"`).join(', ')}]
++++
+
+${s.body || ''}
+`
+			writeFileSync(stratPath, content, 'utf8')
+		}
+	}
+
+	// 2c. Write any custom glossary terms
+	if (options?.customGlossary) {
+		for (const g of options.customGlossary) {
+			const glossPath = join(dir, '.jokateko', 'glossary', `${g.id}.md`)
+			const content = `+++
+title = "${g.title}"
+summary = "${g.summary}"
+tags = [${(g.tags || []).map((t) => `"${t}"`).join(', ')}]
++++
+
+${g.body || ''}
+`
+			writeFileSync(glossPath, content, 'utf8')
 		}
 	}
 

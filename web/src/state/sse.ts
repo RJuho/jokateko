@@ -1,11 +1,21 @@
 import * as v from 'valibot'
-import { MilestoneSchema, TaskSchema } from '../schemas/models'
+import {
+	GlossaryTermSchema,
+	MilestoneSchema,
+	StrategySchema,
+	TaskSchema,
+} from '../schemas/models'
 import {
 	connectionStatus,
 	fetchLiveBoard,
+	fetchLiveEntities,
+	removeGlossaryTerm,
 	removeMilestone,
+	removeStrategy,
 	removeTask,
+	upsertGlossaryTerm,
 	upsertMilestone,
+	upsertStrategy,
 	upsertTask,
 } from './store'
 
@@ -63,9 +73,11 @@ export function startSSE(endpoint = '/api/events'): void {
 			const res = v.safeParse(EntityIdSchema, parsed)
 			if (res.success) {
 				removeTask(res.output.id)
+			} else {
+				fetchLiveBoard()
 			}
-		} catch (err) {
-			console.warn('Failed to handle task.deleted SSE:', err)
+		} catch {
+			fetchLiveBoard()
 		}
 	})
 
@@ -84,15 +96,64 @@ export function startSSE(endpoint = '/api/events'): void {
 			const res = v.safeParse(EntityIdSchema, parsed)
 			if (res.success) {
 				removeMilestone(res.output.id)
+			} else {
+				fetchLiveEntities()
 			}
-		} catch (err) {
-			console.warn('Failed to handle milestone.deleted SSE:', err)
+		} catch {
+			fetchLiveEntities()
+		}
+	})
+
+	// Strategy Events
+	eventSource.addEventListener('strategy.created', (e) => {
+		handleStrategyPayload(e.data)
+	})
+
+	eventSource.addEventListener('strategy.updated', (e) => {
+		handleStrategyPayload(e.data)
+	})
+
+	eventSource.addEventListener('strategy.deleted', (e) => {
+		try {
+			const parsed = JSON.parse(e.data)
+			const res = v.safeParse(EntityIdSchema, parsed)
+			if (res.success) {
+				removeStrategy(res.output.id)
+			} else {
+				fetchLiveEntities()
+			}
+		} catch {
+			fetchLiveEntities()
+		}
+	})
+
+	// Glossary Events
+	eventSource.addEventListener('glossary.created', (e) => {
+		handleGlossaryPayload(e.data)
+	})
+
+	eventSource.addEventListener('glossary.updated', (e) => {
+		handleGlossaryPayload(e.data)
+	})
+
+	eventSource.addEventListener('glossary.deleted', (e) => {
+		try {
+			const parsed = JSON.parse(e.data)
+			const res = v.safeParse(EntityIdSchema, parsed)
+			if (res.success) {
+				removeGlossaryTerm(res.output.id)
+			} else {
+				fetchLiveEntities()
+			}
+		} catch {
+			fetchLiveEntities()
 		}
 	})
 
 	// Board refresh event
 	eventSource.addEventListener('board.refreshed', () => {
 		fetchLiveBoard()
+		fetchLiveEntities()
 	})
 
 	// Heartbeat
@@ -136,10 +197,11 @@ function handleTaskPayload(rawData: string): void {
 		if (res.success) {
 			upsertTask(res.output)
 		} else {
-			console.warn('Invalid task SSE payload:', res.issues)
+			fetchLiveBoard()
 		}
 	} catch (err) {
 		console.warn('Failed to parse task SSE data:', err)
+		fetchLiveBoard()
 	}
 }
 
@@ -150,9 +212,40 @@ function handleMilestonePayload(rawData: string): void {
 		if (res.success) {
 			upsertMilestone(res.output)
 		} else {
-			console.warn('Invalid milestone SSE payload:', res.issues)
+			fetchLiveEntities()
 		}
 	} catch (err) {
 		console.warn('Failed to parse milestone SSE data:', err)
+		fetchLiveEntities()
+	}
+}
+
+function handleStrategyPayload(rawData: string): void {
+	try {
+		const parsed = JSON.parse(rawData)
+		const res = v.safeParse(StrategySchema, parsed)
+		if (res.success) {
+			upsertStrategy(res.output)
+		} else {
+			fetchLiveEntities()
+		}
+	} catch (err) {
+		console.warn('Failed to parse strategy SSE data:', err)
+		fetchLiveEntities()
+	}
+}
+
+function handleGlossaryPayload(rawData: string): void {
+	try {
+		const parsed = JSON.parse(rawData)
+		const res = v.safeParse(GlossaryTermSchema, parsed)
+		if (res.success) {
+			upsertGlossaryTerm(res.output)
+		} else {
+			fetchLiveEntities()
+		}
+	} catch (err) {
+		console.warn('Failed to parse glossary SSE data:', err)
+		fetchLiveEntities()
 	}
 }

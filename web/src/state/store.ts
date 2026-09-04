@@ -308,6 +308,40 @@ export function removeMilestone(id: string): void {
 	persistCurrentState()
 }
 
+export function upsertStrategy(strategy: Snapshot['strategies'][number]): void {
+	const idx = strategies.value.findIndex((s) => s.id === strategy.id)
+	if (idx >= 0) {
+		const updated = [...strategies.value]
+		updated[idx] = strategy
+		strategies.value = updated
+	} else {
+		strategies.value = [...strategies.value, strategy]
+	}
+	persistCurrentState()
+}
+
+export function removeStrategy(id: string): void {
+	strategies.value = strategies.value.filter((s) => s.id !== id)
+	persistCurrentState()
+}
+
+export function upsertGlossaryTerm(term: Snapshot['glossary'][number]): void {
+	const idx = glossary.value.findIndex((g) => g.id === term.id)
+	if (idx >= 0) {
+		const updated = [...glossary.value]
+		updated[idx] = term
+		glossary.value = updated
+	} else {
+		glossary.value = [...glossary.value, term]
+	}
+	persistCurrentState()
+}
+
+export function removeGlossaryTerm(id: string): void {
+	glossary.value = glossary.value.filter((g) => g.id !== id)
+	persistCurrentState()
+}
+
 export function setSearchQuery(q: string): void {
 	filters.value = { ...filters.value, searchQuery: q }
 }

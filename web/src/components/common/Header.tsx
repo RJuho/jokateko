@@ -389,19 +389,19 @@ export function Header() {
 							/>
 							{isMac ? (
 								<>
-									<kbd class='hidden sm:inline-flex kbd kbd-xs text-[10px] select-none'>
+									<kbd class='hidden sm:inline-flex kbd kbd-xs select-none'>
 										⌘
 									</kbd>
-									<kbd class='hidden sm:inline-flex kbd kbd-xs text-[10px] select-none'>
+									<kbd class='hidden sm:inline-flex kbd kbd-xs select-none'>
 										K
 									</kbd>
 								</>
 							) : (
 								<>
-									<kbd class='hidden sm:inline-flex kbd kbd-xs text-[10px] select-none'>
+									<kbd class='hidden sm:inline-flex kbd kbd-xs select-none'>
 										Ctrl
 									</kbd>
-									<kbd class='hidden sm:inline-flex kbd kbd-xs text-[10px] select-none'>
+									<kbd class='hidden sm:inline-flex kbd kbd-xs select-none'>
 										K
 									</kbd>
 								</>

@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { navigateTo } from '../../router'
 import { activeGlossaryId, filters, glossary } from '../../state/store'
 import { t } from '../../utils/i18n'
+import {
+	renderMermaidDiagrams,
+	reRenderMermaidDiagrams,
+} from '../../utils/mermaid'
 import { TagBadge } from '../common/Badge'
 
 export function GlossaryView() {
@@ -10,7 +14,35 @@ export function GlossaryView() {
 	const [copiedId, setCopiedId] = useState<string | null>(null)
 	const [copiedLink, setCopiedLink] = useState<string | null>(null)
 
+	const gridRef = useRef<HTMLDivElement>(null)
+
 	const searchQuery = filters.value.searchQuery.trim().toLowerCase()
+
+	// Render Mermaid diagrams in open glossary bodies and update on theme change
+	useEffect(() => {
+		const el = gridRef.current
+		if (!el) return
+
+		renderMermaidDiagrams(el)
+
+		const observer = new MutationObserver((mutations) => {
+			for (const mutation of mutations) {
+				if (
+					mutation.type === 'attributes'
+					&& mutation.attributeName === 'data-theme'
+				) {
+					reRenderMermaidDiagrams(el)
+				}
+			}
+		})
+
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ['data-theme'],
+		})
+
+		return () => observer.disconnect()
+	}, [openedTermIds, activeGlossaryId.value, allTerms])
 
 	// If initial or current URL anchor has a term, open its body and scroll into view
 	useEffect(() => {
@@ -90,7 +122,7 @@ export function GlossaryView() {
 			</div>
 
 			{/* Terms Grid */}
-			<div class='grid grid-cols-1 md:grid-cols-2 gap-4'>
+			<div ref={gridRef} class='grid grid-cols-1 md:grid-cols-2 gap-4'>
 				{visibleTerms.map((term) => {
 					const isOpened = openedTermIds.has(term.id)
 					const hasBody =
@@ -111,9 +143,15 @@ export function GlossaryView() {
 							{/* Term Header: Title + Link button on left, Term ID (no '#', click to copy) on right */}
 							<div class='flex items-start justify-between gap-2'>
 								<div class='flex items-center gap-1.5 min-w-0'>
-									<h3 class='text-base/snug font-bold text-base-content'>
-										{term.title}
-									</h3>
+									<button
+										type='button'
+										onClick={() => handleCardClick(term.id)}
+										class='text-left cursor-pointer group/title focus:outline-hidden'
+									>
+										<h3 class='text-base/snug font-bold text-base-content group-hover/title:text-primary transition-colors'>
+											{term.title}
+										</h3>
+									</button>
 
 									{/* Link Button next to title */}
 									<button

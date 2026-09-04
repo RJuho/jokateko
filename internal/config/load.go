@@ -141,10 +141,12 @@ type rawCSPConfig struct {
 	Enabled    *bool    `toml:"enabled"`
 	DefaultSrc []string `toml:"default_src"`
 	ScriptSrc  []string `toml:"script_src"`
-	StyleSrc   []string `toml:"style_src"`
-	ImgSrc     []string `toml:"img_src"`
-	ConnectSrc []string `toml:"connect_src"`
-	FontSrc    []string `toml:"font_src"`
+	StyleSrc     []string `toml:"style_src"`
+	StyleSrcElem []string `toml:"style_src_elem"`
+	StyleSrcAttr []string `toml:"style_src_attr"`
+	ImgSrc       []string `toml:"img_src"`
+	ConnectSrc   []string `toml:"connect_src"`
+	FontSrc      []string `toml:"font_src"`
 }
 
 type rawBoardConfig struct {
@@ -245,6 +247,12 @@ func mergeConfig(target *Config, raw *rawConfig) {
 				}
 				if len(raw.Server.Security.CSP.StyleSrc) > 0 {
 					target.Server.Security.CSP.StyleSrc = raw.Server.Security.CSP.StyleSrc
+				}
+				if len(raw.Server.Security.CSP.StyleSrcElem) > 0 {
+					target.Server.Security.CSP.StyleSrcElem = raw.Server.Security.CSP.StyleSrcElem
+				}
+				if len(raw.Server.Security.CSP.StyleSrcAttr) > 0 {
+					target.Server.Security.CSP.StyleSrcAttr = raw.Server.Security.CSP.StyleSrcAttr
 				}
 				if len(raw.Server.Security.CSP.ImgSrc) > 0 {
 					target.Server.Security.CSP.ImgSrc = raw.Server.Security.CSP.ImgSrc

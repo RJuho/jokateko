@@ -636,4 +636,92 @@ func (s *Server) handleAddTaskNote(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, existing)
 }
 
+func (s *Server) handleUpdateTaskStatus(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "task id is required")
+		return
+	}
+
+	existing, err := s.store.GetTask(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "task not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to get task: "+err.Error())
+		return
+	}
+
+	var req struct {
+		Status string `json:"status"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+
+	targetStatus := strings.TrimSpace(req.Status)
+	if targetStatus == "" {
+		writeError(w, http.StatusBadRequest, "status is required")
+		return
+	}
+
+	if len(s.columns) > 0 {
+		if !slices.ContainsFunc(s.columns, func(col model.Column) bool { return col.ID == targetStatus }) {
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid status %q: column not found", targetStatus))
+			return
+		}
+	}
+
+	existing.Status = targetStatus
+
+	fm := model.TaskFrontmatter{
+		Title:        existing.Title,
+		Status:       existing.Status,
+		Priority:     existing.Priority,
+		Milestone:    existing.Milestone,
+		Tags:         existing.Tags,
+		Summary:      existing.Summary,
+		Dependencies: existing.Dependencies,
+	}
+
+	fileBytes, err := parser.Format(fm, existing.Body)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to format task markdown: "+err.Error())
+		return
+	}
+
+	filePath := existing.FilePath
+	if filePath == "" {
+		tasksDir := s.cfg.Paths.Tasks
+		if !filepath.IsAbs(tasksDir) {
+			tasksDir = filepath.Join(s.workspaceDir, tasksDir)
+		}
+		filePath = filepath.Join(tasksDir, fmt.Sprintf("%s.md", id))
+		existing.FilePath = filePath
+	}
+
+	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to write task file: "+err.Error())
+		return
+	}
+
+	total, completed, _ := parser.ExtractAcceptanceCriteria([]byte(existing.Body))
+	existing.TotalCriteria = total
+	existing.CompletedCriteria = completed
+	existing.ModTime = time.Now()
+	bodyHTML, _ := parser.RenderHTML([]byte(existing.Body))
+	existing.BodyHTML = bodyHTML
+
+	if err := s.store.UpsertTask(r.Context(), existing); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update task in store: "+err.Error())
+		return
+	}
+
+	s.sseHub.Broadcast("task.updated", existing)
+	writeJSON(w, http.StatusOK, existing)
+}
+
 

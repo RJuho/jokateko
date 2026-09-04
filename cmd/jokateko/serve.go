@@ -96,7 +96,43 @@ func cmdServe(args []string, stdout, stderr io.Writer) int {
 
 	// Connect pipeline changes to SSE hub
 	pipeline.SetOnEntityChange(func(e watcher.IngestEvent) {
-		eventName := fmt.Sprintf("%s.%s", e.EntityType, e.Op)
+		opName := "updated"
+		if e.Op == watcher.OpDelete {
+			opName = "deleted"
+		}
+		eventName := fmt.Sprintf("%s.%s", e.EntityType, opName)
+
+		if e.Op == watcher.OpDelete {
+			sse.Broadcast(eventName, map[string]string{
+				"id": e.EntityID,
+			})
+			return
+		}
+
+		ctx := context.Background()
+		switch e.EntityType {
+		case "task":
+			if task, err := st.GetTask(ctx, e.EntityID); err == nil {
+				sse.Broadcast(eventName, task)
+				return
+			}
+		case "milestone":
+			if ms, err := st.GetMilestone(ctx, e.EntityID); err == nil {
+				sse.Broadcast(eventName, ms)
+				return
+			}
+		case "strategy":
+			if strat, err := st.GetStrategy(ctx, e.EntityID); err == nil {
+				sse.Broadcast(eventName, strat)
+				return
+			}
+		case "glossary":
+			if term, err := st.GetGlossaryTerm(ctx, e.EntityID); err == nil {
+				sse.Broadcast(eventName, term)
+				return
+			}
+		}
+
 		sse.Broadcast(eventName, map[string]string{
 			"id": e.EntityID,
 		})

@@ -52,8 +52,8 @@ export function TagBadge({
 	className = '',
 }: TagBadgeProps) {
 	const activeClass = selected
-		? 'badge-primary font-medium shadow-xs'
-		: 'badge-outline hover:badge-primary transition-colors cursor-pointer'
+		? 'badge-soft badge-primary font-medium shadow-xs'
+		: 'badge-ghost hover:bg-base-300 transition-colors cursor-pointer'
 
 	if (onClick) {
 		return (

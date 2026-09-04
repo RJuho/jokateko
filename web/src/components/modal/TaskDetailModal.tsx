@@ -63,6 +63,7 @@ export function TaskDetailModal() {
 	const [noteInput, setNoteInput] = useState('')
 	const [isAddingNote, setIsAddingNote] = useState(false)
 	const [addNoteError, setAddNoteError] = useState<string | null>(null)
+	const [isMaximized, setIsMaximized] = useState(false)
 
 	useEffect(() => {
 		setEditedBody(task?.body || '')
@@ -342,7 +343,13 @@ export function TaskDetailModal() {
 				}
 			}}
 		>
-			<div class='modal-box w-full max-w-2xl max-h-[90vh] sm:rounded-2xl rounded-b-none p-5 sm:p-6 overflow-y-auto bg-base-100 shadow-2xl flex flex-col gap-3.5 border border-base-300'>
+			<div
+				class={`modal-box w-full ${
+					isMaximized
+						? 'max-w-[96vw] sm:max-w-[96vw] h-[92vh] max-h-[92vh]'
+						: 'max-w-2xl max-h-[90vh]'
+				} sm:rounded-2xl rounded-b-none p-5 sm:p-6 overflow-y-auto bg-base-100 shadow-2xl flex flex-col gap-3.5 border border-base-300 transition-all duration-200`}
+			>
 				{/* Modal Top Bar: Board title pill before priority, x/y done badge after priority, copyable ID without # */}
 				{/* No dividing line between top bar and summary */}
 				<div class='flex items-start justify-between gap-3 pb-1'>
@@ -391,7 +398,7 @@ export function TaskDetailModal() {
 								</button>
 							)}
 
-							{/* 4. Task ID: clickable to copy, no "#" */}
+							{/* 4. Task ID: clickable to copy, no "#", width-locked to prevent layout shift */}
 							<button
 								type='button'
 								onClick={handleCopyId}
@@ -399,7 +406,16 @@ export function TaskDetailModal() {
 								title={idCopied ? 'Copied to clipboard!' : 'Click to copy ID'}
 								aria-label={`Copy task ID ${task.id}`}
 							>
-								{idCopied ? 'copied!' : task.id}
+								<span class="inline-grid [grid-template-areas:'stack'] items-center justify-center">
+									<span class='[grid-area:stack] invisible'>{task.id}</span>
+									<span
+										class={`[grid-area:stack] text-center ${
+											idCopied ? 'text-success font-semibold' : ''
+										}`}
+									>
+										{idCopied ? 'copied!' : task.id}
+									</span>
+								</span>
 							</button>
 						</div>
 
@@ -418,15 +434,57 @@ export function TaskDetailModal() {
 						)}
 					</div>
 
-					{/* Top Right Close Button (✕) */}
-					<button
-						type='button'
-						onClick={closeModal}
-						class='btn btn-sm btn-ghost btn-circle shrink-0 text-base-content/60 hover:text-base-content'
-						aria-label='Close task details'
-					>
-						✕
-					</button>
+					{/* Top Right Action Buttons: Maximize / Restore and Close (✕) */}
+					<div class='flex items-center gap-1 shrink-0'>
+						<button
+							type='button'
+							onClick={() => setIsMaximized(!isMaximized)}
+							class='btn btn-sm btn-ghost btn-circle text-base-content/60 hover:text-base-content'
+							title={isMaximized ? 'Restore size' : 'Expand modal'}
+							aria-label={isMaximized ? 'Restore size' : 'Maximize modal'}
+							data-testid='task-modal-maximize-btn'
+						>
+							{isMaximized ? (
+								<svg
+									class='size-4'
+									fill='none'
+									viewBox='0 0 24 24'
+									stroke='currentColor'
+									stroke-width='2'
+									aria-hidden='true'
+								>
+									<path
+										stroke-linecap='round'
+										stroke-linejoin='round'
+										d='M9 9L4 4m0 0h5m-5 0v5m11 0V4m0 0h-5m5 0l-5 5m-6 6l-5 5m0 0h5m-5 0v-5m16 0v5m0 0h-5m5 0l-5-5'
+									/>
+								</svg>
+							) : (
+								<svg
+									class='size-4'
+									fill='none'
+									viewBox='0 0 24 24'
+									stroke='currentColor'
+									stroke-width='2'
+									aria-hidden='true'
+								>
+									<path
+										stroke-linecap='round'
+										stroke-linejoin='round'
+										d='M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0 0l-5-5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'
+									/>
+								</svg>
+							)}
+						</button>
+						<button
+							type='button'
+							onClick={closeModal}
+							class='btn btn-sm btn-ghost btn-circle text-base-content/60 hover:text-base-content'
+							aria-label='Close task details'
+						>
+							✕
+						</button>
+					</div>
 				</div>
 
 				{/* Summary sits cleanly under top bar, no "Summary" label or box */}

@@ -16,7 +16,12 @@
 .prose li.task-list-item,
 .prose li:has(input[type="checkbox"]) {
 	list-style-type: none;
-	display: flex;
-	align-items: flex-start;
-	gap: 0.5rem;
+	padding-left: 0;
+}
+
+.prose li.task-list-item > input[type="checkbox"],
+.prose li:has(input[type="checkbox"]) > input[type="checkbox"] {
+	margin-right: 0.5rem;
+	vertical-align: -0.125em;
+	display: inline-block;
 }

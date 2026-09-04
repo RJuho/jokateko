@@ -42,11 +42,13 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 	}
 
 	return (
-		<div
+		<article
 			class={`w-full card bg-base-100 border border-base-200/80 shadow-xs hover:shadow-md hover:border-primary/40 transition-all rounded-xl p-3.5 flex flex-col gap-2.5 select-none ${
-				isBlocked ? 'border-l-4 border-l-warning' : ''
-			}`}
+				isLive ? 'cursor-grab active:cursor-grabbing' : ''
+			} ${isBlocked ? 'border-l-4 border-l-warning' : ''}`}
 			data-testid={`task-card-${task.id}`}
+			draggable={isLive}
+			onDragStart={(e) => onDragStart?.(e, task)}
 		>
 			{/* Card Header: Priority, Blocked Indicator, Clickable Copy ID (no "#") */}
 			<div class='flex items-center justify-between gap-2'>
@@ -75,7 +77,7 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 						</span>
 					)}
 
-					{/* Task ID: clickable to copy without "#" */}
+					{/* Task ID: clickable to copy without "#", width-locked to prevent layout shift */}
 					<button
 						type='button'
 						onClick={handleCopyId}
@@ -83,7 +85,16 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 						title={idCopied ? 'Copied!' : 'Click to copy ID'}
 						aria-label={`Copy task ID ${task.id}`}
 					>
-						{idCopied ? 'copied!' : task.id}
+						<span class="inline-grid [grid-template-areas:'stack'] items-center justify-center">
+							<span class='[grid-area:stack] invisible'>{task.id}</span>
+							<span
+								class={`[grid-area:stack] text-center ${
+									idCopied ? 'text-success font-semibold' : ''
+								}`}
+							>
+								{idCopied ? 'copied!' : task.id}
+							</span>
+						</span>
 					</button>
 				</div>
 			</div>
@@ -159,6 +170,6 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 					)}
 				</div>
 			</button>
-		</div>
+		</article>
 	)
 }
