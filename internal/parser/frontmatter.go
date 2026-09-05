@@ -127,10 +127,19 @@ func NormalizeTimestamp(s string) (string, error) {
 	if t, err := time.Parse(time.DateOnly, trimmed); err == nil {
 		return t.UTC().Format(time.RFC3339), nil
 	}
+	if t, err := time.Parse("2006-01-02T15:04:05", trimmed); err == nil {
+		return t.UTC().Format(time.RFC3339), nil
+	}
+	if t, err := time.Parse("2006-01-02T15:04", trimmed); err == nil {
+		return t.UTC().Format(time.RFC3339), nil
+	}
 	if t, err := time.Parse("2006-01-02 15:04:05", trimmed); err == nil {
 		return t.UTC().Format(time.RFC3339), nil
 	}
-	return "", fmt.Errorf("invalid timestamp format: %q (expected RFC3339 or YYYY-MM-DD)", trimmed)
+	if t, err := time.Parse("2006-01-02 15:04", trimmed); err == nil {
+		return t.UTC().Format(time.RFC3339), nil
+	}
+	return "", fmt.Errorf("invalid timestamp format: %q (expected RFC3339, YYYY-MM-DD, or YYYY-MM-DDTHH:MM)", trimmed)
 }
 
 // DeriveFallbackCreatedAt derives a backward-compatible created_at timestamp

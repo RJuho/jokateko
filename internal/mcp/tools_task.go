@@ -191,6 +191,18 @@ type AddTaskNoteOutput struct {
 	Message           string `json:"message"`
 }
 
+type SetTaskTargetInput struct {
+	ID       string `json:"id" jsonschema:"required,Task ID or slug (e.g. 260901-setup-database)"`
+	TargetAt string `json:"target_at" jsonschema:"Target delivery/due date in RFC3339 UTC, YYYY-MM-DD, or YYYY-MM-DDTHH:MM format (pass empty string to clear)"`
+}
+
+type SetTaskTargetOutput struct {
+	Success  bool   `json:"success"`
+	ID       string `json:"id"`
+	TargetAt string `json:"target_at,omitempty"`
+	Message  string `json:"message"`
+}
+
 // registerTaskTools registers all task tools with the MCP server.
 func (s *Server) registerTaskTools() {
 	// 1. list_tasks
@@ -264,6 +276,12 @@ func (s *Server) registerTaskTools() {
 		Name:        "add_task_note",
 		Description: "Appends a timestamped note entry under the ## Notes section of a task without modifying existing specification or criteria.",
 	}, s.toolAddTaskNote)
+
+	// 13. set_task_target
+	mcp.AddTool(s.mcpServer, &mcp.Tool{
+		Name:        "set_task_target",
+		Description: "Sets, updates, or clears the target delivery date (target_at) of a task.",
+	}, s.toolSetTaskTarget)
 }
 
 func (s *Server) toolListTasks(ctx context.Context, _ *mcp.CallToolRequest, in ListTasksInput) (*mcp.CallToolResult, []TaskSummary, error) {
@@ -1246,6 +1264,81 @@ func (s *Server) toolAddTaskNote(ctx context.Context, _ *mcp.CallToolRequest, in
 		TotalCriteria:     total,
 		CompletedCriteria: completed,
 		Message:           fmt.Sprintf("Note appended to task %q under ## Notes", id),
+	}, nil
+}
+
+func (s *Server) toolSetTaskTarget(ctx context.Context, _ *mcp.CallToolRequest, in SetTaskTargetInput) (*mcp.CallToolResult, *SetTaskTargetOutput, error) {
+	if !s.cfg.MCP.AllowMutations {
+		return nil, nil, errors.New("mutations are disabled in configuration")
+	}
+
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		return nil, nil, errors.New("task id is required")
+	}
+
+	task, err := s.store.GetTask(ctx, id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, nil, fmt.Errorf("task %q not found", id)
+		}
+		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+	}
+
+	targetAt, err := parser.NormalizeTimestamp(in.TargetAt)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid target_at format: %w", err)
+	}
+
+	task.TargetAt = targetAt
+	if task.CreatedAt == "" {
+		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
+	}
+	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
+	task.ModTime = time.Now()
+
+	fm := model.TaskFrontmatter{
+		Title:        task.Title,
+		Status:       task.Status,
+		Priority:     task.Priority,
+		Milestone:    task.Milestone,
+		Tags:         task.Tags,
+		Summary:      task.Summary,
+		Dependencies: task.Dependencies,
+		CreatedAt:    task.CreatedAt,
+		ChangedAt:    task.ChangedAt,
+		TargetAt:     task.TargetAt,
+	}
+
+	fileBytes, err := parser.Format(fm, task.Body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to format task markdown: %w", err)
+	}
+
+	filePath := task.FilePath
+	if filePath == "" {
+		filePath = filepath.Join(s.TasksDir(), fmt.Sprintf("%s.md", id))
+		task.FilePath = filePath
+	}
+
+	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
+		return nil, nil, fmt.Errorf("failed to save task file: %w", err)
+	}
+
+	if err := s.store.UpsertTask(ctx, task); err != nil {
+		return nil, nil, fmt.Errorf("failed to update task in store: %w", err)
+	}
+
+	msg := fmt.Sprintf("Target date for task %q updated to %s", id, targetAt)
+	if targetAt == "" {
+		msg = fmt.Sprintf("Target date for task %q cleared", id)
+	}
+
+	return nil, &SetTaskTargetOutput{
+		Success:  true,
+		ID:       id,
+		TargetAt: targetAt,
+		Message:  msg,
 	}, nil
 }
 

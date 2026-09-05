@@ -329,17 +329,17 @@ export function CreateTaskModal() {
 								for='task-create-target-at'
 								class='label py-1 text-xs font-semibold'
 							>
-								Target Date
+								Target Date & Time
 							</label>
 							<input
 								id='task-create-target-at'
-								type='date'
+								type='datetime-local'
 								value={targetAt}
 								onInput={(e) =>
 									setTargetAt((e.target as HTMLInputElement).value)
 								}
 								class='input input-sm input-bordered w-full rounded-lg'
-								aria-label='Select target date'
+								aria-label='Select target date and time'
 								data-testid='task-create-target-at-input'
 							/>
 						</div>

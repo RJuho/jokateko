@@ -11,6 +11,18 @@ import {
 	upsertTask,
 } from '../../state/store'
 
+function formatForDatetimeLocal(val?: string): string {
+	if (!val) return ''
+	const trimmed = val.trim()
+	if (trimmed.length === 10) {
+		return `${trimmed}T00:00`
+	}
+	if (trimmed.length >= 16) {
+		return trimmed.slice(0, 16)
+	}
+	return trimmed
+}
+
 export function TaskEditModal() {
 	const taskId = activeTaskEditId.value
 	const task = tasks.value.find((t) => t.id === taskId)
@@ -44,7 +56,7 @@ export function TaskEditModal() {
 	const [priority, setPriority] = useState<Priority>(task.priority)
 	const [milestone, setMilestone] = useState(task.milestone || '')
 	const [targetAt, setTargetAt] = useState(
-		task.target_at ? task.target_at.slice(0, 10) : '',
+		formatForDatetimeLocal(task.target_at),
 	)
 	const [tagsStr, setTagsStr] = useState((task.tags || []).join(', '))
 	const [depsStr, setDepsStr] = useState((task.dependencies || []).join(', '))
@@ -330,17 +342,17 @@ export function TaskEditModal() {
 								for='task-edit-target-at'
 								class='label py-1 text-xs font-semibold'
 							>
-								Target Date
+								Target Date & Time
 							</label>
 							<input
 								id='task-edit-target-at'
-								type='date'
+								type='datetime-local'
 								value={targetAt}
 								onInput={(e) =>
 									setTargetAt((e.target as HTMLInputElement).value)
 								}
 								class='input input-sm input-bordered w-full rounded-lg'
-								aria-label='Target date'
+								aria-label='Target date and time'
 								data-testid='task-edit-target-at-input'
 							/>
 						</div>

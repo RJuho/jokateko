@@ -42,7 +42,7 @@ test.describe('Timestamps and Milestone Timeframe E2E', () => {
 			'[data-testid="task-create-target-at-input"]',
 		)
 		await expect(targetInput).toBeVisible()
-		await targetInput.fill('2026-12-31')
+		await targetInput.fill('2026-12-31T15:30')
 
 		const submitBtn = page.locator(
 			'[data-testid="create-task-submit-button"]',
@@ -69,7 +69,7 @@ test.describe('Timestamps and Milestone Timeframe E2E', () => {
 		const fileContent = readFileSync(join(tasksDir, createdFile), 'utf8')
 		expect(fileContent).toContain('created_at =')
 		expect(fileContent).toContain('changed_at =')
-		expect(fileContent).toContain("target_at = '2026-12-31T00:00:00Z'")
+		expect(fileContent).toContain("target_at = '2026-12-31T15:30:00Z'")
 	})
 
 	test('opens task detail modal and verifies timestamp display', async ({
@@ -113,7 +113,7 @@ test.describe('Timestamps and Milestone Timeframe E2E', () => {
 			'[data-testid="task-edit-target-at-input"]',
 		)
 		await expect(editTargetInput).toBeVisible()
-		await editTargetInput.fill('2026-11-15')
+		await editTargetInput.fill('2026-11-15T10:00')
 
 		const saveBtn = page.locator('[data-testid="save-task-button"]')
 		await saveBtn.click()
@@ -128,7 +128,7 @@ test.describe('Timestamps and Milestone Timeframe E2E', () => {
 		const files = readdirSync(tasksDir)
 		const createdFile = files.find((f) => f.includes('task-with-target-timestamp'))
 		const updatedContent = readFileSync(join(tasksDir, createdFile), 'utf8')
-		expect(updatedContent).toContain("target_at = '2026-11-15T00:00:00Z'")
+		expect(updatedContent).toContain("target_at = '2026-11-15T10:00:00Z'")
 	})
 
 	test('derives milestone target timeframe from tasks with target dates', async ({
