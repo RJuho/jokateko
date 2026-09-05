@@ -15,7 +15,24 @@ import {
 	renderMermaidDiagrams,
 	reRenderMermaidDiagrams,
 } from '../../utils/mermaid'
-import { PriorityBadge, TagBadge } from '../common/Badge'
+import { PriorityBadge, TagBadge, TargetDateBadge } from '../common/Badge'
+
+function formatDateTime(isoStr?: string) {
+	if (!isoStr) return ''
+	try {
+		const d = new Date(isoStr)
+		if (isNaN(d.getTime())) return isoStr
+		return d.toLocaleDateString(undefined, {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+		})
+	} catch {
+		return isoStr
+	}
+}
 
 export function TaskDetailModal() {
 	const taskId = activeTaskDetailId.value
@@ -398,6 +415,14 @@ export function TaskDetailModal() {
 								</button>
 							)}
 
+							{/* Target Date Badge */}
+							{task.target_at && (
+								<TargetDateBadge
+									targetAt={task.target_at}
+									status={task.status}
+								/>
+							)}
+
 							{/* 4. Task ID: clickable to copy, no "#", width-locked to prevent layout shift */}
 							<button
 								type='button'
@@ -490,6 +515,39 @@ export function TaskDetailModal() {
 				{/* Summary sits cleanly under top bar, no "Summary" label or box */}
 				{task.summary && (
 					<p class='text-sm/relaxed text-base-content/85'>{task.summary}</p>
+				)}
+
+				{/* Timestamps Metadata */}
+				{(task.created_at || task.changed_at || task.target_at) && (
+					<div
+						class='flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-base-content/50 pt-0.5'
+						data-testid='task-timestamps'
+					>
+						{task.created_at && (
+							<span data-testid='task-created-at'>
+								Created:{' '}
+								<span class='font-mono text-base-content/70'>
+									{formatDateTime(task.created_at)}
+								</span>
+							</span>
+						)}
+						{task.changed_at && (
+							<span data-testid='task-changed-at'>
+								Updated:{' '}
+								<span class='font-mono text-base-content/70'>
+									{formatDateTime(task.changed_at)}
+								</span>
+							</span>
+						)}
+						{task.target_at && (
+							<span data-testid='task-target-at'>
+								Target:{' '}
+								<span class='font-mono text-base-content/70'>
+									{formatDateTime(task.target_at)}
+								</span>
+							</span>
+						)}
+					</div>
 				)}
 
 				{/* The ONLY line in task modal: between summary and body text */}

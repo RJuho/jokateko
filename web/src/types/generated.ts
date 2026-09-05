@@ -14,6 +14,7 @@ export interface BoardConfig {
 export interface BoardState {
   project_name: string;
   columns: ColumnState[];
+  editable_states?: string[];
 }
 
 export interface BuildConfig {
@@ -68,6 +69,9 @@ export interface Milestone {
   status: MilestoneStatus;
   is_archived: boolean;
   target_date?: string;
+  target_start_at?: string;
+  target_end_at?: string;
+  target_timeframe?: string;
   tags: string[];
   summary: string;
   body?: string;
@@ -180,6 +184,9 @@ export interface Task {
   completed_criteria?: number;
   file_path?: string;
   mod_time?: string;
+  created_at?: string;
+  changed_at?: string;
+  target_at?: string;
 }
 
 export interface TaskFrontmatter {
@@ -190,6 +197,9 @@ export interface TaskFrontmatter {
   tags: string[];
   summary: string;
   dependencies?: string[];
+  created_at?: string;
+  changed_at?: string;
+  target_at?: string;
 }
 
 export interface TierConfig {

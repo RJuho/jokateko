@@ -27,6 +27,9 @@ type MilestoneSummary struct {
 	Status             model.MilestoneStatus `json:"status"`
 	IsArchived         bool                  `json:"is_archived"`
 	TargetDate         string                `json:"target_date,omitempty"`
+	TargetStartAt      string                `json:"target_start_at,omitempty"`
+	TargetEndAt        string                `json:"target_end_at,omitempty"`
+	TargetTimeframe    string                `json:"target_timeframe,omitempty"`
 	Tags               []string              `json:"tags"`
 	Summary            string                `json:"summary"`
 	TotalTasks         int                   `json:"total_tasks"`
@@ -44,6 +47,9 @@ type MilestoneDetail struct {
 	Status             model.MilestoneStatus `json:"status"`
 	IsArchived         bool                  `json:"is_archived"`
 	TargetDate         string                `json:"target_date,omitempty"`
+	TargetStartAt      string                `json:"target_start_at,omitempty"`
+	TargetEndAt        string                `json:"target_end_at,omitempty"`
+	TargetTimeframe    string                `json:"target_timeframe,omitempty"`
 	Tags               []string              `json:"tags"`
 	Summary            string                `json:"summary"`
 	Body               string                `json:"body"`
@@ -127,6 +133,9 @@ func (s *Server) toolListMilestones(ctx context.Context, _ *mcp.CallToolRequest,
 			Status:             ms.Status,
 			IsArchived:         isArchived,
 			TargetDate:         ms.TargetDate,
+			TargetStartAt:      ms.TargetStartAt,
+			TargetEndAt:        ms.TargetEndAt,
+			TargetTimeframe:    ms.TargetTimeframe,
 			Tags:               ms.Tags,
 			Summary:            ms.Summary,
 			TotalTasks:         ms.TotalTasks,
@@ -168,6 +177,9 @@ func (s *Server) toolGetMilestone(ctx context.Context, _ *mcp.CallToolRequest, i
 		Status:             ms.Status,
 		IsArchived:         isArchived,
 		TargetDate:         ms.TargetDate,
+		TargetStartAt:      ms.TargetStartAt,
+		TargetEndAt:        ms.TargetEndAt,
+		TargetTimeframe:    ms.TargetTimeframe,
 		Tags:               ms.Tags,
 		Summary:            ms.Summary,
 		Body:               ms.Body,
@@ -246,6 +258,9 @@ func (s *Server) toolCreateMilestone(ctx context.Context, _ *mcp.CallToolRequest
 		Status:             ms.Status,
 		IsArchived:         false,
 		TargetDate:         ms.TargetDate,
+		TargetStartAt:      ms.TargetStartAt,
+		TargetEndAt:        ms.TargetEndAt,
+		TargetTimeframe:    ms.TargetTimeframe,
 		Tags:               ms.Tags,
 		Summary:            ms.Summary,
 		Body:               ms.Body,
@@ -336,6 +351,10 @@ func (s *Server) toolUpdateMilestone(ctx context.Context, _ *mcp.CallToolRequest
 		return nil, nil, fmt.Errorf("failed to index updated milestone: %w", err)
 	}
 
+	if updatedMs, err := s.store.GetMilestone(ctx, id); err == nil {
+		ms = updatedMs
+	}
+
 	assignedTasks, _ := s.store.ListTasks(ctx, model.FilterCriteria{Milestone: id})
 	taskSlugs := make([]string, 0, len(assignedTasks))
 	for _, t := range assignedTasks {
@@ -350,6 +369,9 @@ func (s *Server) toolUpdateMilestone(ctx context.Context, _ *mcp.CallToolRequest
 		Status:             ms.Status,
 		IsArchived:         isArchived,
 		TargetDate:         ms.TargetDate,
+		TargetStartAt:      ms.TargetStartAt,
+		TargetEndAt:        ms.TargetEndAt,
+		TargetTimeframe:    ms.TargetTimeframe,
 		Tags:               ms.Tags,
 		Summary:            ms.Summary,
 		Body:               ms.Body,

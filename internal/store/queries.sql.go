@@ -245,20 +245,24 @@ func (q *Queries) GetMilestone(ctx context.Context, id string) (Milestone, error
 const getMilestoneTaskMetrics = `-- name: GetMilestoneTaskMetrics :one
 SELECT
     COUNT(*) AS total_tasks,
-    COUNT(CASE WHEN status = 'done' THEN 1 END) AS completed_tasks
+    COUNT(CASE WHEN status = 'done' THEN 1 END) AS completed_tasks,
+    COALESCE(MIN(NULLIF(target_at, '')), '') AS target_start_at,
+    COALESCE(MAX(NULLIF(target_at, '')), '') AS target_end_at
 FROM tasks
 WHERE milestone_id = ?
 `
 
 type GetMilestoneTaskMetricsRow struct {
-	TotalTasks     int64 `json:"total_tasks"`
-	CompletedTasks int64 `json:"completed_tasks"`
+	TotalTasks     int64  `json:"total_tasks"`
+	CompletedTasks int64  `json:"completed_tasks"`
+	TargetStartAt  string `json:"target_start_at"`
+	TargetEndAt    string `json:"target_end_at"`
 }
 
 func (q *Queries) GetMilestoneTaskMetrics(ctx context.Context, milestoneID string) (GetMilestoneTaskMetricsRow, error) {
 	row := q.db.QueryRowContext(ctx, getMilestoneTaskMetrics, milestoneID)
 	var i GetMilestoneTaskMetricsRow
-	err := row.Scan(&i.TotalTasks, &i.CompletedTasks)
+	err := row.Scan(&i.TotalTasks, &i.CompletedTasks, &i.TargetStartAt, &i.TargetEndAt)
 	return i, err
 }
 
@@ -330,7 +334,7 @@ func (q *Queries) GetTagCounts(ctx context.Context) ([]GetTagCountsRow, error) {
 }
 
 const getTask = `-- name: GetTask :one
-SELECT id, title, status, priority, milestone_id, summary, body, total_criteria, completed_criteria, filepath, mtime
+SELECT id, title, status, priority, milestone_id, summary, body, total_criteria, completed_criteria, filepath, mtime, created_at, changed_at, target_at
 FROM tasks
 WHERE id = ?
 `
@@ -350,6 +354,9 @@ func (q *Queries) GetTask(ctx context.Context, id string) (Task, error) {
 		&i.CompletedCriteria,
 		&i.Filepath,
 		&i.Mtime,
+		&i.CreatedAt,
+		&i.ChangedAt,
+		&i.TargetAt,
 	)
 	return i, err
 }
@@ -596,7 +603,7 @@ func (q *Queries) ListStrategiesByTier(ctx context.Context, tier int64) ([]Strat
 }
 
 const listTasks = `-- name: ListTasks :many
-SELECT id, title, status, priority, milestone_id, summary, body, total_criteria, completed_criteria, filepath, mtime
+SELECT id, title, status, priority, milestone_id, summary, body, total_criteria, completed_criteria, filepath, mtime, created_at, changed_at, target_at
 FROM tasks
 ORDER BY id ASC
 `
@@ -622,6 +629,9 @@ func (q *Queries) ListTasks(ctx context.Context) ([]Task, error) {
 			&i.CompletedCriteria,
 			&i.Filepath,
 			&i.Mtime,
+			&i.CreatedAt,
+			&i.ChangedAt,
+			&i.TargetAt,
 		); err != nil {
 			return nil, err
 		}
@@ -638,7 +648,7 @@ func (q *Queries) ListTasks(ctx context.Context) ([]Task, error) {
 
 const updateTaskCriteria = `-- name: UpdateTaskCriteria :exec
 UPDATE tasks
-SET total_criteria = ?, completed_criteria = ?, body = ?, mtime = ?
+SET total_criteria = ?, completed_criteria = ?, body = ?, mtime = ?, changed_at = ?
 WHERE id = ?
 `
 
@@ -647,6 +657,7 @@ type UpdateTaskCriteriaParams struct {
 	CompletedCriteria int64  `json:"completed_criteria"`
 	Body              string `json:"body"`
 	Mtime             int64  `json:"mtime"`
+	ChangedAt         string `json:"changed_at"`
 	ID                string `json:"id"`
 }
 
@@ -656,6 +667,7 @@ func (q *Queries) UpdateTaskCriteria(ctx context.Context, arg UpdateTaskCriteria
 		arg.CompletedCriteria,
 		arg.Body,
 		arg.Mtime,
+		arg.ChangedAt,
 		arg.ID,
 	)
 	return err
@@ -663,18 +675,19 @@ func (q *Queries) UpdateTaskCriteria(ctx context.Context, arg UpdateTaskCriteria
 
 const updateTaskStatus = `-- name: UpdateTaskStatus :exec
 UPDATE tasks
-SET status = ?, mtime = ?
+SET status = ?, mtime = ?, changed_at = ?
 WHERE id = ?
 `
 
 type UpdateTaskStatusParams struct {
-	Status string `json:"status"`
-	Mtime  int64  `json:"mtime"`
-	ID     string `json:"id"`
+	Status    string `json:"status"`
+	Mtime     int64  `json:"mtime"`
+	ChangedAt string `json:"changed_at"`
+	ID        string `json:"id"`
 }
 
 func (q *Queries) UpdateTaskStatus(ctx context.Context, arg UpdateTaskStatusParams) error {
-	_, err := q.db.ExecContext(ctx, updateTaskStatus, arg.Status, arg.Mtime, arg.ID)
+	_, err := q.db.ExecContext(ctx, updateTaskStatus, arg.Status, arg.Mtime, arg.ChangedAt, arg.ID)
 	return err
 }
 
@@ -794,9 +807,9 @@ func (q *Queries) UpsertStrategy(ctx context.Context, arg UpsertStrategyParams) 
 
 const upsertTask = `-- name: UpsertTask :exec
 INSERT INTO tasks (
-    id, title, status, priority, milestone_id, summary, body, total_criteria, completed_criteria, filepath, mtime
+    id, title, status, priority, milestone_id, summary, body, total_criteria, completed_criteria, filepath, mtime, created_at, changed_at, target_at
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 ) ON CONFLICT(id) DO UPDATE SET
     title = excluded.title,
     status = excluded.status,
@@ -807,7 +820,10 @@ INSERT INTO tasks (
     total_criteria = excluded.total_criteria,
     completed_criteria = excluded.completed_criteria,
     filepath = excluded.filepath,
-    mtime = excluded.mtime
+    mtime = excluded.mtime,
+    created_at = excluded.created_at,
+    changed_at = excluded.changed_at,
+    target_at = excluded.target_at
 `
 
 type UpsertTaskParams struct {
@@ -822,6 +838,9 @@ type UpsertTaskParams struct {
 	CompletedCriteria int64  `json:"completed_criteria"`
 	Filepath          string `json:"filepath"`
 	Mtime             int64  `json:"mtime"`
+	CreatedAt         string `json:"created_at"`
+	ChangedAt         string `json:"changed_at"`
+	TargetAt          string `json:"target_at"`
 }
 
 // Tasks
@@ -838,6 +857,9 @@ func (q *Queries) UpsertTask(ctx context.Context, arg UpsertTaskParams) error {
 		arg.CompletedCriteria,
 		arg.Filepath,
 		arg.Mtime,
+		arg.CreatedAt,
+		arg.ChangedAt,
+		arg.TargetAt,
 	)
 	return err
 }

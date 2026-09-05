@@ -2,7 +2,7 @@ import { useMemo, useState } from 'preact/hooks'
 import { navigateTo } from '../../router'
 import type { Task } from '../../schemas/models'
 import { mode, tasks } from '../../state/store'
-import { PriorityBadge, TagBadge } from '../common/Badge'
+import { PriorityBadge, TagBadge, TargetDateBadge } from '../common/Badge'
 
 interface TaskCardProps {
 	task: Task
@@ -120,40 +120,50 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 					</p>
 				)}
 
-				{/* Card Footer: Criteria, Tags */}
+				{/* Card Footer: Criteria, Target Date, Milestone, Tags */}
 				<div class='flex flex-wrap items-center justify-between gap-1.5 pt-1 border-t border-base-200/50 mt-auto text-xs w-full'>
-					{/* Checklist Progress */}
-					{criteriaProgress && (
-						<div class='flex items-center gap-1 text-[11px] text-base-content/60 font-medium'>
-							<svg
-								xmlns='http://www.w3.org/2000/svg'
-								class='size-3.5 text-primary'
-								fill='none'
-								viewBox='0 0 24 24'
-								stroke='currentColor'
-								aria-hidden='true'
-							>
-								<title>Checklist progress</title>
-								<path
-									stroke-linecap='round'
-									stroke-linejoin='round'
-									stroke-width='2'
-									d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
-								/>
-							</svg>
-							<span>{criteriaProgress}</span>
-						</div>
-					)}
+					<div class='flex flex-wrap items-center gap-1.5'>
+						{/* Checklist Progress */}
+						{criteriaProgress && (
+							<div class='flex items-center gap-1 text-[11px] text-base-content/60 font-medium'>
+								<svg
+									xmlns='http://www.w3.org/2000/svg'
+									class='size-3.5 text-primary'
+									fill='none'
+									viewBox='0 0 24 24'
+									stroke='currentColor'
+									aria-hidden='true'
+								>
+									<title>Checklist progress</title>
+									<path
+										stroke-linecap='round'
+										stroke-linejoin='round'
+										stroke-width='2'
+										d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
+									/>
+								</svg>
+								<span>{criteriaProgress}</span>
+							</div>
+						)}
 
-					{/* Milestone Tag */}
-					{task.milestone && (
-						<span
-							class='badge badge-xs badge-ghost text-[10px] text-base-content/60 truncate max-w-[120px]'
-							title={`Milestone: ${task.milestone}`}
-						>
-							{task.milestone}
-						</span>
-					)}
+						{/* Target Date Badge */}
+						{task.target_at && (
+							<TargetDateBadge
+								targetAt={task.target_at}
+								status={task.status}
+							/>
+						)}
+
+						{/* Milestone Tag */}
+						{task.milestone && (
+							<span
+								class='badge badge-xs badge-ghost text-[10px] text-base-content/60 truncate max-w-[120px]'
+								title={`Milestone: ${task.milestone}`}
+							>
+								{task.milestone}
+							</span>
+						)}
+					</div>
 
 					{/* Tags */}
 					{task.tags && task.tags.length > 0 && (

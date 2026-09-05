@@ -105,6 +105,41 @@ func TestMilestoneProgress(t *testing.T) {
 	}
 }
 
+func TestMilestoneTargetTimeframe(t *testing.T) {
+	ms := model.Milestone{
+		ID:     "260915-mvp",
+		Title:  "MVP Release",
+		Status: model.MilestoneStatusOpen,
+	}
+
+	tasks := []model.Task{
+		{ID: "t1", Milestone: "260915-mvp", TargetAt: "2026-09-10T00:00:00Z"},
+		{ID: "t2", Milestone: "260915-mvp", TargetAt: "2026-09-05T00:00:00Z"},
+		{ID: "t3", Milestone: "260915-mvp", TargetAt: "2026-09-20T00:00:00Z"},
+		{ID: "t4", Milestone: "other", TargetAt: "2026-09-01T00:00:00Z"},
+	}
+
+	ms.RecalculateProgress(tasks)
+	if ms.TargetStartAt != "2026-09-05T00:00:00Z" {
+		t.Errorf("expected TargetStartAt '2026-09-05T00:00:00Z', got %q", ms.TargetStartAt)
+	}
+	if ms.TargetEndAt != "2026-09-20T00:00:00Z" {
+		t.Errorf("expected TargetEndAt '2026-09-20T00:00:00Z', got %q", ms.TargetEndAt)
+	}
+	if ms.TargetTimeframe != "2026-09-05 – 2026-09-20" {
+		t.Errorf("expected TargetTimeframe '2026-09-05 – 2026-09-20', got %q", ms.TargetTimeframe)
+	}
+
+	// Single task target date
+	tasksSingle := []model.Task{
+		{ID: "t1", Milestone: "260915-mvp", TargetAt: "2026-09-15T00:00:00Z"},
+	}
+	ms.RecalculateProgress(tasksSingle)
+	if ms.TargetTimeframe != "2026-09-15" {
+		t.Errorf("expected single target date timeframe '2026-09-15', got %q", ms.TargetTimeframe)
+	}
+}
+
 func TestStrategy(t *testing.T) {
 	for _, tier := range model.ValidTiers {
 		if !tier.IsValid() {

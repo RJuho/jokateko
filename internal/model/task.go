@@ -39,6 +39,9 @@ type TaskFrontmatter struct {
 	Tags         []string `json:"tags" toml:"tags" yaml:"tags"`
 	Summary      string   `json:"summary" toml:"summary" yaml:"summary"`
 	Dependencies []string `json:"dependencies,omitempty" toml:"dependencies,omitempty" yaml:"dependencies,omitempty"`
+	CreatedAt    string   `json:"created_at,omitempty" toml:"created_at,omitempty" yaml:"created_at,omitempty"`
+	ChangedAt    string   `json:"changed_at,omitempty" toml:"changed_at,omitempty" yaml:"changed_at,omitempty"`
+	TargetAt     string   `json:"target_at,omitempty" toml:"target_at,omitempty" yaml:"target_at,omitempty"`
 }
 
 // Task represents a fully resolved actionable work item in Jokateko.
@@ -57,6 +60,9 @@ type Task struct {
 	CompletedCriteria int       `json:"completed_criteria,omitzero"`
 	FilePath          string    `json:"file_path,omitempty"`
 	ModTime           time.Time `json:"mod_time,omitzero"`
+	CreatedAt         string    `json:"created_at,omitempty"`
+	ChangedAt         string    `json:"changed_at,omitempty"`
+	TargetAt          string    `json:"target_at,omitempty"`
 }
 
 // Frontmatter returns the TaskFrontmatter representation of the task.
@@ -84,6 +90,9 @@ func (t Task) Frontmatter() TaskFrontmatter {
 		Tags:         tags,
 		Summary:      t.Summary,
 		Dependencies: deps,
+		CreatedAt:    t.CreatedAt,
+		ChangedAt:    t.ChangedAt,
+		TargetAt:     t.TargetAt,
 	}
 }
 

@@ -1,9 +1,9 @@
 -- Tasks
 -- name: UpsertTask :exec
 INSERT INTO tasks (
-    id, title, status, priority, milestone_id, summary, body, total_criteria, completed_criteria, filepath, mtime
+    id, title, status, priority, milestone_id, summary, body, total_criteria, completed_criteria, filepath, mtime, created_at, changed_at, target_at
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 ) ON CONFLICT(id) DO UPDATE SET
     title = excluded.title,
     status = excluded.status,
@@ -14,15 +14,18 @@ INSERT INTO tasks (
     total_criteria = excluded.total_criteria,
     completed_criteria = excluded.completed_criteria,
     filepath = excluded.filepath,
-    mtime = excluded.mtime;
+    mtime = excluded.mtime,
+    created_at = excluded.created_at,
+    changed_at = excluded.changed_at,
+    target_at = excluded.target_at;
 
 -- name: GetTask :one
-SELECT id, title, status, priority, milestone_id, summary, body, total_criteria, completed_criteria, filepath, mtime
+SELECT id, title, status, priority, milestone_id, summary, body, total_criteria, completed_criteria, filepath, mtime, created_at, changed_at, target_at
 FROM tasks
 WHERE id = ?;
 
 -- name: ListTasks :many
-SELECT id, title, status, priority, milestone_id, summary, body, total_criteria, completed_criteria, filepath, mtime
+SELECT id, title, status, priority, milestone_id, summary, body, total_criteria, completed_criteria, filepath, mtime, created_at, changed_at, target_at
 FROM tasks
 ORDER BY id ASC;
 
@@ -31,12 +34,12 @@ DELETE FROM tasks WHERE id = ?;
 
 -- name: UpdateTaskStatus :exec
 UPDATE tasks
-SET status = ?, mtime = ?
+SET status = ?, mtime = ?, changed_at = ?
 WHERE id = ?;
 
 -- name: UpdateTaskCriteria :exec
 UPDATE tasks
-SET total_criteria = ?, completed_criteria = ?, body = ?, mtime = ?
+SET total_criteria = ?, completed_criteria = ?, body = ?, mtime = ?, changed_at = ?
 WHERE id = ?;
 
 -- Dependencies
@@ -103,7 +106,9 @@ DELETE FROM milestones WHERE id = ?;
 -- name: GetMilestoneTaskMetrics :one
 SELECT
     COUNT(*) AS total_tasks,
-    COUNT(CASE WHEN status = 'done' THEN 1 END) AS completed_tasks
+    COUNT(CASE WHEN status = 'done' THEN 1 END) AS completed_tasks,
+    COALESCE(MIN(NULLIF(target_at, '')), '') AS target_start_at,
+    COALESCE(MAX(NULLIF(target_at, '')), '') AS target_end_at
 FROM tasks
 WHERE milestone_id = ?;
 

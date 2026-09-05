@@ -117,3 +117,77 @@ export function StatusPill({
 		</span>
 	)
 }
+
+interface TargetDateBadgeProps {
+	targetAt?: string | null
+	status?: string
+	className?: string
+}
+
+export function TargetDateBadge({
+	targetAt,
+	status,
+	className = '',
+}: TargetDateBadgeProps) {
+	if (!targetAt) return null
+
+	const date = new Date(targetAt)
+	if (isNaN(date.getTime())) return null
+
+	const formatted = date.toLocaleDateString(undefined, {
+		month: 'short',
+		day: 'numeric',
+		year:
+			date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+	})
+
+	const isDone = status === 'done'
+	let badgeClass = 'badge-ghost text-base-content/70'
+	let titleSuffix = ''
+
+	if (!isDone) {
+		const today = new Date()
+		today.setHours(0, 0, 0, 0)
+		const targetDay = new Date(date)
+		targetDay.setHours(0, 0, 0, 0)
+		const diffDays = Math.ceil(
+			(targetDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+		)
+
+		if (diffDays < 0) {
+			badgeClass = 'badge-error text-error-content'
+			titleSuffix = ' (Overdue)'
+		} else if (diffDays <= 3) {
+			badgeClass = 'badge-warning text-warning-content'
+			titleSuffix = ' (Approaching)'
+		}
+	} else {
+		badgeClass = 'badge-ghost text-base-content/40'
+	}
+
+	return (
+		<span
+			class={`badge badge-xs gap-1 font-medium text-[10px] px-1.5 py-0.5 ${badgeClass} ${className}`}
+			title={`Target: ${targetAt}${titleSuffix}`}
+			data-testid='target-date-badge'
+		>
+			<svg
+				xmlns='http://www.w3.org/2000/svg'
+				class='size-3'
+				fill='none'
+				viewBox='0 0 24 24'
+				stroke='currentColor'
+				aria-hidden='true'
+			>
+				<title>Target date</title>
+				<path
+					stroke-linecap='round'
+					stroke-linejoin='round'
+					stroke-width='2'
+					d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'
+				/>
+			</svg>
+			<span>{formatted}</span>
+		</span>
+	)
+}

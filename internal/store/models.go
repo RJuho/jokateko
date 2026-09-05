@@ -60,6 +60,9 @@ type Task struct {
 	CompletedCriteria int64  `json:"completed_criteria"`
 	Filepath          string `json:"filepath"`
 	Mtime             int64  `json:"mtime"`
+	CreatedAt         string `json:"created_at"`
+	ChangedAt         string `json:"changed_at"`
+	TargetAt          string `json:"target_at"`
 }
 
 type TaskDependency struct {

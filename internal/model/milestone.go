@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"math"
 	"slices"
 	"time"
@@ -30,6 +31,9 @@ type Milestone struct {
 	Status             MilestoneStatus `json:"status"`
 	IsArchived         bool            `json:"is_archived"`
 	TargetDate         string          `json:"target_date,omitempty"`
+	TargetStartAt      string          `json:"target_start_at,omitempty"`
+	TargetEndAt        string          `json:"target_end_at,omitempty"`
+	TargetTimeframe    string          `json:"target_timeframe,omitempty"`
 	Tags               []string        `json:"tags"`
 	Summary            string          `json:"summary"`
 	Body               string          `json:"body,omitempty"`
@@ -63,10 +67,11 @@ func (m Milestone) Frontmatter() MilestoneFrontmatter {
 }
 
 // RecalculateProgress updates TotalTasks, CompletedTasks, ProgressPercentage,
-// and auto-archive status based on the assigned tasks.
+// auto-archive status, and derives target timeframe based on the assigned tasks.
 func (m *Milestone) RecalculateProgress(tasks []Task) {
 	total := 0
 	completed := 0
+	var minTarget, maxTarget string
 
 	for _, t := range tasks {
 		if t.Milestone == m.ID {
@@ -74,11 +79,38 @@ func (m *Milestone) RecalculateProgress(tasks []Task) {
 			if t.IsDone() {
 				completed++
 			}
+			if t.TargetAt != "" {
+				if minTarget == "" || t.TargetAt < minTarget {
+					minTarget = t.TargetAt
+				}
+				if maxTarget == "" || t.TargetAt > maxTarget {
+					maxTarget = t.TargetAt
+				}
+			}
 		}
 	}
 
 	m.TotalTasks = total
 	m.CompletedTasks = completed
+	m.TargetStartAt = minTarget
+	m.TargetEndAt = maxTarget
+
+	if minTarget != "" && maxTarget != "" {
+		startPart := formatTimeframePart(minTarget)
+		endPart := formatTimeframePart(maxTarget)
+		if startPart == endPart {
+			m.TargetTimeframe = startPart
+		} else {
+			m.TargetTimeframe = fmt.Sprintf("%s – %s", startPart, endPart)
+		}
+	} else if m.TargetDate != "" {
+		m.TargetTimeframe = m.TargetDate
+		if m.TargetEndAt == "" {
+			m.TargetEndAt = m.TargetDate
+		}
+	} else {
+		m.TargetTimeframe = ""
+	}
 
 	if total > 0 {
 		pct := (float64(completed) / float64(total)) * 100.0
@@ -94,6 +126,13 @@ func (m *Milestone) RecalculateProgress(tasks []Task) {
 		m.ProgressPercentage = 0.0
 		m.IsArchived = false
 	}
+}
+
+func formatTimeframePart(s string) string {
+	if len(s) >= 10 && s[4] == '-' && s[7] == '-' {
+		return s[:10]
+	}
+	return s
 }
 
 // HasTag returns true if the milestone has the given tag.

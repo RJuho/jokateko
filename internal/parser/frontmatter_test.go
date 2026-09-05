@@ -266,3 +266,75 @@ func TestFormatRoundTrip(t *testing.T) {
 		t.Errorf("expected body %q, got %q", originalTask.Body, parsedTask.Body)
 	}
 }
+
+func TestNormalizeTimestamp(t *testing.T) {
+	cases := []struct {
+		input    string
+		expected string
+		hasErr   bool
+	}{
+		{"", "", false},
+		{"   ", "", false},
+		{"2026-09-08", "2026-09-08T00:00:00Z", false},
+		{"2026-09-08T15:04:05Z", "2026-09-08T15:04:05Z", false},
+		{"2026-09-08T15:04:05+02:00", "2026-09-08T13:04:05Z", false},
+		{"invalid-date", "", true},
+	}
+
+	for _, c := range cases {
+		out, err := parser.NormalizeTimestamp(c.input)
+		if c.hasErr && err == nil {
+			t.Errorf("expected error for input %q, got nil", c.input)
+		}
+		if !c.hasErr && err != nil {
+			t.Errorf("unexpected error for input %q: %v", c.input, err)
+		}
+		if out != c.expected {
+			t.Errorf("for input %q: expected %q, got %q", c.input, c.expected, out)
+		}
+	}
+}
+
+func TestTaskTimestampsParsingAndFallback(t *testing.T) {
+	// Case 1: Task with explicit timestamps
+	docWithTimestamps := `+++
+title = "Task with Timestamps"
+summary = "Has created_at, changed_at, target_at"
+created_at = "2026-09-04T12:00:00Z"
+changed_at = "2026-09-05T14:30:00Z"
+target_at = "2026-09-10T00:00:00Z"
++++
+# Body
+`
+	task1, err := parser.ParseTask([]byte(docWithTimestamps), "260904-explicit")
+	if err != nil {
+		t.Fatalf("failed to parse task with timestamps: %v", err)
+	}
+	if task1.CreatedAt != "2026-09-04T12:00:00Z" {
+		t.Errorf("expected CreatedAt '2026-09-04T12:00:00Z', got %q", task1.CreatedAt)
+	}
+	if task1.ChangedAt != "2026-09-05T14:30:00Z" {
+		t.Errorf("expected ChangedAt '2026-09-05T14:30:00Z', got %q", task1.ChangedAt)
+	}
+	if task1.TargetAt != "2026-09-10T00:00:00Z" {
+		t.Errorf("expected TargetAt '2026-09-10T00:00:00Z', got %q", task1.TargetAt)
+	}
+
+	// Case 2: Legacy task without timestamps - fallback to YYMMDD
+	docLegacy := `+++
+title = "Legacy Task"
+summary = "No timestamps in frontmatter"
++++
+# Body
+`
+	task2, err := parser.ParseTask([]byte(docLegacy), "260901-legacy")
+	if err != nil {
+		t.Fatalf("failed to parse legacy task: %v", err)
+	}
+	if task2.CreatedAt != "2026-09-01T00:00:00Z" {
+		t.Errorf("expected fallback CreatedAt '2026-09-01T00:00:00Z', got %q", task2.CreatedAt)
+	}
+	if task2.ChangedAt != "2026-09-01T00:00:00Z" {
+		t.Errorf("expected fallback ChangedAt '2026-09-01T00:00:00Z', got %q", task2.ChangedAt)
+	}
+}

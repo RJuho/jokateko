@@ -27,6 +27,9 @@ export const TaskSchema = v.object({
 	completed_criteria: v.optional(v.number(), 0),
 	file_path: v.optional(v.string()),
 	mod_time: v.optional(v.string()),
+	created_at: v.optional(v.string(), ''),
+	changed_at: v.optional(v.string(), ''),
+	target_at: v.optional(v.string(), ''),
 })
 
 export const MilestoneSchema = v.object({
@@ -35,6 +38,9 @@ export const MilestoneSchema = v.object({
 	status: v.optional(MilestoneStatusSchema, 'open'),
 	is_archived: v.optional(v.boolean(), false),
 	target_date: v.optional(v.nullish(v.string())),
+	target_start_at: v.optional(v.string(), ''),
+	target_end_at: v.optional(v.string(), ''),
+	target_timeframe: v.optional(v.string(), ''),
 	tags: v.optional(v.array(v.string()), []),
 	summary: v.optional(v.string(), ''),
 	body: v.optional(v.string(), ''),

@@ -71,8 +71,16 @@ export function MilestonesView() {
 										{m.status}
 									</span>
 
-									{m.target_date && (
-										<div class='flex items-center gap-1 text-[11px] font-mono text-base-content/60'>
+									{(m.target_timeframe || m.target_date) && (
+										<div
+											class='flex items-center gap-1 text-[11px] font-mono text-base-content/60'
+											data-testid={`milestone-timeframe-${m.id}`}
+											title={
+												m.target_timeframe && m.target_date
+													? `Target: ${m.target_date} (Task Timeframe: ${m.target_timeframe})`
+													: `Target: ${m.target_timeframe || m.target_date}`
+											}
+										>
 											<svg
 												xmlns='http://www.w3.org/2000/svg'
 												class='size-3.5'
@@ -89,7 +97,7 @@ export function MilestonesView() {
 													d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'
 												/>
 											</svg>
-											<span>{m.target_date}</span>
+											<span>{m.target_timeframe || m.target_date}</span>
 										</div>
 									)}
 								</div>

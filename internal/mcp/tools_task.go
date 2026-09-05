@@ -36,6 +36,9 @@ type TaskSummary struct {
 	Dependencies      []string       `json:"dependencies,omitempty"`
 	TotalCriteria     int            `json:"total_criteria"`
 	CompletedCriteria int            `json:"completed_criteria"`
+	CreatedAt         string         `json:"created_at,omitempty"`
+	ChangedAt         string         `json:"changed_at,omitempty"`
+	TargetAt          string         `json:"target_at,omitempty"`
 }
 
 type GetTaskInput struct {
@@ -55,6 +58,9 @@ type TaskDetail struct {
 	TotalCriteria     int            `json:"total_criteria"`
 	CompletedCriteria int            `json:"completed_criteria"`
 	FilePath          string         `json:"file_path,omitempty"`
+	CreatedAt         string         `json:"created_at,omitempty"`
+	ChangedAt         string         `json:"changed_at,omitempty"`
+	TargetAt          string         `json:"target_at,omitempty"`
 }
 
 type ListTaskItemsInput struct {
@@ -98,6 +104,7 @@ type CreateTaskInput struct {
 	Tags            []string `json:"tags,omitempty" jsonschema:"Categorization tags"`
 	Summary         string   `json:"summary" jsonschema:"required,1-2 sentence high-level summary"`
 	Dependencies    []string `json:"dependencies,omitempty" jsonschema:"Slugs of blocking tasks"`
+	TargetAt        string   `json:"target_at,omitempty" jsonschema:"Target delivery/due date in RFC3339 UTC or YYYY-MM-DD format"`
 	Body            string   `json:"body" jsonschema:"required,Markdown body with acceptance criteria"`
 }
 
@@ -143,6 +150,7 @@ type UpdateTaskContentInput struct {
 	ReopenMilestone bool      `json:"reopen_milestone,omitempty" jsonschema:"Set true if target milestone is already completed"`
 	Tags            *[]string `json:"tags,omitempty" jsonschema:"New tag list"`
 	Dependencies    *[]string `json:"dependencies,omitempty" jsonschema:"New dependency slugs"`
+	TargetAt        *string   `json:"target_at,omitempty" jsonschema:"Updated target delivery/due date in RFC3339 UTC or YYYY-MM-DD format"`
 	Body            *string   `json:"body,omitempty" jsonschema:"New markdown body"`
 }
 
@@ -284,6 +292,9 @@ func (s *Server) toolListTasks(ctx context.Context, _ *mcp.CallToolRequest, in L
 			Dependencies:      t.Dependencies,
 			TotalCriteria:     t.TotalCriteria,
 			CompletedCriteria: t.CompletedCriteria,
+			CreatedAt:         t.CreatedAt,
+			ChangedAt:         t.ChangedAt,
+			TargetAt:          t.TargetAt,
 		})
 	}
 
@@ -317,6 +328,9 @@ func (s *Server) toolGetTask(ctx context.Context, _ *mcp.CallToolRequest, in Get
 		TotalCriteria:     task.TotalCriteria,
 		CompletedCriteria: task.CompletedCriteria,
 		FilePath:          task.FilePath,
+		CreatedAt:         task.CreatedAt,
+		ChangedAt:         task.ChangedAt,
+		TargetAt:          task.TargetAt,
 	}, nil
 }
 
@@ -371,6 +385,11 @@ func (s *Server) toolUpdateTaskItem(ctx context.Context, _ *mcp.CallToolRequest,
 		return nil, nil, fmt.Errorf("failed to update checkbox item: %w", err)
 	}
 
+	if task.CreatedAt == "" {
+		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
+	}
+	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
+
 	fm := model.TaskFrontmatter{
 		Title:        task.Title,
 		Status:       task.Status,
@@ -379,6 +398,9 @@ func (s *Server) toolUpdateTaskItem(ctx context.Context, _ *mcp.CallToolRequest,
 		Tags:         task.Tags,
 		Summary:      task.Summary,
 		Dependencies: task.Dependencies,
+		CreatedAt:    task.CreatedAt,
+		ChangedAt:    task.ChangedAt,
+		TargetAt:     task.TargetAt,
 	}
 
 	fileBytes, err := parser.Format(fm, newBody)
@@ -478,6 +500,12 @@ func (s *Server) toolCreateTask(ctx context.Context, _ *mcp.CallToolRequest, in 
 		deps = []string{}
 	}
 
+	targetAt, err := parser.NormalizeTimestamp(in.TargetAt)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid target_at format: %w", err)
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
 	id := fmt.Sprintf("%s-%s", time.Now().Format("060102"), slugify(title))
 	fm := model.TaskFrontmatter{
 		Title:        title,
@@ -487,6 +515,9 @@ func (s *Server) toolCreateTask(ctx context.Context, _ *mcp.CallToolRequest, in 
 		Tags:         tags,
 		Summary:      summary,
 		Dependencies: deps,
+		CreatedAt:    now,
+		ChangedAt:    now,
+		TargetAt:     targetAt,
 	}
 
 	fileBytes, err := parser.Format(fm, in.Body)
@@ -514,6 +545,9 @@ func (s *Server) toolCreateTask(ctx context.Context, _ *mcp.CallToolRequest, in 
 		CompletedCriteria: completed,
 		FilePath:          filePath,
 		ModTime:           time.Now(),
+		CreatedAt:         now,
+		ChangedAt:         now,
+		TargetAt:          targetAt,
 	}
 
 	if err := s.store.UpsertTask(ctx, task); err != nil {
@@ -533,6 +567,9 @@ func (s *Server) toolCreateTask(ctx context.Context, _ *mcp.CallToolRequest, in 
 		TotalCriteria:     task.TotalCriteria,
 		CompletedCriteria: task.CompletedCriteria,
 		FilePath:          task.FilePath,
+		CreatedAt:         task.CreatedAt,
+		ChangedAt:         task.ChangedAt,
+		TargetAt:          task.TargetAt,
 	}, nil
 }
 
@@ -561,6 +598,11 @@ func (s *Server) toolUpdateTaskStatus(ctx context.Context, _ *mcp.CallToolReques
 	}
 
 	task.Status = status
+	if task.CreatedAt == "" {
+		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
+	}
+	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
+
 	fm := model.TaskFrontmatter{
 		Title:        task.Title,
 		Status:       task.Status,
@@ -569,6 +611,9 @@ func (s *Server) toolUpdateTaskStatus(ctx context.Context, _ *mcp.CallToolReques
 		Tags:         task.Tags,
 		Summary:      task.Summary,
 		Dependencies: task.Dependencies,
+		CreatedAt:    task.CreatedAt,
+		ChangedAt:    task.ChangedAt,
+		TargetAt:     task.TargetAt,
 	}
 
 	fileBytes, err := parser.Format(fm, task.Body)
@@ -656,6 +701,11 @@ func (s *Server) toolCompleteTask(ctx context.Context, _ *mcp.CallToolRequest, i
 	task.CompletedCriteria = completed
 	task.ModTime = time.Now()
 
+	if task.CreatedAt == "" {
+		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
+	}
+	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
+
 	fm := model.TaskFrontmatter{
 		Title:        task.Title,
 		Status:       task.Status,
@@ -664,6 +714,9 @@ func (s *Server) toolCompleteTask(ctx context.Context, _ *mcp.CallToolRequest, i
 		Tags:         task.Tags,
 		Summary:      task.Summary,
 		Dependencies: task.Dependencies,
+		CreatedAt:    task.CreatedAt,
+		ChangedAt:    task.ChangedAt,
+		TargetAt:     task.TargetAt,
 	}
 
 	fileBytes, err := parser.Format(fm, newBody)
@@ -771,6 +824,13 @@ func (s *Server) toolUpdateTaskContent(ctx context.Context, _ *mcp.CallToolReque
 	if in.Dependencies != nil {
 		task.Dependencies = *in.Dependencies
 	}
+	if in.TargetAt != nil {
+		targetAt, err := parser.NormalizeTimestamp(*in.TargetAt)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid target_at format: %w", err)
+		}
+		task.TargetAt = targetAt
+	}
 	if in.Body != nil && *in.Body != task.Body {
 		if !s.cfg.IsTaskEditable(task.Status) && !parser.IsOnlyCheckboxToggle(task.Body, *in.Body) {
 			editable := s.cfg.Board.EditableStates
@@ -787,6 +847,11 @@ func (s *Server) toolUpdateTaskContent(ctx context.Context, _ *mcp.CallToolReque
 	task.CompletedCriteria = completed
 	task.ModTime = time.Now()
 
+	if task.CreatedAt == "" {
+		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
+	}
+	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
+
 	fm := model.TaskFrontmatter{
 		Title:        task.Title,
 		Status:       task.Status,
@@ -795,6 +860,9 @@ func (s *Server) toolUpdateTaskContent(ctx context.Context, _ *mcp.CallToolReque
 		Tags:         task.Tags,
 		Summary:      task.Summary,
 		Dependencies: task.Dependencies,
+		CreatedAt:    task.CreatedAt,
+		ChangedAt:    task.ChangedAt,
+		TargetAt:     task.TargetAt,
 	}
 
 	fileBytes, err := parser.Format(fm, task.Body)
@@ -828,6 +896,9 @@ func (s *Server) toolUpdateTaskContent(ctx context.Context, _ *mcp.CallToolReque
 		TotalCriteria:     task.TotalCriteria,
 		CompletedCriteria: task.CompletedCriteria,
 		FilePath:          task.FilePath,
+		CreatedAt:         task.CreatedAt,
+		ChangedAt:         task.ChangedAt,
+		TargetAt:          task.TargetAt,
 	}, nil
 }
 
@@ -978,7 +1049,10 @@ func (s *Server) toolAddTaskDependency(ctx context.Context, _ *mcp.CallToolReque
 	}
 
 	task.Dependencies = append(task.Dependencies, depID)
-	task.ModTime = time.Now()
+	if task.CreatedAt == "" {
+		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
+	}
+	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
 
 	fm := model.TaskFrontmatter{
 		Title:        task.Title,
@@ -988,6 +1062,9 @@ func (s *Server) toolAddTaskDependency(ctx context.Context, _ *mcp.CallToolReque
 		Tags:         task.Tags,
 		Summary:      task.Summary,
 		Dependencies: task.Dependencies,
+		CreatedAt:    task.CreatedAt,
+		ChangedAt:    task.ChangedAt,
+		TargetAt:     task.TargetAt,
 	}
 
 	fileBytes, err := parser.Format(fm, task.Body)
@@ -1046,7 +1123,10 @@ func (s *Server) toolRemoveTaskDependency(ctx context.Context, _ *mcp.CallToolRe
 	}
 
 	task.Dependencies = slices.Delete(task.Dependencies, idx, idx+1)
-	task.ModTime = time.Now()
+	if task.CreatedAt == "" {
+		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
+	}
+	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
 
 	fm := model.TaskFrontmatter{
 		Title:        task.Title,
@@ -1056,6 +1136,9 @@ func (s *Server) toolRemoveTaskDependency(ctx context.Context, _ *mcp.CallToolRe
 		Tags:         task.Tags,
 		Summary:      task.Summary,
 		Dependencies: task.Dependencies,
+		CreatedAt:    task.CreatedAt,
+		ChangedAt:    task.ChangedAt,
+		TargetAt:     task.TargetAt,
 	}
 
 	fileBytes, err := parser.Format(fm, task.Body)
@@ -1119,6 +1202,10 @@ func (s *Server) toolAddTaskNote(ctx context.Context, _ *mcp.CallToolRequest, in
 	task.TotalCriteria = total
 	task.CompletedCriteria = completed
 	task.ModTime = time.Now()
+	if task.CreatedAt == "" {
+		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
+	}
+	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
 
 	fm := model.TaskFrontmatter{
 		Title:        task.Title,
@@ -1128,6 +1215,9 @@ func (s *Server) toolAddTaskNote(ctx context.Context, _ *mcp.CallToolRequest, in
 		Tags:         task.Tags,
 		Summary:      task.Summary,
 		Dependencies: task.Dependencies,
+		CreatedAt:    task.CreatedAt,
+		ChangedAt:    task.ChangedAt,
+		TargetAt:     task.TargetAt,
 	}
 
 	fileBytes, err := parser.Format(fm, task.Body)

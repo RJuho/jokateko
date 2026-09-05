@@ -43,6 +43,9 @@ export function TaskEditModal() {
 	const [status, setStatus] = useState(task.status)
 	const [priority, setPriority] = useState<Priority>(task.priority)
 	const [milestone, setMilestone] = useState(task.milestone || '')
+	const [targetAt, setTargetAt] = useState(
+		task.target_at ? task.target_at.slice(0, 10) : '',
+	)
 	const [tagsStr, setTagsStr] = useState((task.tags || []).join(', '))
 	const [depsStr, setDepsStr] = useState((task.dependencies || []).join(', '))
 	const [body, setBody] = useState(task.body || '')
@@ -82,6 +85,7 @@ export function TaskEditModal() {
 			status,
 			priority,
 			milestone: milestone.trim() === '' ? null : milestone.trim(),
+			target_at: targetAt.trim() === '' ? '' : targetAt.trim(),
 			tags: parsedTags,
 			dependencies: parsedDeps,
 			body: isBodyEditable ? body : task.body,
@@ -101,6 +105,8 @@ export function TaskEditModal() {
 				status,
 				priority,
 				milestone: milestone.trim() === '' ? null : milestone.trim(),
+				target_at: targetAt.trim() === '' ? '' : targetAt.trim(),
+				changed_at: new Date().toISOString(),
 				tags: parsedTags,
 				dependencies: parsedDeps,
 				body,
@@ -223,8 +229,8 @@ export function TaskEditModal() {
 						/>
 					</div>
 
-					{/* Column, Priority & Milestone Row */}
-					<div class='grid grid-cols-1 sm:grid-cols-3 gap-2.5'>
+					{/* Column, Priority, Milestone & Target Date Row */}
+					<div class='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5'>
 						<div>
 							<label
 								for='task-edit-status'
@@ -317,6 +323,26 @@ export function TaskEditModal() {
 									</option>
 								))}
 							</select>
+						</div>
+
+						<div>
+							<label
+								for='task-edit-target-at'
+								class='label py-1 text-xs font-semibold'
+							>
+								Target Date
+							</label>
+							<input
+								id='task-edit-target-at'
+								type='date'
+								value={targetAt}
+								onInput={(e) =>
+									setTargetAt((e.target as HTMLInputElement).value)
+								}
+								class='input input-sm input-bordered w-full rounded-lg'
+								aria-label='Target date'
+								data-testid='task-edit-target-at-input'
+							/>
 						</div>
 					</div>
 

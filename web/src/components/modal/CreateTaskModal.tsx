@@ -43,6 +43,7 @@ export function CreateTaskModal() {
 	)
 	const [priority, setPriority] = useState<Priority>('medium')
 	const [milestone, setMilestone] = useState('')
+	const [targetAt, setTargetAt] = useState('')
 	const [tagsStr, setTagsStr] = useState('')
 	const [depsStr, setDepsStr] = useState('')
 	const [body, setBody] = useState('')
@@ -79,6 +80,7 @@ export function CreateTaskModal() {
 			status,
 			priority,
 			milestone: milestone.trim() === '' ? undefined : milestone.trim(),
+			target_at: targetAt.trim() === '' ? undefined : targetAt.trim(),
 			tags: parsedTags,
 			dependencies: parsedDeps,
 			body,
@@ -91,6 +93,7 @@ export function CreateTaskModal() {
 			const completed = body
 				.split('\n')
 				.filter((l) => /^\s*-\s*\[[xX]\]/.test(l)).length
+			const now = new Date().toISOString()
 			const createdTask: Task = {
 				id: `task-${Date.now().toString(36)}`,
 				title: title.trim(),
@@ -98,11 +101,14 @@ export function CreateTaskModal() {
 				status,
 				priority,
 				milestone: milestone.trim() === '' ? undefined : milestone.trim(),
+				target_at: targetAt.trim() === '' ? undefined : targetAt.trim(),
 				tags: parsedTags,
 				dependencies: parsedDeps,
 				body,
 				total_criteria: total,
 				completed_criteria: completed,
+				created_at: now,
+				changed_at: now,
 			}
 			upsertTask(createdTask)
 			closeModal()
@@ -222,8 +228,8 @@ export function CreateTaskModal() {
 						/>
 					</div>
 
-					{/* Column, Priority & Milestone Row */}
-					<div class='grid grid-cols-1 sm:grid-cols-3 gap-2.5'>
+					{/* Column, Priority, Milestone & Target Date Row */}
+					<div class='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5'>
 						<div>
 							<label
 								for='task-create-status'
@@ -316,6 +322,26 @@ export function CreateTaskModal() {
 									</option>
 								))}
 							</select>
+						</div>
+
+						<div>
+							<label
+								for='task-create-target-at'
+								class='label py-1 text-xs font-semibold'
+							>
+								Target Date
+							</label>
+							<input
+								id='task-create-target-at'
+								type='date'
+								value={targetAt}
+								onInput={(e) =>
+									setTargetAt((e.target as HTMLInputElement).value)
+								}
+								class='input input-sm input-bordered w-full rounded-lg'
+								aria-label='Select target date'
+								data-testid='task-create-target-at-input'
+							/>
 						</div>
 					</div>
 

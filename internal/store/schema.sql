@@ -12,7 +12,10 @@ CREATE TABLE IF NOT EXISTS tasks (
     total_criteria INTEGER NOT NULL DEFAULT 0,
     completed_criteria INTEGER NOT NULL DEFAULT 0,
     filepath TEXT NOT NULL DEFAULT '',
-    mtime INTEGER NOT NULL DEFAULT 0
+    mtime INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT '',
+    changed_at TEXT NOT NULL DEFAULT '',
+    target_at TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);

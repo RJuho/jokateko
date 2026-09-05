@@ -66,6 +66,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		Tags         []string       `json:"tags"`
 		Summary      string         `json:"summary"`
 		Dependencies []string       `json:"dependencies"`
+		TargetAt     string         `json:"target_at"`
 		Body         string         `json:"body"`
 	}
 
@@ -83,6 +84,12 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	summary := strings.TrimSpace(req.Summary)
 	if summary == "" {
 		writeError(w, http.StatusBadRequest, "summary is required")
+		return
+	}
+
+	targetAt, err := parser.NormalizeTimestamp(req.TargetAt)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid target_at format: %v", err))
 		return
 	}
 
@@ -117,6 +124,8 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		deps = []string{}
 	}
 
+	now := time.Now().UTC().Format(time.RFC3339)
+
 	fm := model.TaskFrontmatter{
 		Title:        title,
 		Status:       status,
@@ -125,6 +134,9 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		Tags:         tags,
 		Summary:      summary,
 		Dependencies: deps,
+		CreatedAt:    now,
+		ChangedAt:    now,
+		TargetAt:     targetAt,
 	}
 
 	fileBytes, err := parser.Format(fm, req.Body)
@@ -161,6 +173,9 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		CompletedCriteria: completed,
 		FilePath:          filePath,
 		ModTime:           time.Now(),
+		CreatedAt:         now,
+		ChangedAt:         now,
+		TargetAt:          targetAt,
 	}
 
 	if err := s.store.UpsertTask(r.Context(), task); err != nil {
@@ -197,6 +212,7 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		Tags         *[]string       `json:"tags"`
 		Summary      *string         `json:"summary"`
 		Dependencies *[]string       `json:"dependencies"`
+		TargetAt     *string         `json:"target_at"`
 		Body         *string         `json:"body"`
 	}
 
@@ -226,6 +242,14 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	if req.Dependencies != nil {
 		existing.Dependencies = *req.Dependencies
 	}
+	if req.TargetAt != nil {
+		targetAt, err := parser.NormalizeTimestamp(*req.TargetAt)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid target_at format: %v", err))
+			return
+		}
+		existing.TargetAt = targetAt
+	}
 	if req.Body != nil && *req.Body != existing.Body {
 		targetStatus := existing.Status
 		if req.Status != nil && *req.Status != "" {
@@ -242,6 +266,11 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		existing.Body = *req.Body
 	}
 
+	if existing.CreatedAt == "" {
+		existing.CreatedAt = parser.DeriveFallbackCreatedAt(id, existing.ModTime)
+	}
+	existing.ChangedAt = time.Now().UTC().Format(time.RFC3339)
+
 	fm := model.TaskFrontmatter{
 		Title:        existing.Title,
 		Status:       existing.Status,
@@ -250,6 +279,9 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		Tags:         existing.Tags,
 		Summary:      existing.Summary,
 		Dependencies: existing.Dependencies,
+		CreatedAt:    existing.CreatedAt,
+		ChangedAt:    existing.ChangedAt,
+		TargetAt:     existing.TargetAt,
 	}
 
 	fileBytes, err := parser.Format(fm, existing.Body)
@@ -438,6 +470,10 @@ func (s *Server) handleAddTaskDependency(w http.ResponseWriter, r *http.Request)
 
 	existing.Dependencies = append(existing.Dependencies, depID)
 	existing.ModTime = time.Now()
+	if existing.CreatedAt == "" {
+		existing.CreatedAt = parser.DeriveFallbackCreatedAt(id, existing.ModTime)
+	}
+	existing.ChangedAt = time.Now().UTC().Format(time.RFC3339)
 
 	fm := model.TaskFrontmatter{
 		Title:        existing.Title,
@@ -447,6 +483,9 @@ func (s *Server) handleAddTaskDependency(w http.ResponseWriter, r *http.Request)
 		Tags:         existing.Tags,
 		Summary:      existing.Summary,
 		Dependencies: existing.Dependencies,
+		CreatedAt:    existing.CreatedAt,
+		ChangedAt:    existing.ChangedAt,
+		TargetAt:     existing.TargetAt,
 	}
 
 	fileBytes, err := parser.Format(fm, existing.Body)
@@ -510,6 +549,10 @@ func (s *Server) handleRemoveTaskDependency(w http.ResponseWriter, r *http.Reque
 
 	existing.Dependencies = slices.Delete(existing.Dependencies, idx, idx+1)
 	existing.ModTime = time.Now()
+	if existing.CreatedAt == "" {
+		existing.CreatedAt = parser.DeriveFallbackCreatedAt(id, existing.ModTime)
+	}
+	existing.ChangedAt = time.Now().UTC().Format(time.RFC3339)
 
 	fm := model.TaskFrontmatter{
 		Title:        existing.Title,
@@ -519,6 +562,9 @@ func (s *Server) handleRemoveTaskDependency(w http.ResponseWriter, r *http.Reque
 		Tags:         existing.Tags,
 		Summary:      existing.Summary,
 		Dependencies: existing.Dependencies,
+		CreatedAt:    existing.CreatedAt,
+		ChangedAt:    existing.ChangedAt,
+		TargetAt:     existing.TargetAt,
 	}
 
 	fileBytes, err := parser.Format(fm, existing.Body)
@@ -593,6 +639,10 @@ func (s *Server) handleAddTaskNote(w http.ResponseWriter, r *http.Request) {
 	existing.TotalCriteria = total
 	existing.CompletedCriteria = completed
 	existing.ModTime = time.Now()
+	if existing.CreatedAt == "" {
+		existing.CreatedAt = parser.DeriveFallbackCreatedAt(id, existing.ModTime)
+	}
+	existing.ChangedAt = time.Now().UTC().Format(time.RFC3339)
 	bodyHTML, _ := parser.RenderHTML([]byte(newBody))
 	existing.BodyHTML = bodyHTML
 
@@ -604,6 +654,9 @@ func (s *Server) handleAddTaskNote(w http.ResponseWriter, r *http.Request) {
 		Tags:         existing.Tags,
 		Summary:      existing.Summary,
 		Dependencies: existing.Dependencies,
+		CreatedAt:    existing.CreatedAt,
+		ChangedAt:    existing.ChangedAt,
+		TargetAt:     existing.TargetAt,
 	}
 
 	fileBytes, err := parser.Format(fm, existing.Body)
@@ -676,6 +729,10 @@ func (s *Server) handleUpdateTaskStatus(w http.ResponseWriter, r *http.Request) 
 	}
 
 	existing.Status = targetStatus
+	if existing.CreatedAt == "" {
+		existing.CreatedAt = parser.DeriveFallbackCreatedAt(id, existing.ModTime)
+	}
+	existing.ChangedAt = time.Now().UTC().Format(time.RFC3339)
 
 	fm := model.TaskFrontmatter{
 		Title:        existing.Title,
@@ -685,6 +742,9 @@ func (s *Server) handleUpdateTaskStatus(w http.ResponseWriter, r *http.Request) 
 		Tags:         existing.Tags,
 		Summary:      existing.Summary,
 		Dependencies: existing.Dependencies,
+		CreatedAt:    existing.CreatedAt,
+		ChangedAt:    existing.ChangedAt,
+		TargetAt:     existing.TargetAt,
 	}
 
 	fileBytes, err := parser.Format(fm, existing.Body)

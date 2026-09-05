@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/RJuho/jokateko/internal/model"
 	"github.com/pelletier/go-toml/v2"
@@ -111,6 +112,53 @@ func ParseFrontmatter[T any](content []byte, target *T) (body []byte, delim stri
 	return bodyBytes, d, line, nil
 }
 
+// NormalizeTimestamp parses an RFC3339, RFC3339Nano, or YYYY-MM-DD date string and formats it as RFC3339 UTC ("YYYY-MM-DDTHH:MM:SSZ").
+func NormalizeTimestamp(s string) (string, error) {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return "", nil
+	}
+	if t, err := time.Parse(time.RFC3339, trimmed); err == nil {
+		return t.UTC().Format(time.RFC3339), nil
+	}
+	if t, err := time.Parse(time.RFC3339Nano, trimmed); err == nil {
+		return t.UTC().Format(time.RFC3339), nil
+	}
+	if t, err := time.Parse(time.DateOnly, trimmed); err == nil {
+		return t.UTC().Format(time.RFC3339), nil
+	}
+	if t, err := time.Parse("2006-01-02 15:04:05", trimmed); err == nil {
+		return t.UTC().Format(time.RFC3339), nil
+	}
+	return "", fmt.Errorf("invalid timestamp format: %q (expected RFC3339 or YYYY-MM-DD)", trimmed)
+}
+
+// DeriveFallbackCreatedAt derives a backward-compatible created_at timestamp
+// from the task ID's YYMMDD prefix, falling back to mtime or now if unavailable.
+func DeriveFallbackCreatedAt(id string, modTime time.Time) string {
+	if len(id) >= 6 {
+		if t, err := time.Parse("060102", id[:6]); err == nil {
+			return t.UTC().Format(time.RFC3339)
+		}
+	}
+	if !modTime.IsZero() {
+		return modTime.UTC().Format(time.RFC3339)
+	}
+	return time.Now().UTC().Format(time.RFC3339)
+}
+
+// DeriveFallbackChangedAt derives a backward-compatible changed_at timestamp
+// from filesystem mtime, falling back to created_at or now.
+func DeriveFallbackChangedAt(modTime time.Time, createdAt string) string {
+	if !modTime.IsZero() {
+		return modTime.UTC().Format(time.RFC3339)
+	}
+	if createdAt != "" {
+		return createdAt
+	}
+	return time.Now().UTC().Format(time.RFC3339)
+}
+
 // ParseTask parses a complete task markdown document into a model.Task entity.
 func ParseTask(content []byte, id string) (*model.Task, error) {
 	var fm model.TaskFrontmatter
@@ -144,6 +192,31 @@ func ParseTask(content []byte, id string) (*model.Task, error) {
 	bodyStr := strings.TrimSpace(string(body))
 	bodyHTML, _ := RenderHTML([]byte(bodyStr))
 
+	createdAt := strings.TrimSpace(fm.CreatedAt)
+	if createdAt != "" {
+		if normalized, err := NormalizeTimestamp(createdAt); err == nil {
+			createdAt = normalized
+		}
+	} else {
+		createdAt = DeriveFallbackCreatedAt(id, time.Time{})
+	}
+
+	changedAt := strings.TrimSpace(fm.ChangedAt)
+	if changedAt != "" {
+		if normalized, err := NormalizeTimestamp(changedAt); err == nil {
+			changedAt = normalized
+		}
+	} else {
+		changedAt = createdAt
+	}
+
+	targetAt := strings.TrimSpace(fm.TargetAt)
+	if targetAt != "" {
+		if normalized, err := NormalizeTimestamp(targetAt); err == nil {
+			targetAt = normalized
+		}
+	}
+
 	return &model.Task{
 		ID:           id,
 		Title:        strings.TrimSpace(fm.Title),
@@ -155,6 +228,9 @@ func ParseTask(content []byte, id string) (*model.Task, error) {
 		Dependencies: deps,
 		Body:         bodyStr,
 		BodyHTML:     bodyHTML,
+		CreatedAt:    createdAt,
+		ChangedAt:    changedAt,
+		TargetAt:     targetAt,
 	}, nil
 }
 

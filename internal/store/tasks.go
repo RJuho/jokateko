@@ -39,6 +39,9 @@ func (s *Store) UpsertTask(ctx context.Context, task model.Task) error {
 			CompletedCriteria: int64(task.CompletedCriteria),
 			Filepath:          task.FilePath,
 			Mtime:             mtime,
+			CreatedAt:         task.CreatedAt,
+			ChangedAt:         task.ChangedAt,
+			TargetAt:          task.TargetAt,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to upsert task %q: %w", task.ID, err)
@@ -152,6 +155,9 @@ func (s *Store) GetTask(ctx context.Context, id string) (model.Task, error) {
 		CompletedCriteria: int(row.CompletedCriteria),
 		FilePath:          row.Filepath,
 		ModTime:           modTime,
+		CreatedAt:         row.CreatedAt,
+		ChangedAt:         row.ChangedAt,
+		TargetAt:          row.TargetAt,
 	}, nil
 }
 
@@ -232,6 +238,9 @@ func (s *Store) ListTasks(ctx context.Context, filter ...model.FilterCriteria) (
 			CompletedCriteria: int(row.CompletedCriteria),
 			FilePath:          row.Filepath,
 			ModTime:           modTime,
+			CreatedAt:         row.CreatedAt,
+			ChangedAt:         row.ChangedAt,
+			TargetAt:          row.TargetAt,
 		}
 
 		if hasFilter && !filter[0].Matches(task) {
@@ -246,17 +255,20 @@ func (s *Store) ListTasks(ctx context.Context, filter ...model.FilterCriteria) (
 
 // UpdateTaskStatus updates a task's status and modification timestamp.
 func (s *Store) UpdateTaskStatus(ctx context.Context, id, status string) error {
+	now := time.Now().UTC()
 	return s.WithTx(ctx, func(q *Queries) error {
 		return q.UpdateTaskStatus(ctx, UpdateTaskStatusParams{
-			ID:     id,
-			Status: status,
-			Mtime:  time.Now().Unix(),
+			ID:        id,
+			Status:    status,
+			Mtime:     now.Unix(),
+			ChangedAt: now.Format(time.RFC3339),
 		})
 	})
 }
 
 // UpdateTaskCriteria updates a task's criteria counters, body content, and FTS index.
 func (s *Store) UpdateTaskCriteria(ctx context.Context, id string, total, completed int, body string) error {
+	now := time.Now().UTC()
 	return s.WithTx(ctx, func(q *Queries) error {
 		task, err := q.GetTask(ctx, id)
 		if err != nil {
@@ -271,7 +283,8 @@ func (s *Store) UpdateTaskCriteria(ctx context.Context, id string, total, comple
 			TotalCriteria:     int64(total),
 			CompletedCriteria: int64(completed),
 			Body:              body,
-			Mtime:             time.Now().Unix(),
+			Mtime:             now.Unix(),
+			ChangedAt:         now.Format(time.RFC3339),
 		}); err != nil {
 			return err
 		}

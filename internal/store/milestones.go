@@ -132,12 +132,17 @@ func (s *Store) GetMilestone(ctx context.Context, id string) (model.Milestone, e
 		bodyHTML, _ = parser.RenderHTML([]byte(row.Body))
 	}
 
+	startAt, endAt, timeframe := deriveMilestoneTimeframe(metrics.TargetStartAt, metrics.TargetEndAt, row.TargetDate)
+
 	return model.Milestone{
 		ID:                 row.ID,
 		Title:              row.Title,
 		Status:             model.MilestoneStatus(row.Status),
 		IsArchived:         isArchived,
 		TargetDate:         row.TargetDate,
+		TargetStartAt:      startAt,
+		TargetEndAt:        endAt,
+		TargetTimeframe:    timeframe,
 		Tags:               tags,
 		Summary:            row.Summary,
 		Body:               row.Body,
@@ -220,12 +225,17 @@ func (s *Store) ListMilestones(ctx context.Context) ([]model.Milestone, error) {
 			bodyHTML, _ = parser.RenderHTML([]byte(row.Body))
 		}
 
+		startAt, endAt, timeframe := deriveMilestoneTimeframe(metrics.TargetStartAt, metrics.TargetEndAt, row.TargetDate)
+
 		milestones = append(milestones, model.Milestone{
 			ID:                 row.ID,
 			Title:              row.Title,
 			Status:             model.MilestoneStatus(row.Status),
 			IsArchived:         isArchived,
 			TargetDate:         row.TargetDate,
+			TargetStartAt:      startAt,
+			TargetEndAt:        endAt,
+			TargetTimeframe:    timeframe,
 			Tags:               tags,
 			Summary:            row.Summary,
 			Body:               row.Body,
@@ -239,4 +249,34 @@ func (s *Store) ListMilestones(ctx context.Context) ([]model.Milestone, error) {
 	}
 
 	return milestones, nil
+}
+
+func deriveMilestoneTimeframe(targetStartAt, targetEndAt, targetDate string) (string, string, string) {
+	var timeframe string
+	startAt := targetStartAt
+	endAt := targetEndAt
+
+	if startAt != "" && endAt != "" {
+		startPart := formatTimeframeDate(startAt)
+		endPart := formatTimeframeDate(endAt)
+		if startPart == endPart {
+			timeframe = startPart
+		} else {
+			timeframe = fmt.Sprintf("%s – %s", startPart, endPart)
+		}
+	} else if targetDate != "" {
+		timeframe = targetDate
+		if endAt == "" {
+			endAt = targetDate
+		}
+	}
+
+	return startAt, endAt, timeframe
+}
+
+func formatTimeframeDate(s string) string {
+	if len(s) >= 10 && s[4] == '-' && s[7] == '-' {
+		return s[:10]
+	}
+	return s
 }
