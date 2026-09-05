@@ -11,6 +11,11 @@ More resources:
 
 Remember to check SKILLS and inspect the active MCP server to see what tools are available and review their schemas.
 
+## Workflow
+*   Follow given task, document key details to Jokateko Tasks, or if suitable Strategies or Glassary.
+*   Do not make 'got commit' by yourself, everything must be validated by human.
+*   When you are done, leave task to 'In Preview' state to wait for human check.
+
 ## 1. Project Overview
 This project is a local, Markdown-driven Kanban and task management tool designed for both human developers and AI agents. It operates on a "Tasks-as-Code" and "Spec-First" methodology, where the repository files are the absolute source of truth. The architecture relies on a local backend that handles safe file writing and provides structured Model Context Protocol (MCP) interfaces to AI agents.
 
