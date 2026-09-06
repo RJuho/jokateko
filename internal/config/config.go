@@ -112,11 +112,13 @@ type BoardConfig struct {
 
 // ColumnConfig specifies a single workflow column.
 type ColumnConfig struct {
-	ID           string `toml:"id" json:"id"`
-	Name         string `toml:"name" json:"name"`
-	Color        string `toml:"color" json:"color"`
-	HandledBy    string `toml:"handled_by" json:"handled_by,omitempty"`
-	Instructions string `toml:"instructions" json:"instructions,omitempty"`
+	ID            string `toml:"id" json:"id"`
+	Name          string `toml:"name" json:"name"`
+	Color         string `toml:"color" json:"color"`
+	HandledBy     string `toml:"handled_by,omitempty" json:"handled_by,omitempty"`
+	Instructions  string `toml:"instructions,omitempty" json:"instructions,omitempty"`
+	SortBy        string `toml:"sort_by,omitempty" json:"sort_by,omitempty"`
+	SortDirection string `toml:"sort_direction,omitempty" json:"sort_direction,omitempty"`
 }
 
 // TagsConfig specifies controlled tag vocabulary rules.

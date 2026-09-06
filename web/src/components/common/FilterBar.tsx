@@ -1,5 +1,6 @@
 import {
 	allTags,
+	columnSortModes,
 	configuredPriorities,
 	filteredTasks,
 	filters,
@@ -16,12 +17,16 @@ export function FilterBar() {
 	const currentFilters = filters.value
 	const tagList = allTags.value
 	const priorities = configuredPriorities.value
+	const hasColumnSorts = Object.values(columnSortModes.value).some(
+		(m) => m !== 'default',
+	)
 
 	const hasActiveFilters =
 		currentFilters.searchQuery !== ''
 		|| currentFilters.selectedTags.length > 0
 		|| currentFilters.selectedMilestone !== null
 		|| currentFilters.selectedPriorities.length > 0
+		|| hasColumnSorts
 
 	return (
 		<aside
@@ -29,7 +34,7 @@ export function FilterBar() {
 			aria-label={t('arial_filter_tasks')}
 		>
 			<div class='w-full flex items-center justify-between gap-3 overflow-x-auto no-scrollbar'>
-				{/* Combined Priority + Tags: Priorities listed first, tags immediately follow */}
+				{/* Combined Priority + Tags + Sort: Priorities listed first, tags follow, then sort dropdown */}
 				<div class='flex items-center gap-2 shrink-0'>
 					{/* Priority Buttons */}
 					<fieldset

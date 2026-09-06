@@ -12,8 +12,10 @@ import (
 )
 
 var (
-	tagRegex   = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
-	hexColorRe = regexp.MustCompile(`^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
+	tagRegex            = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+	hexColorRe          = regexp.MustCompile(`^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
+	validSortByFields   = []string{"default", "priority", "target_at", "changed_at", "created_at", "title", "id"}
+	validSortDirections = []string{"asc", "desc"}
 )
 
 // Validate validates the configuration against all invariants and specification rules.
@@ -55,6 +57,20 @@ func Validate(cfg *Config, rootPath string) error {
 
 		if col.Color != "" && !hexColorRe.MatchString(col.Color) {
 			errs = append(errs, fmt.Errorf("invalid color hex %q for column %q; expected format #rgb or #rrggbb", col.Color, trimmedID))
+		}
+
+		if col.SortBy != "" {
+			trimmedSortBy := strings.ToLower(strings.TrimSpace(col.SortBy))
+			if !slices.Contains(validSortByFields, trimmedSortBy) {
+				errs = append(errs, fmt.Errorf("invalid sort_by %q for column %q; expected one of %v", col.SortBy, trimmedID, validSortByFields))
+			}
+		}
+
+		if col.SortDirection != "" {
+			trimmedSortDir := strings.ToLower(strings.TrimSpace(col.SortDirection))
+			if !slices.Contains(validSortDirections, trimmedSortDir) {
+				errs = append(errs, fmt.Errorf("invalid sort_direction %q for column %q; expected 'asc' or 'desc'", col.SortDirection, trimmedID))
+			}
 		}
 	}
 

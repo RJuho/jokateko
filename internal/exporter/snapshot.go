@@ -26,11 +26,13 @@ func BuildSnapshot(ctx context.Context, cfg *config.Config, st *store.Store) (*m
 	cols := make([]model.Column, 0, len(cfg.Board.Columns))
 	for _, c := range cfg.Board.Columns {
 		cols = append(cols, model.Column{
-			ID:           c.ID,
-			Name:         c.Name,
-			Color:        c.Color,
-			HandledBy:    c.HandledBy,
-			Instructions: c.Instructions,
+			ID:            c.ID,
+			Name:          c.Name,
+			Color:         c.Color,
+			HandledBy:     c.HandledBy,
+			Instructions:  c.Instructions,
+			SortBy:        c.SortBy,
+			SortDirection: c.SortDirection,
 		})
 	}
 

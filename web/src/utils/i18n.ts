@@ -38,6 +38,15 @@ export const defaultTranslations = {
 	hide_completed: 'Hide completed',
 	show_archived: 'Show Archived',
 
+	// Task Sorting
+	sort_by: 'Sort',
+	sort_default: 'Default (Workflow)',
+	sort_priority: 'Priority (Critical to Low)',
+	sort_target_at: 'Target Date (Soonest First)',
+	sort_changed_at: 'Recently Changed',
+	sort_created_at: 'Created Date',
+	sort_title: 'Alphabetical (A-Z)',
+
 	// Aria Attributes (explicitly marked with 'arial' in name)
 	arial_main_nav: 'Main Navigation',
 	arial_mobile_nav: 'Mobile Navigation',
@@ -55,6 +64,8 @@ export const defaultTranslations = {
 	arial_filter_by_priority: 'Filter by priority',
 	arial_filter_by_tags: 'Filter by tags',
 	arial_reset_all_filters: 'Reset all filters',
+	arial_sort_tasks: 'Sort tasks',
+	arial_sort_options: 'Sort options',
 	arial_column_quick_nav: 'Column quick navigation',
 	arial_kanban_columns: 'Kanban columns',
 	arial_milestones_roadmap: 'Milestones roadmap',

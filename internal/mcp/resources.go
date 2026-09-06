@@ -48,9 +48,13 @@ func (s *Server) resourceBoard(ctx context.Context, req *mcp.ReadResourceRequest
 	cols := make([]model.Column, 0, len(s.cfg.Board.Columns))
 	for _, c := range s.cfg.Board.Columns {
 		cols = append(cols, model.Column{
-			ID:    c.ID,
-			Name:  c.Name,
-			Color: c.Color,
+			ID:            c.ID,
+			Name:          c.Name,
+			Color:         c.Color,
+			HandledBy:     c.HandledBy,
+			Instructions:  c.Instructions,
+			SortBy:        c.SortBy,
+			SortDirection: c.SortDirection,
 		})
 	}
 

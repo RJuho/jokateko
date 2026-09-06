@@ -1,17 +1,22 @@
 import { describe, expect, it } from 'bun:test'
 import {
+	activeSortMode,
 	allTags,
+	columnSortModes,
 	columnTasks,
 	config,
 	configuredPriorities,
 	configuredTiers,
 	filteredTasks,
+	getColumnSortMode,
 	initFromSnapshot,
 	mode,
 	removeTask,
 	resetFilters,
+	setColumnSortMode,
 	setMilestoneFilter,
 	setSearchQuery,
+	setSortMode,
 	tasks,
 	togglePriorityFilter,
 	toggleTagFilter,
@@ -298,5 +303,184 @@ describe('Preact Signals State Store', () => {
 		}
 		expect(configuredTiers.value.map((t) => t.id)).toEqual(['core', 'extended'])
 		expect(configuredTiers.value[0].title).toBe('Invariants')
+	})
+
+	it('reactively sorts columnTasks based on activeSortMode and resets to default', () => {
+		config.value = {
+			...config.value,
+			board: {
+				...config.value.board,
+				columns: [
+					{ id: 'backlog', name: 'Backlog', color: '#94a3b8' },
+					{ id: 'in_progress', name: 'In Progress', color: '#fbbf24' },
+				],
+			},
+		}
+
+		tasks.value = [
+			{
+				id: 't-1',
+				title: 'Zebra',
+				status: 'backlog',
+				priority: 'low',
+				tags: [],
+				summary: '',
+				dependencies: [],
+				body: '',
+				total_criteria: 0,
+				completed_criteria: 0,
+				changed_at: '2026-09-01T00:00:00Z',
+			},
+			{
+				id: 't-2',
+				title: 'Apple',
+				status: 'backlog',
+				priority: 'critical',
+				tags: [],
+				summary: '',
+				dependencies: [],
+				body: '',
+				total_criteria: 0,
+				completed_criteria: 0,
+				changed_at: '2026-09-02T00:00:00Z',
+			},
+			{
+				id: 't-3',
+				title: 'Mango',
+				status: 'backlog',
+				priority: 'medium',
+				tags: [],
+				summary: '',
+				dependencies: [],
+				body: '',
+				total_criteria: 0,
+				completed_criteria: 0,
+				changed_at: '2026-09-03T00:00:00Z',
+			},
+		]
+
+		// 1. Default sort: Priority critical (t-2) > medium (t-3) > low (t-1)
+		setSortMode('default')
+		expect(columnTasks.value.backlog.map((t) => t.id)).toEqual([
+			't-2',
+			't-3',
+			't-1',
+		])
+
+		// 2. Alphabetical sort: Apple (t-2) > Mango (t-3) > Zebra (t-1)
+		setSortMode('title')
+		expect(columnTasks.value.backlog.map((t) => t.id)).toEqual([
+			't-2',
+			't-3',
+			't-1',
+		])
+
+		// 3. Recently changed sort: t-3 (Sep 03) > t-2 (Sep 02) > t-1 (Sep 01)
+		setSortMode('changed_at')
+		expect(columnTasks.value.backlog.map((t) => t.id)).toEqual([
+			't-3',
+			't-2',
+			't-1',
+		])
+
+		// 4. Reset filters resets activeSortMode to default
+		resetFilters()
+		expect(activeSortMode.value).toBe('default')
+		expect(columnTasks.value.backlog.map((t) => t.id)).toEqual([
+			't-2',
+			't-3',
+			't-1',
+		])
+	})
+
+	it('supports independent per-column sorting via columnSortModes', () => {
+		config.value = {
+			...config.value,
+			board: {
+				...config.value.board,
+				columns: [
+					{ id: 'backlog', name: 'Backlog', color: '#94a3b8' },
+					{ id: 'ready', name: 'Ready', color: '#60a5fa' },
+				],
+			},
+		}
+
+		tasks.value = [
+			{
+				id: 'b-1',
+				title: 'Zebra',
+				status: 'backlog',
+				priority: 'low',
+				tags: [],
+				summary: '',
+				dependencies: [],
+				body: '',
+				total_criteria: 0,
+				completed_criteria: 0,
+				changed_at: '2026-09-01T00:00:00Z',
+			},
+			{
+				id: 'b-2',
+				title: 'Apple',
+				status: 'backlog',
+				priority: 'critical',
+				tags: [],
+				summary: '',
+				dependencies: [],
+				body: '',
+				total_criteria: 0,
+				completed_criteria: 0,
+				changed_at: '2026-09-02T00:00:00Z',
+			},
+			{
+				id: 'r-1',
+				title: 'Beta',
+				status: 'ready',
+				priority: 'medium',
+				tags: [],
+				summary: '',
+				dependencies: [],
+				body: '',
+				total_criteria: 0,
+				completed_criteria: 0,
+				created_at: '2026-09-01T00:00:00Z',
+			},
+			{
+				id: 'r-2',
+				title: 'Alpha',
+				status: 'ready',
+				priority: 'high',
+				tags: [],
+				summary: '',
+				dependencies: [],
+				body: '',
+				total_criteria: 0,
+				completed_criteria: 0,
+				created_at: '2026-09-03T00:00:00Z',
+			},
+		]
+
+		// Initially both default
+		expect(getColumnSortMode('backlog')).toBe('default')
+		expect(getColumnSortMode('ready')).toBe('default')
+
+		// Set backlog to 'changed_at' and ready to 'title'
+		setColumnSortMode('backlog', 'changed_at')
+		setColumnSortMode('ready', 'title')
+
+		expect(getColumnSortMode('backlog')).toBe('changed_at')
+		expect(getColumnSortMode('ready')).toBe('title')
+
+		// Backlog sorted by changed_at desc: b-2 (Sep 02) > b-1 (Sep 01)
+		expect(columnTasks.value.backlog.map((t) => t.id)).toEqual(['b-2', 'b-1'])
+
+		// Ready sorted by title A-Z: Alpha (r-2) > Beta (r-1)
+		expect(columnTasks.value.ready.map((t) => t.id)).toEqual(['r-2', 'r-1'])
+
+		// Reset filters resets all column sorts
+		resetFilters()
+		expect(columnSortModes.value).toEqual({})
+		expect(getColumnSortMode('backlog')).toBe('default')
+		expect(getColumnSortMode('ready')).toBe('default')
 	})
 })

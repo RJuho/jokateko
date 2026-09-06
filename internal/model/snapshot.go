@@ -57,6 +57,15 @@ type TranslationsConfig struct {
 	HideCompleted           string `json:"hide_completed,omitempty" toml:"hide_completed"`
 	ShowArchived            string `json:"show_archived,omitempty" toml:"show_archived"`
 
+	// Task Sorting
+	SortBy        string `json:"sort_by,omitempty" toml:"sort_by"`
+	SortDefault   string `json:"sort_default,omitempty" toml:"sort_default"`
+	SortPriority  string `json:"sort_priority,omitempty" toml:"sort_priority"`
+	SortTargetAt  string `json:"sort_target_at,omitempty" toml:"sort_target_at"`
+	SortChangedAt string `json:"sort_changed_at,omitempty" toml:"sort_changed_at"`
+	SortCreatedAt string `json:"sort_created_at,omitempty" toml:"sort_created_at"`
+	SortTitle     string `json:"sort_title,omitempty" toml:"sort_title"`
+
 	// Aria attributes marked with 'arial' in name
 	ArialMainNav           string `json:"arial_main_nav,omitempty" toml:"arial_main_nav"`
 	ArialMobileNav         string `json:"arial_mobile_nav,omitempty" toml:"arial_mobile_nav"`
@@ -74,6 +83,8 @@ type TranslationsConfig struct {
 	ArialFilterByPriority  string `json:"arial_filter_by_priority,omitempty" toml:"arial_filter_by_priority"`
 	ArialFilterByTags      string `json:"arial_filter_by_tags,omitempty" toml:"arial_filter_by_tags"`
 	ArialResetAllFilters   string `json:"arial_reset_all_filters,omitempty" toml:"arial_reset_all_filters"`
+	ArialSortTasks         string `json:"arial_sort_tasks,omitempty" toml:"arial_sort_tasks"`
+	ArialSortOptions       string `json:"arial_sort_options,omitempty" toml:"arial_sort_options"`
 	ArialColumnQuickNav    string `json:"arial_column_quick_nav,omitempty" toml:"arial_column_quick_nav"`
 	ArialKanbanColumns     string `json:"arial_kanban_columns,omitempty" toml:"arial_kanban_columns"`
 	ArialMilestonesRoadmap string `json:"arial_milestones_roadmap,omitempty" toml:"arial_milestones_roadmap"`

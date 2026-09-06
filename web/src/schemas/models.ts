@@ -12,6 +12,8 @@ export const ColumnSchema = v.object({
 	color: v.string(),
 	handled_by: v.optional(v.string()),
 	instructions: v.optional(v.string()),
+	sort_by: v.optional(v.string()),
+	sort_direction: v.optional(v.string()),
 })
 
 export const TaskSchema = v.object({
@@ -146,6 +148,8 @@ export const ColumnStateSchema = v.object({
 	color: v.string(),
 	handled_by: v.optional(v.string()),
 	instructions: v.optional(v.string()),
+	sort_by: v.optional(v.string()),
+	sort_direction: v.optional(v.string()),
 	tasks: v.array(TaskSchema),
 	count: v.number(),
 })

@@ -18,6 +18,9 @@ export interface CustomTask {
 	tags: string[]
 	summary: string
 	body?: string
+	created_at?: string
+	changed_at?: string
+	target_at?: string
 }
 
 export interface CustomStrategy {
@@ -65,14 +68,24 @@ export async function startTestServer(options?: {
 	if (options?.customTasks) {
 		for (const task of options.customTasks) {
 			const taskPath = join(dir, '.jokateko', 'tasks', `${task.id}.md`)
-			const content = `+++
+			let content = `+++
 id = "${task.id}"
 title = "${task.title}"
 status = "${task.status}"
 priority = "${task.priority}"
 tags = [${task.tags.map((t) => `"${t}"`).join(', ')}]
 summary = "${task.summary}"
-+++
+`
+			if (task.created_at) {
+				content += `created_at = "${task.created_at}"\n`
+			}
+			if (task.changed_at) {
+				content += `changed_at = "${task.changed_at}"\n`
+			}
+			if (task.target_at) {
+				content += `target_at = "${task.target_at}"\n`
+			}
+			content += `+++
 ${task.body || '## Acceptance Criteria\n- [ ] Task requirement\n'}
 `
 			writeFileSync(taskPath, content, 'utf8')

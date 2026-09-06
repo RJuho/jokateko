@@ -297,6 +297,32 @@ func (s *Server) toolListTasks(ctx context.Context, _ *mcp.CallToolRequest, in L
 		return nil, nil, fmt.Errorf("failed to list tasks: %w", err)
 	}
 
+	cols := make([]model.Column, 0, len(s.cfg.Board.Columns))
+	for _, c := range s.cfg.Board.Columns {
+		cols = append(cols, model.Column{
+			ID:            c.ID,
+			Name:          c.Name,
+			Color:         c.Color,
+			HandledBy:     c.HandledBy,
+			Instructions:  c.Instructions,
+			SortBy:        c.SortBy,
+			SortDirection: c.SortDirection,
+		})
+	}
+
+	if in.Status != "" {
+		idx := slices.IndexFunc(cols, func(c model.Column) bool { return c.ID == in.Status })
+		var col model.Column
+		if idx >= 0 {
+			col = cols[idx]
+		} else {
+			col = model.Column{ID: in.Status}
+		}
+		model.SortTasksForColumn(tasks, col)
+	} else {
+		tasks = model.SortTasksByColumnOrder(tasks, cols)
+	}
+
 	summaries := make([]TaskSummary, 0, len(tasks))
 	for _, t := range tasks {
 		summaries = append(summaries, TaskSummary{

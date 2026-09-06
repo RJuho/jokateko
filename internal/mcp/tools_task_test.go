@@ -676,4 +676,106 @@ func TestMCP_TaskNotesAndEditableStates(t *testing.T) {
 	}
 }
 
+func TestMCPTaskSortingAndBoardAlignment(t *testing.T) {
+	_, _, _, session := setupTestMCP(t)
+
+	// Create tasks in backlog
+	bLow, err := callToolJSON[internalmcp.TaskSummary](t, session, "create_task", internalmcp.CreateTaskInput{
+		Title:    "Backlog Low",
+		Priority: "low",
+		Status:   "backlog",
+		Summary:  "Backlog low priority task",
+	})
+	if err != nil {
+		t.Fatalf("create_task failed: %v", err)
+	}
+	// Give different changed_at / timestamps
+	bCrit, err := callToolJSON[internalmcp.TaskSummary](t, session, "create_task", internalmcp.CreateTaskInput{
+		Title:    "Backlog Critical",
+		Priority: "critical",
+		Status:   "backlog",
+		Summary:  "Backlog critical priority task",
+	})
+	if err != nil {
+		t.Fatalf("create_task failed: %v", err)
+	}
+
+	// Create tasks in in_progress
+	pTargetLater, err := callToolJSON[internalmcp.TaskSummary](t, session, "create_task", internalmcp.CreateTaskInput{
+		Title:    "Progress Target Later",
+		Priority: "high",
+		Status:   "in_progress",
+		Summary:  "Progress target later task",
+		TargetAt: "2026-09-20T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("create_task failed: %v", err)
+	}
+	pTargetSooner, err := callToolJSON[internalmcp.TaskSummary](t, session, "create_task", internalmcp.CreateTaskInput{
+		Title:    "Progress Target Sooner",
+		Priority: "high",
+		Status:   "in_progress",
+		Summary:  "Progress target sooner task",
+		TargetAt: "2026-09-10T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("create_task failed: %v", err)
+	}
+	pNoTarget, err := callToolJSON[internalmcp.TaskSummary](t, session, "create_task", internalmcp.CreateTaskInput{
+		Title:    "Progress No Target",
+		Priority: "high",
+		Status:   "in_progress",
+		Summary:  "Progress no target task",
+	})
+	if err != nil {
+		t.Fatalf("create_task failed: %v", err)
+	}
+
+	// 1. Test list_tasks for status="in_progress"
+	progList, err := callToolJSON[[]internalmcp.TaskSummary](t, session, "list_tasks", internalmcp.ListTasksInput{
+		Status: "in_progress",
+	})
+	if err != nil {
+		t.Fatalf("list_tasks in_progress failed: %v", err)
+	}
+	if len(progList) != 3 {
+		t.Fatalf("expected 3 in_progress tasks, got %d", len(progList))
+	}
+	// Expected order: sooner deadline (pTargetSooner) -> later deadline (pTargetLater) -> no deadline (pNoTarget)
+	if progList[0].ID != pTargetSooner.ID {
+		t.Errorf("expected progList[0] to be %q, got %q", pTargetSooner.ID, progList[0].ID)
+	}
+	if progList[1].ID != pTargetLater.ID {
+		t.Errorf("expected progList[1] to be %q, got %q", pTargetLater.ID, progList[1].ID)
+	}
+	if progList[2].ID != pNoTarget.ID {
+		t.Errorf("expected progList[2] to be %q, got %q", pNoTarget.ID, progList[2].ID)
+	}
+
+	// 2. Test list_tasks without status -> orders by board column order first, then column rules
+	allList, err := callToolJSON[[]internalmcp.TaskSummary](t, session, "list_tasks", internalmcp.ListTasksInput{})
+	if err != nil {
+		t.Fatalf("list_tasks all failed: %v", err)
+	}
+	if len(allList) != 5 {
+		t.Fatalf("expected 5 tasks, got %d", len(allList))
+	}
+	// Backlog columns appear before In Progress columns
+	// Backlog critical (bCrit) before Backlog low (bLow)
+	// Followed by In Progress tasks
+	expectedAll := []string{
+		bCrit.ID,
+		bLow.ID,
+		pTargetSooner.ID,
+		pTargetLater.ID,
+		pNoTarget.ID,
+	}
+	for i, expID := range expectedAll {
+		if allList[i].ID != expID {
+			t.Errorf("allList[%d] expected %q, got %q", i, expID, allList[i].ID)
+		}
+	}
+}
+
+
 

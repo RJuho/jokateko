@@ -36,6 +36,8 @@ export interface Column {
   color: string;
   handled_by?: string;
   instructions?: string;
+  sort_by?: string;
+  sort_direction?: string;
 }
 
 export interface ColumnState {
@@ -44,6 +46,8 @@ export interface ColumnState {
   color: string;
   handled_by?: string;
   instructions?: string;
+  sort_by?: string;
+  sort_direction?: string;
   tasks: Task[];
   count: number;
 }
@@ -247,6 +251,13 @@ export interface TranslationsConfig {
   show_completed?: string;
   hide_completed?: string;
   show_archived?: string;
+  sort_by?: string;
+  sort_default?: string;
+  sort_priority?: string;
+  sort_target_at?: string;
+  sort_changed_at?: string;
+  sort_created_at?: string;
+  sort_title?: string;
   arial_main_nav?: string;
   arial_mobile_nav?: string;
   arial_mobile_menu?: string;
@@ -263,6 +274,8 @@ export interface TranslationsConfig {
   arial_filter_by_priority?: string;
   arial_filter_by_tags?: string;
   arial_reset_all_filters?: string;
+  arial_sort_tasks?: string;
+  arial_sort_options?: string;
   arial_column_quick_nav?: string;
   arial_kanban_columns?: string;
   arial_milestones_roadmap?: string;

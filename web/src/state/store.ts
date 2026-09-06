@@ -12,10 +12,12 @@ import {
 	type Task,
 	type TierConfig,
 } from '../schemas/models'
+import { compareTasks, type SortMode } from '../utils/sort'
 import type { AppMode } from './bootstrap'
 import { saveStateToStorage } from './storage'
 
 export type Tab = 'board' | 'milestones' | 'strategies' | 'glossary'
+export type { SortMode }
 
 export interface FilterState {
 	searchQuery: string
@@ -123,6 +125,24 @@ export const filters = signal<FilterState>({
 	selectedPriorities: [],
 })
 
+export const activeSortMode = signal<SortMode>('default')
+export const columnSortModes = signal<Record<string, SortMode>>({})
+
+export function setSortMode(m: SortMode): void {
+	activeSortMode.value = m
+}
+
+export function setColumnSortMode(columnId: string, m: SortMode): void {
+	columnSortModes.value = {
+		...columnSortModes.value,
+		[columnId]: m,
+	}
+}
+
+export function getColumnSortMode(columnId: string): SortMode {
+	return columnSortModes.value[columnId] || activeSortMode.value || 'default'
+}
+
 export const activeTaskDetailId = signal<string | null>(null)
 export const activeTaskEditId = signal<string | null>(null)
 export const isCreateTaskModalOpen = signal<boolean>(false)
@@ -187,6 +207,7 @@ export const filteredTasks = computed(() => {
 export const columnTasks = computed(() => {
 	const cols = config.value.board.columns
 	const taskList = filteredTasks.value
+	const currentSort = activeSortMode.value
 	const map: Record<string, Task[]> = {}
 
 	for (const col of cols) {
@@ -203,6 +224,15 @@ export const columnTasks = computed(() => {
 				map[fallbackId] = []
 			}
 			map[fallbackId].push(task)
+		}
+	}
+
+	for (const col of cols) {
+		const tasksInCol = map[col.id]
+		if (tasksInCol && tasksInCol.length > 1) {
+			const sortMode =
+				columnSortModes.value[col.id] || activeSortMode.value || 'default'
+			tasksInCol.sort((a, b) => compareTasks(a, b, col, sortMode))
 		}
 	}
 
@@ -377,6 +407,8 @@ export function resetFilters(): void {
 		selectedMilestone: null,
 		selectedPriorities: [],
 	}
+	columnSortModes.value = {}
+	activeSortMode.value = 'default'
 }
 
 // REST Fetch for Live Mode

@@ -29,16 +29,20 @@ func (s *Store) GetBoardState(
 		colTasks := tasksByColumn[col.ID]
 		if colTasks == nil {
 			colTasks = []model.Task{}
+		} else {
+			model.SortTasksForColumn(colTasks, col)
 		}
 
 		colStates[i] = model.ColumnState{
-			ID:           col.ID,
-			Name:         col.Name,
-			Color:        col.Color,
-			HandledBy:    col.HandledBy,
-			Instructions: col.Instructions,
-			Tasks:        colTasks,
-			Count:        len(colTasks),
+			ID:            col.ID,
+			Name:          col.Name,
+			Color:         col.Color,
+			HandledBy:     col.HandledBy,
+			Instructions:  col.Instructions,
+			SortBy:        col.SortBy,
+			SortDirection: col.SortDirection,
+			Tasks:         colTasks,
+			Count:         len(colTasks),
 		}
 	}
 

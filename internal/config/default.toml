@@ -61,8 +61,18 @@ default_create_state = "backlog"
 
 # Each column defines a Kanban board swimlane.
 # Optional fields:
-#   handled_by   - Assigned agent persona, model, or human role (e.g. "human", "agent:coder", "agent:reviewer")
-#   instructions - Workflow guidance and exit/entry criteria dynamically served to AI agents via MCP
+#   handled_by     - Assigned agent persona, model, or human role (e.g. "human", "agent:coder", "agent:reviewer")
+#   instructions   - Workflow guidance and exit/entry criteria dynamically served to AI agents via MCP
+#   sort_by        - Secondary task sorting criteria: "default", "priority", "target_at", "changed_at", "created_at", "title", "id"
+#   sort_direction - Direction for custom sort_by: "asc" or "desc" (defaults to "asc")
+#
+# Default Sorting Model (when sort_by is omitted or "default"):
+#   Active & Backlog columns (backlog, ready, in_progress, in_review):
+#     Primary: Priority (critical > high > medium > low)
+#     Secondary: State-specific (backlog: changed_at desc; ready/in_progress/in_review: target_at asc with fallback to changed_at desc)
+#   Done column:
+#     Primary: Recently changed (changed_at desc) - priority does not matter anymore when task is done
+#   Tertiary: Deterministic tie-breaker by task ID ascending
 [[board.columns]]
 id = "backlog"
 name = "Backlog"
@@ -204,6 +214,15 @@ show_completed = "Show completed"
 hide_completed = "Hide completed"
 show_archived = "Show Archived"
 
+# Task sorting
+sort_by = "Sort"
+sort_default = "Default (Workflow)"
+sort_priority = "Priority (Critical to Low)"
+sort_target_at = "Target Date (Soonest First)"
+sort_changed_at = "Recently Changed"
+sort_created_at = "Created Date"
+sort_title = "Alphabetical (A-Z)"
+
 # Aria attributes (marked with 'arial' in key name)
 arial_main_nav = "Main Navigation"
 arial_mobile_nav = "Mobile Navigation"
@@ -221,6 +240,8 @@ arial_filter_tasks = "Filter tasks"
 arial_filter_by_priority = "Filter by priority"
 arial_filter_by_tags = "Filter by tags"
 arial_reset_all_filters = "Reset all filters"
+arial_sort_tasks = "Sort tasks"
+arial_sort_options = "Sort options"
 arial_column_quick_nav = "Column quick navigation"
 arial_kanban_columns = "Kanban columns"
 arial_milestones_roadmap = "Milestones roadmap"

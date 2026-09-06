@@ -363,6 +363,14 @@ func mergeTranslations(target *model.TranslationsConfig, raw *model.Translations
 	if raw.HideCompleted != "" { target.HideCompleted = raw.HideCompleted }
 	if raw.ShowArchived != "" { target.ShowArchived = raw.ShowArchived }
 
+	if raw.SortBy != "" { target.SortBy = raw.SortBy }
+	if raw.SortDefault != "" { target.SortDefault = raw.SortDefault }
+	if raw.SortPriority != "" { target.SortPriority = raw.SortPriority }
+	if raw.SortTargetAt != "" { target.SortTargetAt = raw.SortTargetAt }
+	if raw.SortChangedAt != "" { target.SortChangedAt = raw.SortChangedAt }
+	if raw.SortCreatedAt != "" { target.SortCreatedAt = raw.SortCreatedAt }
+	if raw.SortTitle != "" { target.SortTitle = raw.SortTitle }
+
 	if raw.ArialMainNav != "" { target.ArialMainNav = raw.ArialMainNav }
 	if raw.ArialMobileNav != "" { target.ArialMobileNav = raw.ArialMobileNav }
 	if raw.ArialMobileMenu != "" { target.ArialMobileMenu = raw.ArialMobileMenu }
@@ -379,6 +387,8 @@ func mergeTranslations(target *model.TranslationsConfig, raw *model.Translations
 	if raw.ArialFilterByPriority != "" { target.ArialFilterByPriority = raw.ArialFilterByPriority }
 	if raw.ArialFilterByTags != "" { target.ArialFilterByTags = raw.ArialFilterByTags }
 	if raw.ArialResetAllFilters != "" { target.ArialResetAllFilters = raw.ArialResetAllFilters }
+	if raw.ArialSortTasks != "" { target.ArialSortTasks = raw.ArialSortTasks }
+	if raw.ArialSortOptions != "" { target.ArialSortOptions = raw.ArialSortOptions }
 	if raw.ArialColumnQuickNav != "" { target.ArialColumnQuickNav = raw.ArialColumnQuickNav }
 	if raw.ArialKanbanColumns != "" { target.ArialKanbanColumns = raw.ArialKanbanColumns }
 	if raw.ArialMilestonesRoadmap != "" { target.ArialMilestonesRoadmap = raw.ArialMilestonesRoadmap }

@@ -73,6 +73,16 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.MCP.Timeout() != 30*time.Second {
 		t.Errorf("expected default timeout 30s, got %v", cfg.MCP.Timeout())
 	}
+
+	if cfg.Translations.SortBy != "Sort" {
+		t.Errorf("expected default Translations.SortBy 'Sort', got %q", cfg.Translations.SortBy)
+	}
+	if cfg.Translations.SortDefault != "Default (Workflow)" {
+		t.Errorf("expected default Translations.SortDefault 'Default (Workflow)', got %q", cfg.Translations.SortDefault)
+	}
+	if cfg.Translations.ArialSortTasks != "Sort tasks" {
+		t.Errorf("expected default Translations.ArialSortTasks 'Sort tasks', got %q", cfg.Translations.ArialSortTasks)
+	}
 }
 
 func TestLoadMissingFileFallback(t *testing.T) {
@@ -369,6 +379,29 @@ func TestValidationRules(t *testing.T) {
 		}
 	})
 
+	t.Run("Column sort_by and sort_direction validation", func(t *testing.T) {
+		cfg := config.Default(root)
+		cfg.Board.Columns[0].SortBy = "non_existent_field"
+		err := config.Validate(cfg, root)
+		if err == nil || !strings.Contains(err.Error(), "invalid sort_by") {
+			t.Errorf("expected invalid sort_by error, got: %v", err)
+		}
+
+		cfg = config.Default(root)
+		cfg.Board.Columns[0].SortDirection = "diagonal"
+		err = config.Validate(cfg, root)
+		if err == nil || !strings.Contains(err.Error(), "invalid sort_direction") {
+			t.Errorf("expected invalid sort_direction error, got: %v", err)
+		}
+
+		cfg = config.Default(root)
+		cfg.Board.Columns[0].SortBy = "target_at"
+		cfg.Board.Columns[0].SortDirection = "asc"
+		if err := config.Validate(cfg, root); err != nil {
+			t.Errorf("expected valid sort_by and sort_direction to pass, got: %v", err)
+		}
+	})
+
 	t.Run("CFG-004: Invalid port range", func(t *testing.T) {
 		cfg := config.Default(root)
 		cfg.Server.Port = 80 // Privileged port < 1024
@@ -447,9 +480,12 @@ all_tiers = "Kaikki tasot"
 project_glossary = "Projektin sanasto"
 glossary_subtitle = "Standardoidut termimääritelmät ja sanakirja"
 footer_text = "Rakennettu ❤️ 🇪🇺 kera 🤖"
+sort_by = "Järjestä"
+sort_default = "Oletus (Työnkulku)"
 arial_main_nav = "Päänavigointi"
 arial_search = "Hae sivustolta"
 arial_search_input = "Hae tehtäviä, virstanpylväitä, strategioita ja sanastoa"
+arial_sort_tasks = "Järjestä tehtävät"
 `
 
 	if err := os.WriteFile(filepath.Join(jokatekoDir, "config.toml"), []byte(tomlContent), 0644); err != nil {
@@ -473,8 +509,17 @@ arial_search_input = "Hae tehtäviä, virstanpylväitä, strategioita ja sanasto
 	if cfg.Translations.FooterText != "Rakennettu ❤️ 🇪🇺 kera 🤖" {
 		t.Errorf("expected Translations.FooterText to be 'Rakennettu ❤️ 🇪🇺 kera 🤖', got %q", cfg.Translations.FooterText)
 	}
+	if cfg.Translations.SortBy != "Järjestä" {
+		t.Errorf("expected Translations.SortBy to be 'Järjestä', got %q", cfg.Translations.SortBy)
+	}
+	if cfg.Translations.SortDefault != "Oletus (Työnkulku)" {
+		t.Errorf("expected Translations.SortDefault to be 'Oletus (Työnkulku)', got %q", cfg.Translations.SortDefault)
+	}
 	if cfg.Translations.ArialMainNav != "Päänavigointi" {
 		t.Errorf("expected Translations.ArialMainNav to be 'Päänavigointi', got %q", cfg.Translations.ArialMainNav)
+	}
+	if cfg.Translations.ArialSortTasks != "Järjestä tehtävät" {
+		t.Errorf("expected Translations.ArialSortTasks to be 'Järjestä tehtävät', got %q", cfg.Translations.ArialSortTasks)
 	}
 }
 
