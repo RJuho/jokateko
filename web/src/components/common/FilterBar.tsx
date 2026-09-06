@@ -1,12 +1,14 @@
 import {
 	allTags,
 	columnSortModes,
+	config,
 	configuredPriorities,
 	filteredTasks,
 	filters,
 	resetFilters,
 	tasks,
 	togglePriorityFilter,
+	toggleStateFilter,
 	toggleTagFilter,
 } from '../../state/store'
 import { getContrastTextColor } from '../../utils/colors'
@@ -17,6 +19,7 @@ export function FilterBar() {
 	const currentFilters = filters.value
 	const tagList = allTags.value
 	const priorities = configuredPriorities.value
+	const columns = config.value.board.columns
 	const hasColumnSorts = Object.values(columnSortModes.value).some(
 		(m) => m !== 'default',
 	)
@@ -26,6 +29,7 @@ export function FilterBar() {
 		|| currentFilters.selectedTags.length > 0
 		|| currentFilters.selectedMilestone !== null
 		|| currentFilters.selectedPriorities.length > 0
+		|| currentFilters.selectedStates.length > 0
 		|| hasColumnSorts
 
 	return (
@@ -34,8 +38,61 @@ export function FilterBar() {
 			aria-label={t('arial_filter_tasks')}
 		>
 			<div class='w-full flex items-center justify-between gap-3 overflow-x-auto no-scrollbar'>
-				{/* Combined Priority + Tags + Sort: Priorities listed first, tags follow, then sort dropdown */}
+				{/* Combined State + Priority + Tags */}
 				<div class='flex items-center gap-2 shrink-0'>
+					{/* State / Column Status Filter Buttons */}
+					{columns.length > 0 && (
+						<fieldset
+							class='flex items-center gap-0.5 border border-base-300 rounded-lg p-0.5 bg-base-200/40 shrink-0'
+							aria-label={t('arial_filter_by_state')}
+						>
+							{columns.map((col) => {
+								const isSelected = currentFilters.selectedStates.includes(
+									col.id,
+								)
+								const color = col.color
+								const activeStyle =
+									isSelected && color
+										? {
+												backgroundColor: color,
+												color: getContrastTextColor(color),
+											}
+										: undefined
+
+								return (
+									<button
+										key={col.id}
+										type='button'
+										onClick={() => toggleStateFilter(col.id)}
+										class={`px-2 py-0.5 text-[10px] font-semibold rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+											isSelected
+												? color
+													? 'shadow-xs'
+													: 'bg-primary text-primary-content shadow-xs'
+												: 'text-base-content/60 hover:text-base-content hover:bg-base-200/60'
+										}`}
+										style={activeStyle}
+										aria-pressed={isSelected}
+										aria-label={`Filter state ${col.name}`}
+										data-testid={`filter-state-${col.id}`}
+									>
+										{color && (
+											<span
+												class='size-1.5 rounded-full shrink-0'
+												style={{
+													backgroundColor: isSelected
+														? getContrastTextColor(color)
+														: color,
+												}}
+											/>
+										)}
+										<span>{col.name}</span>
+									</button>
+								)
+							})}
+						</fieldset>
+					)}
+
 					{/* Priority Buttons */}
 					<fieldset
 						class='flex items-center gap-0.5 border border-base-300 rounded-lg p-0.5 bg-base-200/40 shrink-0'

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { navigateTo } from '../../router'
+import { navigateTo, navigateToCalendar } from '../../router'
 import type { Task } from '../../schemas/models'
 import {
+	activeTab,
 	activeTaskDetailId,
 	activeTaskEditId,
 	config,
@@ -21,7 +22,7 @@ function formatDateTime(isoStr?: string) {
 	if (!isoStr) return ''
 	try {
 		const d = new Date(isoStr)
-		if (isNaN(d.getTime())) return isoStr
+		if (Number.isNaN(d.getTime())) return isoStr
 		return d.toLocaleDateString(undefined, {
 			year: 'numeric',
 			month: 'short',
@@ -45,6 +46,10 @@ export function TaskDetailModal() {
 
 	function closeModal() {
 		activeTaskDetailId.value = null
+		if (activeTab.value === 'calendar') {
+			navigateToCalendar()
+			return
+		}
 		const activeMilestone = filters.value.selectedMilestone
 		if (activeMilestone) {
 			navigateTo(`milestone/${activeMilestone}`)
@@ -506,6 +511,7 @@ export function TaskDetailModal() {
 							onClick={closeModal}
 							class='btn btn-sm btn-ghost btn-circle text-base-content/60 hover:text-base-content'
 							aria-label='Close task details'
+							data-testid='modal-close-button'
 						>
 							✕
 						</button>

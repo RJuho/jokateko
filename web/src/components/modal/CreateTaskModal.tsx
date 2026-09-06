@@ -5,6 +5,7 @@ import {
 	config,
 	configuredPriorities,
 	createTaskInitialColumnId,
+	createTaskInitialTargetDate,
 	isCreateTaskModalOpen,
 	milestones,
 	mode,
@@ -19,6 +20,7 @@ export function CreateTaskModal() {
 
 	function closeModal() {
 		createTaskInitialColumnId.value = null
+		createTaskInitialTargetDate.value = null
 		isCreateTaskModalOpen.value = false
 	}
 
@@ -46,7 +48,9 @@ export function CreateTaskModal() {
 	)
 	const [priority, setPriority] = useState<Priority>('medium')
 	const [milestone, setMilestone] = useState('')
-	const [targetAt, setTargetAt] = useState('')
+	const [targetAt, setTargetAt] = useState(
+		createTaskInitialTargetDate.value || '',
+	)
 	const [tagsStr, setTagsStr] = useState('')
 	const [depsStr, setDepsStr] = useState('')
 	const [body, setBody] = useState('')
@@ -419,6 +423,7 @@ export function CreateTaskModal() {
 						disabled={isSaving}
 						class='btn btn-ghost btn-sm'
 						aria-label='Cancel task creation'
+						data-testid='create-task-cancel-button'
 					>
 						Cancel
 					</button>

@@ -10,11 +10,13 @@ import {
 	initFromSnapshot,
 	milestones,
 	mode,
+	resetFilters,
 	setMilestoneFilter,
 	setSearchQuery,
 	strategies,
 	tasks,
 	togglePriorityFilter,
+	toggleStateFilter,
 	toggleTagFilter,
 } from '../state/store'
 import { formatBrowserDateTime } from '../utils/date'
@@ -70,6 +72,17 @@ describe('Sample Data & Component Logic Verification', () => {
 		// 4. Milestone filter
 		setMilestoneFilter('m1-mvp-release')
 		expect(filteredTasks.value.length).toBe(2)
+
+		// 5. State filter
+		toggleStateFilter('in_progress')
+		expect(filteredTasks.value.length).toBe(1)
+		expect(filteredTasks.value[0].id).toBe('260901-user-auth')
+		toggleStateFilter('in_progress') // toggle off
+
+		toggleStateFilter('backlog')
+		expect(filteredTasks.value.length).toBe(0)
+
+		resetFilters()
 	})
 
 	it('formats ISO datetime into browser localized format', () => {
@@ -90,10 +103,14 @@ describe('Sample Data & Component Logic Verification', () => {
 
 		// Clearing search query (as done when selecting milestone from search)
 		setSearchQuery('')
-		expect(filteredTasks.value.length).toBe(2)
+		const expectedCount = sampleSnapshot.tasks.filter(
+			(t) => t.milestone === 'm1-mvp-release',
+		).length
+		expect(filteredTasks.value.length).toBe(expectedCount)
 		expect(
 			filteredTasks.value.every((t) => t.milestone === 'm1-mvp-release'),
 		).toBe(true)
+		resetFilters()
 	})
 
 	it('locates URL targeted strategy accurately in sample data', () => {

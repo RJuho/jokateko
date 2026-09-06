@@ -45,6 +45,7 @@ describe('Router & URL Anchor Parser', () => {
 			taskId: null,
 			strategyId: null,
 			glossaryId: null,
+			calendarPeriod: null,
 		})
 		expect(parseHash('#')).toEqual({
 			tab: 'board',
@@ -52,6 +53,7 @@ describe('Router & URL Anchor Parser', () => {
 			taskId: null,
 			strategyId: null,
 			glossaryId: null,
+			calendarPeriod: null,
 		})
 		expect(parseHash('#board')).toEqual({
 			tab: 'board',
@@ -59,6 +61,7 @@ describe('Router & URL Anchor Parser', () => {
 			taskId: null,
 			strategyId: null,
 			glossaryId: null,
+			calendarPeriod: null,
 		})
 		expect(parseHash('#strategies')).toEqual({
 			tab: 'strategies',
@@ -66,6 +69,7 @@ describe('Router & URL Anchor Parser', () => {
 			taskId: null,
 			strategyId: null,
 			glossaryId: null,
+			calendarPeriod: null,
 		})
 		expect(parseHash('#glossary')).toEqual({
 			tab: 'glossary',
@@ -73,6 +77,7 @@ describe('Router & URL Anchor Parser', () => {
 			taskId: null,
 			strategyId: null,
 			glossaryId: null,
+			calendarPeriod: null,
 		})
 	})
 
@@ -83,6 +88,7 @@ describe('Router & URL Anchor Parser', () => {
 			taskId: '260901-user-auth',
 			strategyId: null,
 			glossaryId: null,
+			calendarPeriod: null,
 		})
 		expect(parseHash('#/task/260901-user-auth')).toEqual({
 			tab: 'board',
@@ -90,6 +96,7 @@ describe('Router & URL Anchor Parser', () => {
 			taskId: '260901-user-auth',
 			strategyId: null,
 			glossaryId: null,
+			calendarPeriod: null,
 		})
 		expect(parseHash('#milestone/m1-mvp-release')).toEqual({
 			tab: 'board',
@@ -97,6 +104,7 @@ describe('Router & URL Anchor Parser', () => {
 			taskId: null,
 			strategyId: null,
 			glossaryId: null,
+			calendarPeriod: null,
 		})
 		expect(parseHash('#/milestone/m1-mvp-release')).toEqual({
 			tab: 'board',
@@ -104,6 +112,7 @@ describe('Router & URL Anchor Parser', () => {
 			taskId: null,
 			strategyId: null,
 			glossaryId: null,
+			calendarPeriod: null,
 		})
 		expect(parseHash('#strategy/strat-arch-01')).toEqual({
 			tab: 'strategies',
@@ -111,6 +120,7 @@ describe('Router & URL Anchor Parser', () => {
 			taskId: null,
 			strategyId: 'strat-arch-01',
 			glossaryId: null,
+			calendarPeriod: null,
 		})
 		expect(parseHash('#/strategy/strat-arch-01')).toEqual({
 			tab: 'strategies',
@@ -118,6 +128,7 @@ describe('Router & URL Anchor Parser', () => {
 			taskId: null,
 			strategyId: 'strat-arch-01',
 			glossaryId: null,
+			calendarPeriod: null,
 		})
 		expect(parseHash('#glossary/term-tasks-as-code')).toEqual({
 			tab: 'glossary',
@@ -125,6 +136,7 @@ describe('Router & URL Anchor Parser', () => {
 			taskId: null,
 			strategyId: null,
 			glossaryId: 'term-tasks-as-code',
+			calendarPeriod: null,
 		})
 		expect(parseHash('#/glossary/term-tasks-as-code')).toEqual({
 			tab: 'glossary',
@@ -132,6 +144,7 @@ describe('Router & URL Anchor Parser', () => {
 			taskId: null,
 			strategyId: null,
 			glossaryId: 'term-tasks-as-code',
+			calendarPeriod: null,
 		})
 	})
 
@@ -222,5 +235,75 @@ describe('Router & URL Anchor Parser', () => {
 		navigateTo('task/260901-user-auth')
 		expect(mockLocation.hash).toBe('#task/260901-user-auth')
 		expect(activeTaskDetailId.value).toBe('260901-user-auth')
+
+		// calendar navigation
+		mockLocation.hash = '#calendar'
+		syncFromHash()
+		expect(activeTab.value).toBe('calendar')
+
+		mockLocation.hash = '#calendar/2026-09'
+		syncFromHash()
+		expect(activeTab.value).toBe('calendar')
+
+		mockLocation.hash = '#calendar/2026-09/task/260901-user-auth'
+		syncFromHash()
+		expect(activeTab.value).toBe('calendar')
+		expect(activeTaskDetailId.value).toBe('260901-user-auth')
+	})
+
+	it('parses calendar routes with periods, tasks, and milestones', () => {
+		expect(parseHash('#calendar')).toEqual({
+			tab: 'calendar',
+			milestoneId: null,
+			taskId: null,
+			strategyId: null,
+			glossaryId: null,
+			calendarPeriod: null,
+		})
+
+		expect(parseHash('#calendar/2026-09')).toEqual({
+			tab: 'calendar',
+			milestoneId: null,
+			taskId: null,
+			strategyId: null,
+			glossaryId: null,
+			calendarPeriod: '2026-09',
+		})
+
+		expect(parseHash('#calendar/2026-W36')).toEqual({
+			tab: 'calendar',
+			milestoneId: null,
+			taskId: null,
+			strategyId: null,
+			glossaryId: null,
+			calendarPeriod: '2026-W36',
+		})
+
+		expect(parseHash('#calendar/2026-09/task/task-abc')).toEqual({
+			tab: 'calendar',
+			milestoneId: null,
+			taskId: 'task-abc',
+			strategyId: null,
+			glossaryId: null,
+			calendarPeriod: '2026-09',
+		})
+
+		expect(parseHash('#calendar/task/task-xyz')).toEqual({
+			tab: 'calendar',
+			milestoneId: null,
+			taskId: 'task-xyz',
+			strategyId: null,
+			glossaryId: null,
+			calendarPeriod: null,
+		})
+
+		expect(parseHash('#calendar/2026-09/milestone/m1-mvp')).toEqual({
+			tab: 'calendar',
+			milestoneId: 'm1-mvp',
+			taskId: null,
+			strategyId: null,
+			glossaryId: null,
+			calendarPeriod: '2026-09',
+		})
 	})
 })

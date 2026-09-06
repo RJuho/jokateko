@@ -134,6 +134,9 @@ function computeSearchResults(
 			...strategyResults,
 			...glossaryResults,
 		]
+	} else if (currentTab === 'calendar') {
+		currentPageAll = [...taskResults, ...milestoneResults]
+		otherPagesAll = [...strategyResults, ...glossaryResults]
 	} else if (currentTab === 'milestones') {
 		currentPageAll = milestoneResults
 		otherPagesAll = [...taskResults, ...strategyResults, ...glossaryResults]
@@ -218,6 +221,7 @@ export function Header() {
 
 	const navTabs: { id: Tab; label: string; testId: string }[] = [
 		{ id: 'board', label: t('board'), testId: 'nav-tab-board' },
+		{ id: 'calendar', label: t('calendar'), testId: 'nav-tab-calendar' },
 		{ id: 'strategies', label: t('strategies'), testId: 'nav-tab-strategies' },
 		{ id: 'glossary', label: t('glossary'), testId: 'nav-tab-glossary' },
 	]

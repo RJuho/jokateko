@@ -15,6 +15,7 @@ export interface CustomTask {
 	title: string
 	status: string
 	priority: string
+	milestone?: string
 	tags: string[]
 	summary: string
 	body?: string
@@ -40,11 +41,24 @@ export interface CustomGlossaryTerm {
 	body?: string
 }
 
+export interface CustomMilestone {
+	id: string
+	title: string
+	status?: 'open' | 'closed'
+	target_start_at?: string
+	target_end_at?: string
+	target_date?: string
+	summary?: string
+	tags?: string[]
+	body?: string
+}
+
 export async function startTestServer(options?: {
 	customConfig?: string
 	customTasks?: CustomTask[]
 	customStrategies?: CustomStrategy[]
 	customGlossary?: CustomGlossaryTerm[]
+	customMilestones?: CustomMilestone[]
 }): Promise<TestServerInstance> {
 	const dir = mkdtempSync(join(tmpdir(), 'jokateko-e2e-'))
 	const binaryPath = '/workspaces/jokateko/bin/jokateko'
@@ -73,9 +87,12 @@ id = "${task.id}"
 title = "${task.title}"
 status = "${task.status}"
 priority = "${task.priority}"
-tags = [${task.tags.map((t) => `"${t}"`).join(', ')}]
-summary = "${task.summary}"
+tags = [${(task.tags ?? []).map((t) => `"${t}"`).join(', ')}]
+summary = "${task.summary || task.title || 'Task summary'}"
 `
+			if (task.milestone) {
+				content += `milestone = "${task.milestone}"\n`
+			}
 			if (task.created_at) {
 				content += `created_at = "${task.created_at}"\n`
 			}
@@ -99,7 +116,7 @@ ${task.body || '## Acceptance Criteria\n- [ ] Task requirement\n'}
 			const content = `+++
 title = "${s.title}"
 tier = ${s.tier}
-summary = "${s.summary}"
+summary = "${s.summary || s.title || 'Strategy summary'}"
 tags = [${(s.tags || []).map((t) => `"${t}"`).join(', ')}]
 +++
 
@@ -115,13 +132,30 @@ ${s.body || ''}
 			const glossPath = join(dir, '.jokateko', 'glossary', `${g.id}.md`)
 			const content = `+++
 title = "${g.title}"
-summary = "${g.summary}"
+summary = "${g.summary || g.title || 'Glossary summary'}"
 tags = [${(g.tags || []).map((t) => `"${t}"`).join(', ')}]
 +++
 
 ${g.body || ''}
 `
 			writeFileSync(glossPath, content, 'utf8')
+		}
+	}
+
+	// 2d. Write any custom milestones
+	if (options?.customMilestones) {
+		for (const m of options.customMilestones) {
+			const mPath = join(dir, '.jokateko', 'milestones', `${m.id}.md`)
+			let content = `+++
+title = "${m.title}"
+status = "${m.status || 'open'}"
+`
+			if (m.target_start_at) content += `target_start_at = "${m.target_start_at}"\n`
+			if (m.target_end_at) content += `target_end_at = "${m.target_end_at}"\n`
+			if (m.target_date) content += `target_date = "${m.target_date}"\n`
+			content += `summary = "${m.summary || m.title || 'Milestone summary'}"\n`
+			content += `+++\n\n${m.body || ''}\n`
+			writeFileSync(mPath, content, 'utf8')
 		}
 	}
 

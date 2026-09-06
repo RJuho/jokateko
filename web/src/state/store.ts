@@ -16,7 +16,12 @@ import { compareTasks, type SortMode } from '../utils/sort'
 import type { AppMode } from './bootstrap'
 import { saveStateToStorage } from './storage'
 
-export type Tab = 'board' | 'milestones' | 'strategies' | 'glossary'
+export type Tab =
+	| 'board'
+	| 'milestones'
+	| 'strategies'
+	| 'glossary'
+	| 'calendar'
 export type { SortMode }
 
 export interface FilterState {
@@ -24,6 +29,7 @@ export interface FilterState {
 	selectedTags: string[]
 	selectedMilestone: string | null
 	selectedPriorities: Priority[]
+	selectedStates: string[]
 }
 
 export const defaultPriorities: PriorityConfig[] = [
@@ -123,6 +129,7 @@ export const filters = signal<FilterState>({
 	selectedTags: [],
 	selectedMilestone: null,
 	selectedPriorities: [],
+	selectedStates: [],
 })
 
 export const activeSortMode = signal<SortMode>('default')
@@ -148,15 +155,23 @@ export const activeTaskEditId = signal<string | null>(null)
 export const isCreateTaskModalOpen = signal<boolean>(false)
 export const isAboutModalOpen = signal<boolean>(false)
 export const createTaskInitialColumnId = signal<string | null>(null)
+export const createTaskInitialTargetDate = signal<string | null>(null)
 export const activeColumnDetailId = signal<string | null>(null)
 export const activeStrategyId = signal<string | null>(null)
 export const activeGlossaryId = signal<string | null>(null)
+export const calendarViewMode = signal<'month' | 'week'>('month')
+export const calendarCurrentDate = signal<Date>(new Date())
 
 // Computed
 export const filteredTasks = computed(() => {
 	const currentTasks = tasks.value
-	const { searchQuery, selectedTags, selectedMilestone, selectedPriorities } =
-		filters.value
+	const {
+		searchQuery,
+		selectedTags,
+		selectedMilestone,
+		selectedPriorities,
+		selectedStates,
+	} = filters.value
 
 	const normalizedQuery = searchQuery.trim().toLowerCase()
 
@@ -200,6 +215,13 @@ export const filteredTasks = computed(() => {
 			}
 		}
 
+		// 5. State / Status filter
+		if (selectedStates.length > 0) {
+			if (!selectedStates.includes(task.status)) {
+				return false
+			}
+		}
+
 		return true
 	})
 })
@@ -207,7 +229,6 @@ export const filteredTasks = computed(() => {
 export const columnTasks = computed(() => {
 	const cols = config.value.board.columns
 	const taskList = filteredTasks.value
-	const currentSort = activeSortMode.value
 	const map: Record<string, Task[]> = {}
 
 	for (const col of cols) {
@@ -396,6 +417,14 @@ export function togglePriorityFilter(p: Priority): void {
 	filters.value = { ...filters.value, selectedPriorities: next }
 }
 
+export function toggleStateFilter(status: string): void {
+	const current = filters.value.selectedStates
+	const next = current.includes(status)
+		? current.filter((s) => s !== status)
+		: [...current, status]
+	filters.value = { ...filters.value, selectedStates: next }
+}
+
 export function setMilestoneFilter(m: string | null): void {
 	filters.value = { ...filters.value, selectedMilestone: m }
 }
@@ -406,6 +435,7 @@ export function resetFilters(): void {
 		selectedTags: [],
 		selectedMilestone: null,
 		selectedPriorities: [],
+		selectedStates: [],
 	}
 	columnSortModes.value = {}
 	activeSortMode.value = 'default'

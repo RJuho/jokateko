@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import type { Column } from '../schemas/models'
-import { type SortableTask, compareTasks, getPriorityRank } from './sort'
+import { compareTasks, getPriorityRank, type SortableTask } from './sort'
 
 describe('Multi-Criteria Task Sorting Utilities', () => {
 	const defaultBacklogCol: Column = {

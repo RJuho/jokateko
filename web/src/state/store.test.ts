@@ -19,6 +19,7 @@ import {
 	setSortMode,
 	tasks,
 	togglePriorityFilter,
+	toggleStateFilter,
 	toggleTagFilter,
 	upsertTask,
 } from './store'
@@ -167,6 +168,17 @@ describe('Preact Signals State Store', () => {
 		setMilestoneFilter('m2')
 		expect(filteredTasks.value.length).toBe(1)
 		expect(filteredTasks.value[0].id).toBe('t-beta')
+
+		resetFilters()
+
+		// 5. State Filter
+		toggleStateFilter('col1')
+		expect(filteredTasks.value.length).toBe(2)
+		toggleStateFilter('non_existent')
+		expect(filteredTasks.value.length).toBe(2)
+		resetFilters()
+		toggleStateFilter('non_existent')
+		expect(filteredTasks.value.length).toBe(0)
 
 		resetFilters()
 		expect(filteredTasks.value.length).toBe(2)

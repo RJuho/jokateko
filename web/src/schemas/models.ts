@@ -26,14 +26,14 @@ export const TaskSchema = v.object({
 	summary: v.optional(v.string(), ''),
 	dependencies: v.optional(v.array(v.string()), []),
 	body: v.optional(v.string(), ''),
-	body_html: v.optional(v.string(), ''),
+	body_html: v.optional(v.string()),
 	total_criteria: v.optional(v.number(), 0),
 	completed_criteria: v.optional(v.number(), 0),
 	file_path: v.optional(v.string()),
 	mod_time: v.optional(v.string()),
-	created_at: v.optional(v.string(), ''),
-	changed_at: v.optional(v.string(), ''),
-	target_at: v.optional(v.string(), ''),
+	created_at: v.optional(v.string()),
+	changed_at: v.optional(v.string()),
+	target_at: v.optional(v.string()),
 })
 
 export const MilestoneSchema = v.object({
@@ -42,13 +42,13 @@ export const MilestoneSchema = v.object({
 	status: v.optional(MilestoneStatusSchema, 'open'),
 	is_archived: v.optional(v.boolean(), false),
 	target_date: v.optional(v.nullish(v.string())),
-	target_start_at: v.optional(v.string(), ''),
-	target_end_at: v.optional(v.string(), ''),
-	target_timeframe: v.optional(v.string(), ''),
+	target_start_at: v.optional(v.string()),
+	target_end_at: v.optional(v.string()),
+	target_timeframe: v.optional(v.string()),
 	tags: v.optional(v.array(v.string()), []),
 	summary: v.optional(v.string(), ''),
 	body: v.optional(v.string(), ''),
-	body_html: v.optional(v.string(), ''),
+	body_html: v.optional(v.string()),
 	total_tasks: v.optional(v.number(), 0),
 	completed_tasks: v.optional(v.number(), 0),
 	progress_percentage: v.optional(v.number(), 0),
@@ -63,7 +63,7 @@ export const StrategySchema = v.object({
 	tags: v.optional(v.array(v.string()), []),
 	summary: v.optional(v.string(), ''),
 	body: v.optional(v.string(), ''),
-	body_html: v.optional(v.string(), ''),
+	body_html: v.optional(v.string()),
 	file_path: v.optional(v.string()),
 	mod_time: v.optional(v.string()),
 })
@@ -74,7 +74,7 @@ export const GlossaryTermSchema = v.object({
 	tags: v.optional(v.array(v.string()), []),
 	summary: v.optional(v.string(), ''),
 	body: v.optional(v.string(), ''),
-	body_html: v.optional(v.string(), ''),
+	body_html: v.optional(v.string()),
 	file_path: v.optional(v.string()),
 	mod_time: v.optional(v.string()),
 })
@@ -101,6 +101,8 @@ export const BuildConfigSchema = v.object({
 	branch: v.optional(v.string(), ''),
 	commit: v.optional(v.string(), ''),
 	version: v.optional(v.string(), ''),
+	go_version: v.optional(v.string()),
+	platform: v.optional(v.string()),
 })
 
 export const PriorityConfigSchema = v.object({

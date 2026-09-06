@@ -1,6 +1,7 @@
 import { useEffect } from 'preact/hooks'
 import { KanbanBoard } from './components/board/KanbanBoard'
 import { MilestoneCards } from './components/board/MilestoneCards'
+import { CalendarView } from './components/calendar/CalendarView'
 import { FilterBar } from './components/common/FilterBar'
 import { Footer } from './components/common/Footer'
 import { Header } from './components/common/Header'
@@ -21,6 +22,8 @@ import {
 	activeStrategyId,
 	activeTab,
 	activeTaskDetailId,
+	calendarCurrentDate,
+	calendarViewMode,
 	config,
 	fetchLiveBoard,
 	fetchLiveEntities,
@@ -73,6 +76,8 @@ export function App() {
 		activeTaskDetailId.value,
 		activeStrategyId.value,
 		activeGlossaryId.value,
+		calendarCurrentDate.value,
+		calendarViewMode.value,
 		filters.value.selectedMilestone,
 		tasks.value,
 		milestones.value,
@@ -101,6 +106,12 @@ export function App() {
 							<FilterBar />
 						</div>
 						<KanbanBoard />
+					</div>
+				)}
+
+				{currentTab === 'calendar' && (
+					<div class='flex-1 min-h-0 flex flex-col overflow-hidden'>
+						<CalendarView />
 					</div>
 				)}
 

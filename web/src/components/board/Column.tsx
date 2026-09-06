@@ -7,8 +7,8 @@ import {
 	createTaskInitialColumnId,
 	isCreateTaskModalOpen,
 	mode,
-	setColumnSortMode,
 	type SortMode,
+	setColumnSortMode,
 } from '../../state/store'
 import { t } from '../../utils/i18n'
 import { TaskCard } from './TaskCard'
@@ -234,7 +234,6 @@ export function Column({
 						{isSortOpen && (
 							<ul
 								class='dropdown-content menu menu-xs bg-base-100 text-base-content rounded-box z-50 w-52 sm:w-56 p-1.5 shadow-xl border border-base-200 mt-1.5'
-								role='menu'
 								aria-label={t('arial_sort_options')}
 								data-testid={`column-sort-menu-${column.id}`}
 							>

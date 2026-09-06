@@ -1,12 +1,12 @@
 +++
 title = 'Full-Screen Interactive Calendar View for Milestones and Tasks'
-status = 'backlog'
+status = 'done'
 priority = 'medium'
 tags = ['feature', 'frontend']
-summary = 'Build a full-screen calendar view (#calendar) displaying multi-day milestone timeline bars and single-day tasks placed by target_at or changed_at with state dots and opacity differentiation.'
+summary = 'Full-screen interactive calendar view supporting monthly grid, weekly view with mobile snap-x column navigation, milestone timelines, scheduled task chips, and state filtering.'
 dependencies = ['260904-task-and-milestone-timestamps-createdat-']
 created_at = '2026-09-05T17:02:34Z'
-changed_at = '2026-09-05T17:10:26Z'
+changed_at = '2026-09-06T13:30:38Z'
 +++
 
 # Full-Screen Interactive Calendar View for Milestones and Tasks
@@ -37,13 +37,55 @@ While Kanban boards present workflow stage columns and Milestones aggregate deli
    - Calendar items reactively filter based on active search queries, tags, and milestone selections in `store.ts`.
 
 ## Acceptance Criteria
-- [ ] Add `#calendar` route to `router.ts` and Calendar tab link to `Header.tsx`
-- [ ] Implement responsive full-screen `CalendarView` component with monthly grid layout
-- [ ] Add month navigation controls (Previous, Next, Today) with current month/year indicator
-- [ ] Render multi-day Milestone timeline bars spanning across day cells based on derived timeframe
-- [ ] Render single-day task chips on appropriate dates (target_at for active, changed_at for done/untargeted)
-- [ ] Apply 0.75 opacity for untargeted active tasks and full opacity for targeted tasks
-- [ ] Display colored dot indicator matching column status color on task chips
-- [ ] Connect task clicks to `TaskDetailModal` and milestone clicks to milestone view/filters
-- [ ] Respect global search, tag, and milestone filter state
-- [ ] Add Playwright E2E test suite covering calendar navigation, milestone spans, and task chips
+- [x] Add `#calendar` route to `router.ts` and Calendar tab link to `Header.tsx`
+- [x] Implement responsive full-screen `CalendarView` component with monthly grid layout
+- [x] Add month navigation controls (Previous, Next, Today) with current month/year indicator
+- [x] Render multi-day Milestone timeline bars spanning across day cells based on derived timeframe
+- [x] Render single-day task chips on appropriate dates (target_at for active, changed_at for done/untargeted)
+- [x] Apply 0.75 opacity for untargeted active tasks and full opacity for targeted tasks
+- [x] Display colored dot indicator matching column status color on task chips
+- [x] Connect task clicks to `TaskDetailModal` and milestone clicks to milestone view/filters
+- [x] Respect global search, tag, and milestone filter state
+- [x] Add Playwright E2E test suite covering calendar navigation, milestone spans, and task chips
+
+## Notes
+
+### [2026-09-06 06:40 UTC]
+
+Implemented full-screen interactive Calendar View:
+- Deep linking & anchor URLs (`#calendar`, `#calendar/YYYY-MM`, `#calendar/YYYY-Www`, `#calendar/YYYY-MM/task/<id>`, `#calendar/YYYY-MM/milestone/<id>`).
+- Responsive month and week grid layout with week number indicators and Prev/Next/Today controls.
+- Continuous multi-day milestone timeline bars segmented across week rows with progress % and Kanban milestone filter navigation.
+- Single-day task chips positioned by `target_at` (full 1.0 opacity) or `changed_at` (0.75 opacity for untargeted), line-through on completed tasks, colored column status dots, and `+N more` popover for overflow.
+- Day cell and hover `+` click for quick task creation with pre-filled `target_at`.
+- Full integration with global FilterBar (search, tag, milestone, priority).
+- Playwright E2E test suite passing across all scenarios.
+
+### [2026-09-06 13:00 UTC]
+
+Implemented requested user refinements:
+- Navigated "+N more" directly to weekly view instead of popover to facilitate reading.
+- Updated weekly view to show all scheduled tasks with larger typography and scrollable day cell layout.
+- Fixed week view title number formatting (accurate ISO week calculation, Thursday month reference, removed "W" prefix).
+- Added state filter column buttons to FilterBar alongside tags and priority filters.
+- Added comprehensive i18n support for weekday names, month names, state filters, and week numbers.
+- Verified and validated with 40/40 E2E Playwright tests and 60/60 unit tests.
+
+### [2026-09-06 13:27 UTC]
+
+Implemented mobile weekly column view enhancements per user request:
+- Mobile (< md:) Weekly view renders as full-screen width day columns (`w-[calc(100vw-2.5rem)]` on mobile, `sm:w-96` on tablet).
+- Enabled smooth horizontal scroll snapping with `snap-x snap-mandatory scroll-smooth` matching the Kanban board behavior.
+- Added responsive quick-navigation day pill bar (`week-day-quick-nav`) on mobile showing day names, dates, task count badges, and current active day indicator.
+- Included in-column milestone banners and empty-state placeholders on mobile week columns.
+- Resolved Preact dayOfWeekIndex lookup bug and verified with Playwright mobile viewport E2E test.
+- All 41 Playwright E2E tests, 60 unit tests, Biome checks, and Go tests pass cleanly. Built binary placed into `/home/bun/.local/bin/jokateko`.
+
+## Completion Summary
+- **Completed At:** 2026-09-06T13:30:38Z
+
+### What Was Done
+Implemented dedicated full-screen CalendarView component with responsive monthly and weekly views, milestone timeline spans, task chips scheduled by target_at/changed_at, mobile horizontal snap-x scroll columns with quick-nav day pill bar, state filter buttons in FilterBar, accurate ISO week title formatting, and comprehensive i18n support.
+
+### Why / Rationale
+Gives developers and teams a chronological perspective to track deadlines, multi-day milestones, and delivery cadence across mobile and desktop devices without breaking Spec-First, Tasks-as-Code principles.

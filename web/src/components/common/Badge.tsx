@@ -132,7 +132,7 @@ export function TargetDateBadge({
 	if (!targetAt) return null
 
 	const date = new Date(targetAt)
-	if (isNaN(date.getTime())) return null
+	if (Number.isNaN(date.getTime())) return null
 
 	const formatted = date.toLocaleDateString(undefined, {
 		month: 'short',

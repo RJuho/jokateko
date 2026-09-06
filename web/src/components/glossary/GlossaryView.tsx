@@ -126,7 +126,7 @@ export function GlossaryView() {
 				{visibleTerms.map((term) => {
 					const isOpened = openedTermIds.has(term.id)
 					const hasBody =
-						(Boolean(term.body_html) && term.body_html.trim() !== '')
+						(Boolean(term.body_html) && term.body_html?.trim() !== '')
 						|| (Boolean(term.body)
 							&& term.body.trim() !== ''
 							&& term.body !== term.summary)
