@@ -148,10 +148,7 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 
 						{/* Target Date Badge */}
 						{task.target_at && (
-							<TargetDateBadge
-								targetAt={task.target_at}
-								status={task.status}
-							/>
+							<TargetDateBadge targetAt={task.target_at} status={task.status} />
 						)}
 
 						{/* Milestone Tag */}

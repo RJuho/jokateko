@@ -26,9 +26,11 @@ func BuildSnapshot(ctx context.Context, cfg *config.Config, st *store.Store) (*m
 	cols := make([]model.Column, 0, len(cfg.Board.Columns))
 	for _, c := range cfg.Board.Columns {
 		cols = append(cols, model.Column{
-			ID:    c.ID,
-			Name:  c.Name,
-			Color: c.Color,
+			ID:           c.ID,
+			Name:         c.Name,
+			Color:        c.Color,
+			HandledBy:    c.HandledBy,
+			Instructions: c.Instructions,
 		})
 	}
 
@@ -77,7 +79,10 @@ func BuildSnapshot(ctx context.Context, cfg *config.Config, st *store.Store) (*m
 				Description: cfg.Project.Description,
 			},
 			Board: model.BoardConfig{
-				Columns: cols,
+				Columns:            cols,
+				EditableStates:     cfg.Board.EditableStates,
+				CreatableStates:    cfg.Board.CreatableStates,
+				DefaultCreateState: cfg.Board.DefaultCreateState,
 			},
 			Priorities: cfg.Priorities,
 			Tiers:      cfg.Strategies.Tiers,
@@ -92,6 +97,9 @@ func BuildSnapshot(ctx context.Context, cfg *config.Config, st *store.Store) (*m
 				Version: vInfo.Version,
 			},
 			Translations: cfg.Translations,
+			MCP: model.MCPConfig{
+				Instructions: cfg.MCP.Instructions,
+			},
 		},
 		Tasks:      tasks,
 		Milestones: milestones,

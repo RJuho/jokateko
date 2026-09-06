@@ -102,10 +102,12 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 
 	status := req.Status
 	if status == "" {
-		if len(s.columns) > 0 {
+		if s.cfg != nil && strings.TrimSpace(s.cfg.Board.DefaultCreateState) != "" {
+			status = strings.TrimSpace(s.cfg.Board.DefaultCreateState)
+		} else if len(s.columns) > 0 {
 			status = s.columns[0].ID
 		} else {
-			status = "ready"
+			status = "backlog"
 		}
 	}
 

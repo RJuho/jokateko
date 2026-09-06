@@ -5,9 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/RJuho/jokateko/internal/config"
 	internalmcp "github.com/RJuho/jokateko/internal/mcp"
 	"github.com/RJuho/jokateko/internal/model"
+	"github.com/RJuho/jokateko/internal/store"
+	"github.com/RJuho/jokateko/internal/writer"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestMCP_MilestoneTools(t *testing.T) {
@@ -559,4 +564,106 @@ func TestMCP_DeleteTools(t *testing.T) {
 		}
 	})
 }
+
+func TestMCP_BoardPoliciesAndWorkflowOwnership(t *testing.T) {
+	dir := t.TempDir()
+
+	tasksDir := filepath.Join(dir, ".jokateko", "tasks")
+	_ = os.MkdirAll(tasksDir, 0755)
+
+	cfg := config.Default(dir)
+	cfg.Board.DefaultCreateState = "ready"
+	cfg.Board.CreatableStates = []string{"backlog", "ready"}
+	cfg.Board.Columns = []config.ColumnConfig{
+		{
+			ID:           "backlog",
+			Name:         "Backlog",
+			Color:        "#94a3b8",
+			HandledBy:    "human",
+			Instructions: "Triage and spec definition",
+		},
+		{
+			ID:           "ready",
+			Name:         "Ready",
+			Color:        "#60a5fa",
+			HandledBy:    "agent:coder",
+			Instructions: "Implement when dependencies are met",
+		},
+		{
+			ID:    "done",
+			Name:  "Done",
+			Color: "#10b981",
+		},
+	}
+
+	st, err := store.OpenMemory()
+	if err != nil {
+		t.Fatalf("failed to open store: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	sc := writer.NewSuppressionCache(time.Second)
+	wr := writer.New(sc)
+
+	srv := internalmcp.New(cfg, dir, st, wr)
+
+	// 1. Verify dynamic instructions injection
+	instr := srv.Instructions()
+	if !strings.Contains(instr, "Workflow Column Ownership & Instructions:") {
+		t.Errorf("expected instructions to contain workflow ownership header, got: %s", instr)
+	}
+	if !strings.Contains(instr, "Backlog (`backlog`): Handled by human. Triage and spec definition") {
+		t.Errorf("expected instructions to contain Backlog guidance, got: %s", instr)
+	}
+	if !strings.Contains(instr, "Ready (`ready`): Handled by agent:coder. Implement when dependencies are met") {
+		t.Errorf("expected instructions to contain Ready guidance, got: %s", instr)
+	}
+
+	clientTransport, serverTransport := mcp.NewInMemoryTransports()
+	ctx := t.Context()
+
+	_, err = srv.MCPServer().Connect(ctx, serverTransport, nil)
+	if err != nil {
+		t.Fatalf("failed to connect server: %v", err)
+	}
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "1.0.0"}, nil)
+	clientSession, err := client.Connect(ctx, clientTransport, nil)
+	if err != nil {
+		t.Fatalf("failed to connect client: %v", err)
+	}
+	t.Cleanup(func() { _ = clientSession.Close() })
+
+	// 2. Test get_board_state output includes HandledBy and Instructions
+	board, err := callToolJSON[internalmcp.BoardSummaryOutput](t, clientSession, "get_board_state", internalmcp.GetBoardStateInput{})
+	if err != nil {
+		t.Fatalf("get_board_state failed: %v", err)
+	}
+	if len(board.Columns) != 3 {
+		t.Fatalf("expected 3 columns, got %d", len(board.Columns))
+	}
+	if board.Columns[0].HandledBy != "human" || board.Columns[0].Instructions != "Triage and spec definition" {
+		t.Errorf("unexpected backlog column metadata: %+v", board.Columns[0])
+	}
+	if board.Columns[1].HandledBy != "agent:coder" || board.Columns[1].Instructions != "Implement when dependencies are met" {
+		t.Errorf("unexpected ready column metadata: %+v", board.Columns[1])
+	}
+	if board.Columns[2].HandledBy != "" || board.Columns[2].Instructions != "" {
+		t.Errorf("unexpected done column metadata: %+v", board.Columns[2])
+	}
+
+	// 3. Test create_task defaults to default_create_state ("ready") when status is omitted
+	task, err := callToolJSON[internalmcp.TaskDetail](t, clientSession, "create_task", internalmcp.CreateTaskInput{
+		Title:   "Default Status Task",
+		Summary: "Testing default status fallback",
+		Body:    "## Spec\nTesting",
+	})
+	if err != nil {
+		t.Fatalf("create_task failed: %v", err)
+	}
+	if task.Status != "ready" {
+		t.Errorf("expected task status to default to 'ready', got %q", task.Status)
+	}
+}
+
 

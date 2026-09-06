@@ -10,6 +10,8 @@ export const ColumnSchema = v.object({
 	id: v.string(),
 	name: v.string(),
 	color: v.string(),
+	handled_by: v.optional(v.string()),
+	instructions: v.optional(v.string()),
 })
 
 export const TaskSchema = v.object({
@@ -82,7 +84,9 @@ export const ProjectConfigSchema = v.object({
 
 export const BoardConfigSchema = v.object({
 	columns: v.array(ColumnSchema),
-	editable_states: v.optional(v.array(v.string()), ['backlog']),
+	editable_states: v.optional(v.array(v.string())),
+	creatable_states: v.optional(v.array(v.string())),
+	default_create_state: v.optional(v.string()),
 })
 
 export const TagsConfigSchema = v.object({
@@ -113,6 +117,10 @@ export const TierConfigSchema = v.object({
 
 export const TranslationsConfigSchema = v.record(v.string(), v.string())
 
+export const MCPConfigSchema = v.object({
+	instructions: v.optional(v.string()),
+})
+
 export const SnapshotConfigSchema = v.object({
 	project: ProjectConfigSchema,
 	board: BoardConfigSchema,
@@ -121,6 +129,7 @@ export const SnapshotConfigSchema = v.object({
 	tags: v.optional(TagsConfigSchema),
 	build: v.optional(BuildConfigSchema),
 	translations: v.optional(TranslationsConfigSchema),
+	mcp: v.optional(MCPConfigSchema),
 })
 
 export const SnapshotSchema = v.object({
@@ -135,6 +144,8 @@ export const ColumnStateSchema = v.object({
 	id: v.string(),
 	name: v.string(),
 	color: v.string(),
+	handled_by: v.optional(v.string()),
+	instructions: v.optional(v.string()),
 	tasks: v.array(TaskSchema),
 	count: v.number(),
 })
@@ -142,7 +153,10 @@ export const ColumnStateSchema = v.object({
 export const BoardStateSchema = v.object({
 	project_name: v.string(),
 	columns: v.array(ColumnStateSchema),
-	editable_states: v.optional(v.array(v.string()), ['backlog']),
+	editable_states: v.optional(v.array(v.string())),
+	creatable_states: v.optional(v.array(v.string())),
+	default_create_state: v.optional(v.string()),
+	mcp_instructions: v.optional(v.string()),
 })
 
 // Automatically inferred TypeScript types (Single source of truth)

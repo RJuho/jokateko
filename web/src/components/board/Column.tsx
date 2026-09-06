@@ -1,6 +1,8 @@
 import { useState } from 'preact/hooks'
 import type { Column as ColumnType, Task } from '../../schemas/models'
 import {
+	activeColumnDetailId,
+	config,
 	createTaskInitialColumnId,
 	isCreateTaskModalOpen,
 	mode,
@@ -23,6 +25,9 @@ export function Column({
 }: ColumnProps) {
 	const [isDragOver, setIsDragOver] = useState(false)
 	const isLive = mode.value === 'live'
+	const creatableStates = config.value.board.creatable_states ?? ['backlog']
+	const isCreatable =
+		creatableStates.length === 0 || creatableStates.includes(column.id)
 
 	function handleDragOver(e: DragEvent) {
 		if (!isLive) {
@@ -67,9 +72,19 @@ export function Column({
 			<div
 				class='flex items-center justify-between px-2.5 py-1.5 rounded-full mb-2.5 shadow-xs select-none'
 				style={{ backgroundColor: column.color }}
+				data-testid={`column-header-${column.id}`}
 			>
-				{/* Left: Circle (or non-circle pill if >99 tasks) with task count + Title */}
-				<div class='flex items-center gap-2 min-w-0'>
+				{/* Left: Button to open Column Details modal */}
+				<button
+					type='button'
+					class='flex items-center gap-2 min-w-0 flex-1 text-left cursor-pointer hover:opacity-85 transition-opacity'
+					onClick={() => {
+						activeColumnDetailId.value = column.id
+					}}
+					aria-label={`Column info: ${column.name}`}
+					title={`Click to view workflow guidance and prompt for ${column.name}`}
+					data-testid={`column-header-pill-${column.id}`}
+				>
 					<span
 						class={`${
 							tasks.length > 99
@@ -84,10 +99,27 @@ export function Column({
 					<h3 class='text-xs sm:text-sm font-bold text-slate-900 tracking-tight truncate'>
 						{column.name}
 					</h3>
-				</div>
+					{column.handled_by && (
+						<div
+							class='tooltip tooltip-bottom shrink-0'
+							data-tip={
+								column.instructions
+									? `${column.handled_by}: ${column.instructions}`
+									: `Handled by ${column.handled_by}`
+							}
+						>
+							<span
+								class='badge badge-xs bg-black/15 text-slate-900 border-none font-medium px-1.5 py-0.5'
+								data-testid={`column-role-${column.id}`}
+							>
+								{column.handled_by}
+							</span>
+						</div>
+					)}
+				</button>
 
 				{/* Right: Plus Button to add a new task to this column */}
-				{isLive && (
+				{isLive && isCreatable && (
 					<button
 						type='button'
 						onClick={() => {

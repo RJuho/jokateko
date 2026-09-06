@@ -46,13 +46,23 @@ connect_src = ["'self'"]
 font_src = ["'self'"]
 
 # ------------------------------------------------------------------------------
-# Workflow Columns & Task Editing
+# Workflow Columns & Policies
 # ------------------------------------------------------------------------------
+[board]
 # List of workflow statuses in which a task's full body specification can be edited.
 # In all other states, tasks are locked and only notes can be appended.
-[board]
 editable_states = ["backlog"]
 
+# List of workflow statuses in which new tasks can be created (restricts '+' button in UI).
+creatable_states = ["backlog"]
+
+# Default column status assigned to newly created tasks when status is omitted.
+default_create_state = "backlog"
+
+# Each column defines a Kanban board swimlane.
+# Optional fields:
+#   handled_by   - Assigned agent persona, model, or human role (e.g. "human", "agent:coder", "agent:reviewer")
+#   instructions - Workflow guidance and exit/entry criteria dynamically served to AI agents via MCP
 [[board.columns]]
 id = "backlog"
 name = "Backlog"

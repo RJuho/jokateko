@@ -142,4 +142,130 @@ test.describe('Kanban Board & Real-Time Filtering E2E', () => {
 			page.locator('[data-testid="column-in_progress"]'),
 		).toBeVisible()
 	})
+
+	test('opens column detail modal when clicking column header pill', async ({
+		page,
+	}) => {
+		await page.goto(server.url)
+
+		// 1. Click column header pill for "in_progress"
+		const pill = page.locator('[data-testid="column-header-pill-in_progress"]')
+		await expect(pill).toBeVisible()
+		await pill.click()
+
+		// 2. Verify modal opened
+		const modal = page.locator('[data-testid="column-detail-modal"]')
+		await expect(modal).toBeVisible()
+		await expect(
+			page.locator('[data-testid="column-modal-badge"]'),
+		).toHaveText('In Progress')
+		await expect(
+			page.locator('[data-testid="column-modal-id"]'),
+		).toHaveText('status: in_progress')
+
+		// 3. Verify close button closes modal
+		const closeBtn = page.locator('[data-testid="column-modal-close-btn"]')
+		await closeBtn.click()
+		await expect(modal).not.toBeVisible()
+
+		// 4. Test keyboard Esc dismiss
+		await pill.click()
+		await expect(modal).toBeVisible()
+		await page.keyboard.press('Escape')
+		await expect(modal).not.toBeVisible()
+	})
 })
+
+test.describe('Column Detail Modal with Configured Prompts and Handled By', () => {
+	let customServer
+
+	test.beforeAll(async () => {
+		customServer = await startTestServer({
+			customConfig: `
+version = "0"
+[project]
+name = "Prompt Project"
+
+[board]
+editable_states = ["backlog"]
+creatable_states = ["backlog"]
+default_create_state = "backlog"
+
+[[board.columns]]
+id = "backlog"
+name = "Backlog"
+color = "#94a3b8"
+handled_by = "human"
+instructions = "Triage, scope verification, and spec-first definition."
+
+[[board.columns]]
+id = "in_progress"
+name = "In Progress"
+color = "#f59e0b"
+handled_by = "agent:coder"
+instructions = "Implement pure Go code with unit tests and zero CGO."
+
+[[board.columns]]
+id = "in_review"
+name = "In Review"
+color = "#a855f7"
+handled_by = "agent:reviewer"
+instructions = "Deterministic validation and Playwright E2E testing."
+
+[[board.columns]]
+id = "done"
+name = "Done"
+color = "#10b981"
+`,
+		})
+	})
+
+	test.afterAll(async () => {
+		if (customServer) {
+			await customServer.stop()
+		}
+	})
+
+	test('displays configured handled_by and prompt instructions in modal', async ({
+		page,
+	}) => {
+		await page.goto(customServer.url)
+
+		// Click "in_progress" column pill
+		const inProgressPill = page.locator(
+			'[data-testid="column-header-pill-in_progress"]',
+		)
+		await inProgressPill.click()
+
+		const modal = page.locator('[data-testid="column-detail-modal"]')
+		await expect(modal).toBeVisible()
+		await expect(
+			page.locator('[data-testid="column-modal-handled-by"]'),
+		).toContainText('agent:coder')
+		await expect(
+			page.locator('[data-testid="column-modal-instructions"]'),
+		).toContainText(
+			'Implement pure Go code with unit tests and zero CGO.',
+		)
+
+		// Close modal
+		await page.locator('[data-testid="column-modal-close"]').click()
+		await expect(modal).not.toBeVisible()
+
+		// Click "in_review" column pill
+		const inReviewPill = page.locator(
+			'[data-testid="column-header-pill-in_review"]',
+		)
+		await inReviewPill.click()
+		await expect(modal).toBeVisible()
+		await expect(
+			page.locator('[data-testid="column-modal-handled-by"]'),
+		).toContainText('agent:reviewer')
+		await expect(
+			page.locator('[data-testid="column-modal-instructions"]'),
+		).toContainText(
+			'Deterministic validation and Playwright E2E testing.',
+		)
+	})
+})
+

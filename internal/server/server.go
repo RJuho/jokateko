@@ -52,9 +52,11 @@ func New(cfg *config.Config, workspaceDir string, st *store.Store, wr *writer.Wr
 	cols := make([]model.Column, 0, len(cfg.Board.Columns))
 	for _, c := range cfg.Board.Columns {
 		cols = append(cols, model.Column{
-			ID:    c.ID,
-			Name:  c.Name,
-			Color: c.Color,
+			ID:           c.ID,
+			Name:         c.Name,
+			Color:        c.Color,
+			HandledBy:    c.HandledBy,
+			Instructions: c.Instructions,
 		})
 	}
 

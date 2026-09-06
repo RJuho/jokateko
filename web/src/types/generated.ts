@@ -9,12 +9,18 @@ export type Tier = 1 | 2 | 3;
 
 export interface BoardConfig {
   columns: Column[];
+  editable_states?: string[];
+  creatable_states?: string[];
+  default_create_state?: string;
 }
 
 export interface BoardState {
   project_name: string;
   columns: ColumnState[];
   editable_states?: string[];
+  creatable_states?: string[];
+  default_create_state?: string;
+  mcp_instructions?: string;
 }
 
 export interface BuildConfig {
@@ -28,12 +34,16 @@ export interface Column {
   id: string;
   name: string;
   color: string;
+  handled_by?: string;
+  instructions?: string;
 }
 
 export interface ColumnState {
   id: string;
   name: string;
   color: string;
+  handled_by?: string;
+  instructions?: string;
   tasks: Task[];
   count: number;
 }
@@ -61,6 +71,10 @@ export interface GlossaryTerm {
   body_html?: string;
   file_path?: string;
   mod_time?: string;
+}
+
+export interface MCPConfig {
+  instructions?: string;
 }
 
 export interface Milestone {
@@ -131,6 +145,7 @@ export interface SnapshotConfig {
   tags?: TagsConfig;
   build?: BuildConfig;
   translations?: TranslationsConfig;
+  mcp?: MCPConfig;
 }
 
 export interface Strategy {

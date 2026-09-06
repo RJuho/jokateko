@@ -9,6 +9,12 @@ type SnapshotConfig struct {
 	Tags         TagsConfig         `json:"tags,omitzero"`
 	Build        BuildConfig        `json:"build,omitzero"`
 	Translations TranslationsConfig `json:"translations,omitzero"`
+	MCP          MCPConfig          `json:"mcp,omitzero"`
+}
+
+// MCPConfig specifies Model Context Protocol settings for snapshots.
+type MCPConfig struct {
+	Instructions string `json:"instructions,omitempty"`
 }
 
 // PriorityConfig specifies a task priority level definition.
@@ -91,7 +97,10 @@ type ProjectConfig struct {
 
 // BoardConfig represents the column layout for static exports.
 type BoardConfig struct {
-	Columns []Column `json:"columns"`
+	Columns            []Column `json:"columns"`
+	EditableStates     []string `json:"editable_states,omitempty"`
+	CreatableStates    []string `json:"creatable_states,omitempty"`
+	DefaultCreateState string   `json:"default_create_state,omitempty"`
 }
 
 // TagsConfig represents tag constraints for static exports.

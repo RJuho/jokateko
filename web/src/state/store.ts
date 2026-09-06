@@ -72,6 +72,8 @@ const initialConfig: SnapshotConfig = {
 			{ id: 'done', name: 'Done', color: '#34d399' },
 		],
 		editable_states: ['backlog'],
+		creatable_states: ['backlog'],
+		default_create_state: 'backlog',
 	},
 	priorities: defaultPriorities,
 	tiers: defaultTiers,
@@ -126,6 +128,7 @@ export const activeTaskEditId = signal<string | null>(null)
 export const isCreateTaskModalOpen = signal<boolean>(false)
 export const isAboutModalOpen = signal<boolean>(false)
 export const createTaskInitialColumnId = signal<string | null>(null)
+export const activeColumnDetailId = signal<string | null>(null)
 export const activeStrategyId = signal<string | null>(null)
 export const activeGlossaryId = signal<string | null>(null)
 
@@ -397,8 +400,18 @@ export async function fetchLiveBoard(): Promise<boolean> {
 						id: c.id,
 						name: c.name,
 						color: c.color,
+						handled_by: c.handled_by,
+						instructions: c.instructions,
 					})),
 					editable_states: parsed.output.editable_states || ['backlog'],
+					creatable_states: parsed.output.creatable_states || ['backlog'],
+					default_create_state: parsed.output.default_create_state || 'backlog',
+				},
+				mcp: {
+					instructions:
+						parsed.output.mcp_instructions
+						|| config.value.mcp?.instructions
+						|| '',
 				},
 			}
 

@@ -3,6 +3,7 @@
 package mcp
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -42,6 +43,28 @@ type Server struct {
 	instructions string
 }
 
+func formatWorkflowGuidance(cols []config.ColumnConfig) string {
+	var lines []string
+	for _, c := range cols {
+		handledBy := strings.TrimSpace(c.HandledBy)
+		instr := strings.TrimSpace(c.Instructions)
+		if handledBy != "" || instr != "" {
+			line := fmt.Sprintf("- %s (`%s`):", c.Name, c.ID)
+			if handledBy != "" {
+				line += fmt.Sprintf(" Handled by %s.", handledBy)
+			}
+			if instr != "" {
+				line += fmt.Sprintf(" %s", instr)
+			}
+			lines = append(lines, line)
+		}
+	}
+	if len(lines) == 0 {
+		return ""
+	}
+	return "\n\nWorkflow Column Ownership & Instructions:\n" + strings.Join(lines, "\n")
+}
+
 // New initializes an MCP server with all Jokateko tools, resources, and prompt templates.
 func New(cfg *config.Config, workspaceDir string, st *store.Store, wr *writer.Writer) *Server {
 	if cfg == nil {
@@ -58,6 +81,10 @@ func New(cfg *config.Config, workspaceDir string, st *store.Store, wr *writer.Wr
 	instructions := strings.TrimSpace(cfg.MCP.Instructions)
 	if instructions == "" {
 		instructions = DefaultInstructions
+	}
+
+	if guidance := formatWorkflowGuidance(cfg.Board.Columns); guidance != "" {
+		instructions += guidance
 	}
 
 	opts := &mcp.ServerOptions{

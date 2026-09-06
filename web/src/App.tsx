@@ -8,6 +8,7 @@ import { ValidationBanner } from './components/common/ValidationBanner'
 import { GlossaryView } from './components/glossary/GlossaryView'
 import { MilestonesView } from './components/milestones/MilestonesView'
 import { AboutModal } from './components/modal/AboutModal'
+import { ColumnDetailModal } from './components/modal/ColumnDetailModal'
 import { CreateTaskModal } from './components/modal/CreateTaskModal'
 import { TaskDetailModal } from './components/modal/TaskDetailModal'
 import { TaskEditModal } from './components/modal/TaskEditModal'
@@ -130,6 +131,7 @@ export function App() {
 			<TaskEditModal />
 			<CreateTaskModal />
 			<AboutModal />
+			<ColumnDetailModal />
 		</div>
 	)
 }

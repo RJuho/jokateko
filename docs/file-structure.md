@@ -19,8 +19,11 @@ This document details both the **Source Repository Layout** (where Jokateko itse
 │       └── version.go                  # 'version' command
 ├── internal/
 │   ├── config/
-│   │   ├── config.go                   # Config struct & defaults
-│   │   ├── load.go                     # TOML loader (pelletier/go-toml/v2)
+│   │   ├── config.go                   # Config struct & helper methods
+│   │   ├── defaults.go                 # Embedded default.toml loader
+│   │   ├── default.toml                # Reference TOML configuration specification
+│   │   ├── load.go                     # TOML loader & merge logic (pelletier/go-toml/v2)
+│   │   ├── validate.go                 # TOML schema validator
 │   │   └── config_test.go
 │   ├── model/
 │   │   ├── task.go                     # Task entity, frontmatter struct, status enum
@@ -124,7 +127,6 @@ This document details both the **Source Repository Layout** (where Jokateko itse
 │   ├── README.md
 │   ├── module-structure.md
 │   ├── file-structure.md
-│   ├── config-specification.md
 │   ├── mcp-specification.md
 │   ├── web-ui-architecture.md
 │   └── validation-and-linting.md

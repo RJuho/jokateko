@@ -116,7 +116,7 @@ Fetches the complete task specification including full Markdown body and accepta
 Creates a new task file inside `.jokateko/tasks/`.
 - **Input Parameters:**
   - `title` (string, required): Short, descriptive title.
-  - `status` (string, optional): Column status (defaults to first column, e.g. `backlog`).
+  - `status` (string, optional): Column status (defaults to `default_create_state`, e.g. `backlog`).
   - `priority` (string, optional): `low` | `medium` | `high` | `critical` (default: `medium`).
   - `milestone` (string, optional): Associated milestone slug.
   - `reopen_milestone` (boolean, optional, default `false`): Required if attempting to attach a task to a milestone whose tasks are already 100% completed.
@@ -529,11 +529,11 @@ Returns column hierarchy and aggregated task counts.
   {
     "project_name": "Jokateko",
     "columns": [
-      { "id": "backlog", "name": "Backlog", "count": 4 },
-      { "id": "ready", "name": "Ready", "count": 2 },
-      { "id": "in_progress", "name": "In Progress", "count": 1 },
-      { "id": "in_review", "name": "In Review", "count": 1 },
-      { "id": "done", "name": "Done", "count": 15 }
+      { "id": "backlog", "name": "Backlog", "color": "#94a3b8", "count": 4, "handled_by": "human", "instructions": "Triage, requirement gathering, and spec definition" },
+      { "id": "ready", "name": "Ready", "color": "#60a5fa", "count": 2, "handled_by": "agent:coder" },
+      { "id": "in_progress", "name": "In Progress", "color": "#f59e0b", "count": 1, "handled_by": "agent:coder" },
+      { "id": "in_review", "name": "In Review", "color": "#a855f7", "count": 1, "handled_by": "agent:reviewer", "instructions": "Requires verification, testing, and human review before completion" },
+      { "id": "done", "name": "Done", "color": "#10b981", "count": 15 }
     ]
   }
   ```

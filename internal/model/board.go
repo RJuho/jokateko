@@ -6,25 +6,32 @@ import (
 
 // Column represents a single board workflow column definition.
 type Column struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Color string `json:"color"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Color        string `json:"color"`
+	HandledBy    string `json:"handled_by,omitempty"`
+	Instructions string `json:"instructions,omitempty"`
 }
 
 // ColumnState represents a Kanban board column populated with its matching tasks.
 type ColumnState struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Color string `json:"color"`
-	Tasks []Task `json:"tasks"`
-	Count int    `json:"count"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Color        string `json:"color"`
+	HandledBy    string `json:"handled_by,omitempty"`
+	Instructions string `json:"instructions,omitempty"`
+	Tasks        []Task `json:"tasks"`
+	Count        int    `json:"count"`
 }
 
 // BoardState represents the aggregated board snapshot served to the Web UI and MCP clients.
 type BoardState struct {
-	ProjectName    string        `json:"project_name"`
-	Columns        []ColumnState `json:"columns"`
-	EditableStates []string      `json:"editable_states,omitempty"`
+	ProjectName        string        `json:"project_name"`
+	Columns            []ColumnState `json:"columns"`
+	EditableStates     []string      `json:"editable_states,omitempty"`
+	CreatableStates    []string      `json:"creatable_states,omitempty"`
+	DefaultCreateState string        `json:"default_create_state,omitempty"`
+	MCPInstructions    string        `json:"mcp_instructions,omitempty"`
 }
 
 // FilterCriteria defines filtering parameters for task listing and board views.

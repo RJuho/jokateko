@@ -32,11 +32,13 @@ func (s *Store) GetBoardState(
 		}
 
 		colStates[i] = model.ColumnState{
-			ID:    col.ID,
-			Name:  col.Name,
-			Color: col.Color,
-			Tasks: colTasks,
-			Count: len(colTasks),
+			ID:           col.ID,
+			Name:         col.Name,
+			Color:        col.Color,
+			HandledBy:    col.HandledBy,
+			Instructions: col.Instructions,
+			Tasks:        colTasks,
+			Count:        len(colTasks),
 		}
 	}
 

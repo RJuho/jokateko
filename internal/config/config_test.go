@@ -829,6 +829,124 @@ editable_states = ["backlog", "ready", "custom_draft"]
 	}
 }
 
+func TestBoardCreatableAndDefaultCreateState(t *testing.T) {
+	// 1. Default config
+	defCfg := config.Default("")
+	if len(defCfg.Board.CreatableStates) != 1 || defCfg.Board.CreatableStates[0] != "backlog" {
+		t.Errorf("expected default creatable_states to be ['backlog'], got %v", defCfg.Board.CreatableStates)
+	}
+	if defCfg.Board.DefaultCreateState != "backlog" {
+		t.Errorf("expected default default_create_state to be 'backlog', got %q", defCfg.Board.DefaultCreateState)
+	}
+	if !defCfg.IsTaskCreatable("backlog") {
+		t.Error("expected backlog to be creatable in default config")
+	}
+	if defCfg.IsTaskCreatable("ready") {
+		t.Error("expected ready to not be creatable in default config")
+	}
+	if defCfg.DefaultCreateState() != "backlog" {
+		t.Errorf("expected DefaultCreateState() to be 'backlog', got %q", defCfg.DefaultCreateState())
+	}
+
+	// 2. Custom config
+	tempDir := t.TempDir()
+	jokatekoDir := filepath.Join(tempDir, ".jokateko")
+	_ = os.MkdirAll(jokatekoDir, 0755)
+
+	customTOML := `
+[board]
+creatable_states = ["backlog", "ready"]
+default_create_state = "ready"
+`
+	_ = os.WriteFile(filepath.Join(jokatekoDir, "config.toml"), []byte(customTOML), 0644)
+
+	cfg, err := config.Load(tempDir)
+	if err != nil {
+		t.Fatalf("failed to load custom config: %v", err)
+	}
+	if !cfg.IsTaskCreatable("backlog") {
+		t.Error("expected backlog to be creatable")
+	}
+	if !cfg.IsTaskCreatable("ready") {
+		t.Error("expected ready to be creatable")
+	}
+	if cfg.IsTaskCreatable("in_progress") {
+		t.Error("expected in_progress to not be creatable")
+	}
+	if cfg.DefaultCreateState() != "ready" {
+		t.Errorf("expected DefaultCreateState() to be 'ready', got %q", cfg.DefaultCreateState())
+	}
+}
+
+func TestColumnWorkflowRoleAndInstructions(t *testing.T) {
+	tempDir := t.TempDir()
+	jokatekoDir := filepath.Join(tempDir, ".jokateko")
+	_ = os.MkdirAll(jokatekoDir, 0755)
+
+	customTOML := `
+version = "0"
+
+[project]
+name = "Workflow Test"
+
+[[board.columns]]
+id = "backlog"
+name = "Backlog"
+color = "#94a3b8"
+handled_by = "human"
+instructions = "Triage and spec definition"
+
+[[board.columns]]
+id = "done"
+name = "Done"
+color = "#10b981"
+handled_by = "agent:qa"
+instructions = "Verify acceptance criteria"
+`
+	_ = os.WriteFile(filepath.Join(jokatekoDir, "config.toml"), []byte(customTOML), 0644)
+
+	cfg, err := config.Load(tempDir)
+	if err != nil {
+		t.Fatalf("failed to load custom workflow config: %v", err)
+	}
+
+	if len(cfg.Board.Columns) != 2 {
+		t.Fatalf("expected 2 columns, got %d", len(cfg.Board.Columns))
+	}
+	if cfg.Board.Columns[0].HandledBy != "human" {
+		t.Errorf("expected backlog handled_by to be 'human', got %q", cfg.Board.Columns[0].HandledBy)
+	}
+	if cfg.Board.Columns[0].Instructions != "Triage and spec definition" {
+		t.Errorf("expected backlog instructions, got %q", cfg.Board.Columns[0].Instructions)
+	}
+	if cfg.Board.Columns[1].HandledBy != "agent:qa" {
+		t.Errorf("expected done handled_by to be 'agent:qa', got %q", cfg.Board.Columns[1].HandledBy)
+	}
+}
+
+func TestValidateBoardCreatablePolicies(t *testing.T) {
+	root := t.TempDir()
+
+	t.Run("Invalid creatable_states column", func(t *testing.T) {
+		cfg := config.Default(root)
+		cfg.Board.CreatableStates = []string{"nonexistent_column"}
+		err := config.Validate(cfg, root)
+		if err == nil || !strings.Contains(err.Error(), "board.creatable_states contains unknown column") {
+			t.Errorf("expected error for unknown creatable column, got: %v", err)
+		}
+	})
+
+	t.Run("Invalid default_create_state column", func(t *testing.T) {
+		cfg := config.Default(root)
+		cfg.Board.DefaultCreateState = "unknown_column"
+		err := config.Validate(cfg, root)
+		if err == nil || !strings.Contains(err.Error(), "board.default_create_state \"unknown_column\" is not a defined column") {
+			t.Errorf("expected error for unknown default_create_state, got: %v", err)
+		}
+	})
+}
+
+
 
 
 

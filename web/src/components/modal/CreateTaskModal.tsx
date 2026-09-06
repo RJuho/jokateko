@@ -39,7 +39,10 @@ export function CreateTaskModal() {
 	const [title, setTitle] = useState('')
 	const [summary, setSummary] = useState('')
 	const [status, setStatus] = useState(
-		createTaskInitialColumnId.value || cols[0]?.id || 'backlog',
+		createTaskInitialColumnId.value
+			|| config.value.board.default_create_state
+			|| cols[0]?.id
+			|| 'backlog',
 	)
 	const [priority, setPriority] = useState<Priority>('medium')
 	const [milestone, setMilestone] = useState('')

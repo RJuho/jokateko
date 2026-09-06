@@ -37,6 +37,23 @@ func (c *Config) IsTaskEditable(status string) bool {
 	return slices.Contains(c.Board.EditableStates, status)
 }
 
+// IsTaskCreatable reports whether a task can be newly created in the given status.
+func (c *Config) IsTaskCreatable(status string) bool {
+	status = strings.TrimSpace(status)
+	if c == nil || len(c.Board.CreatableStates) == 0 {
+		return status == "backlog"
+	}
+	return slices.Contains(c.Board.CreatableStates, status)
+}
+
+// DefaultCreateState returns the configured default column status for newly created tasks.
+func (c *Config) DefaultCreateState() string {
+	if c == nil || strings.TrimSpace(c.Board.DefaultCreateState) == "" {
+		return "backlog"
+	}
+	return strings.TrimSpace(c.Board.DefaultCreateState)
+}
+
 // StrategiesConfig specifies configuration for architectural guidelines and progressive disclosure tiers.
 type StrategiesConfig struct {
 	Tiers []model.TierConfig `toml:"tiers" json:"tiers"`
@@ -87,15 +104,19 @@ type CSPConfig struct {
 
 // BoardConfig defines the Kanban workflow columns and task editing permissions.
 type BoardConfig struct {
-	Columns        []ColumnConfig `toml:"columns" json:"columns"`
-	EditableStates []string       `toml:"editable_states" json:"editable_states"`
+	Columns            []ColumnConfig `toml:"columns" json:"columns"`
+	EditableStates     []string       `toml:"editable_states" json:"editable_states"`
+	CreatableStates    []string       `toml:"creatable_states" json:"creatable_states"`
+	DefaultCreateState string         `toml:"default_create_state" json:"default_create_state"`
 }
 
 // ColumnConfig specifies a single workflow column.
 type ColumnConfig struct {
-	ID    string `toml:"id"`
-	Name  string `toml:"name"`
-	Color string `toml:"color"`
+	ID           string `toml:"id" json:"id"`
+	Name         string `toml:"name" json:"name"`
+	Color        string `toml:"color" json:"color"`
+	HandledBy    string `toml:"handled_by" json:"handled_by,omitempty"`
+	Instructions string `toml:"instructions" json:"instructions,omitempty"`
 }
 
 // TagsConfig specifies controlled tag vocabulary rules.

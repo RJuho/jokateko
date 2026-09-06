@@ -494,7 +494,9 @@ func (s *Server) toolCreateTask(ctx context.Context, _ *mcp.CallToolRequest, in 
 
 	status := in.Status
 	if status == "" {
-		if len(s.cfg.Board.Columns) > 0 {
+		if s.cfg != nil && strings.TrimSpace(s.cfg.Board.DefaultCreateState) != "" {
+			status = strings.TrimSpace(s.cfg.Board.DefaultCreateState)
+		} else if len(s.cfg.Board.Columns) > 0 {
 			status = s.cfg.Board.Columns[0].ID
 		} else {
 			status = "backlog"

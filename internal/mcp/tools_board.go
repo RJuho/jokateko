@@ -11,10 +11,12 @@ import (
 type GetBoardStateInput struct{}
 
 type BoardColumnSummary struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Color string `json:"color"`
-	Count int    `json:"count"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Color        string `json:"color"`
+	Count        int    `json:"count"`
+	HandledBy    string `json:"handled_by,omitempty"`
+	Instructions string `json:"instructions,omitempty"`
 }
 
 type BoardSummaryOutput struct {
@@ -34,9 +36,11 @@ func (s *Server) toolGetBoardState(ctx context.Context, _ *mcp.CallToolRequest, 
 	cols := make([]model.Column, 0, len(s.cfg.Board.Columns))
 	for _, c := range s.cfg.Board.Columns {
 		cols = append(cols, model.Column{
-			ID:    c.ID,
-			Name:  c.Name,
-			Color: c.Color,
+			ID:           c.ID,
+			Name:         c.Name,
+			Color:        c.Color,
+			HandledBy:    c.HandledBy,
+			Instructions: c.Instructions,
 		})
 	}
 
@@ -48,10 +52,12 @@ func (s *Server) toolGetBoardState(ctx context.Context, _ *mcp.CallToolRequest, 
 	colSummaries := make([]BoardColumnSummary, 0, len(board.Columns))
 	for _, c := range board.Columns {
 		colSummaries = append(colSummaries, BoardColumnSummary{
-			ID:    c.ID,
-			Name:  c.Name,
-			Color: c.Color,
-			Count: c.Count,
+			ID:           c.ID,
+			Name:         c.Name,
+			Color:        c.Color,
+			Count:        c.Count,
+			HandledBy:    c.HandledBy,
+			Instructions: c.Instructions,
 		})
 	}
 

@@ -38,6 +38,7 @@ export interface CustomGlossaryTerm {
 }
 
 export async function startTestServer(options?: {
+	customConfig?: string
 	customTasks?: CustomTask[]
 	customStrategies?: CustomStrategy[]
 	customGlossary?: CustomGlossaryTerm[]
@@ -53,6 +54,12 @@ export async function startTestServer(options?: {
 			else reject(new Error(`jokateko init failed with code ${code}`))
 		})
 	})
+
+	// 1b. Write custom config if provided
+	if (options?.customConfig) {
+		const configPath = join(dir, '.jokateko', 'config.toml')
+		writeFileSync(configPath, options.customConfig, 'utf8')
+	}
 
 	// 2. Write any custom tasks
 	if (options?.customTasks) {

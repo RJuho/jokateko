@@ -28,5 +28,18 @@ func (s *Server) handleGetBoard(w http.ResponseWriter, r *http.Request) {
 	}
 	board.EditableStates = editable
 
+	creatable := s.cfg.Board.CreatableStates
+	if len(creatable) == 0 {
+		creatable = []string{"backlog"}
+	}
+	board.CreatableStates = creatable
+
+	defaultCreate := s.cfg.Board.DefaultCreateState
+	if defaultCreate == "" {
+		defaultCreate = "backlog"
+	}
+	board.DefaultCreateState = defaultCreate
+	board.MCPInstructions = s.cfg.MCP.Instructions
+
 	writeJSON(w, http.StatusOK, board)
 }

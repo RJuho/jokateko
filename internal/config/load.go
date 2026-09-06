@@ -150,9 +150,11 @@ type rawCSPConfig struct {
 }
 
 type rawBoardConfig struct {
-	Columns        []ColumnConfig         `toml:"columns"`
-	EditableStates []string               `toml:"editable_states"`
-	Priorities     []model.PriorityConfig `toml:"priorities"`
+	Columns            []ColumnConfig         `toml:"columns"`
+	EditableStates     []string               `toml:"editable_states"`
+	CreatableStates    []string               `toml:"creatable_states"`
+	DefaultCreateState *string                `toml:"default_create_state"`
+	Priorities         []model.PriorityConfig `toml:"priorities"`
 }
 
 type rawStrategiesConfig struct {
@@ -267,13 +269,28 @@ func mergeConfig(target *Config, raw *rawConfig) {
 		}
 	}
 
-	// Board columns & editable states: if custom values provided, replace defaults
+	// Board columns & editable/creatable states: if custom values provided, replace defaults
 	if raw.Board != nil {
 		if len(raw.Board.Columns) > 0 {
 			target.Board.Columns = raw.Board.Columns
+			if len(raw.Board.EditableStates) == 0 && !target.HasColumn("backlog") {
+				target.Board.EditableStates = []string{raw.Board.Columns[0].ID}
+			}
+			if len(raw.Board.CreatableStates) == 0 && !target.HasColumn("backlog") {
+				target.Board.CreatableStates = []string{raw.Board.Columns[0].ID}
+			}
+			if (raw.Board.DefaultCreateState == nil || *raw.Board.DefaultCreateState == "") && !target.HasColumn("backlog") {
+				target.Board.DefaultCreateState = raw.Board.Columns[0].ID
+			}
 		}
 		if len(raw.Board.EditableStates) > 0 {
 			target.Board.EditableStates = raw.Board.EditableStates
+		}
+		if len(raw.Board.CreatableStates) > 0 {
+			target.Board.CreatableStates = raw.Board.CreatableStates
+		}
+		if raw.Board.DefaultCreateState != nil && *raw.Board.DefaultCreateState != "" {
+			target.Board.DefaultCreateState = *raw.Board.DefaultCreateState
 		}
 	}
 

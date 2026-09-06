@@ -58,6 +58,19 @@ func Validate(cfg *Config, rootPath string) error {
 		}
 	}
 
+	// Board creatable_states & default_create_state validation
+	for _, state := range cfg.Board.CreatableStates {
+		trimmed := strings.TrimSpace(state)
+		if trimmed != "" && !seenColumns[trimmed] {
+			errs = append(errs, fmt.Errorf("board.creatable_states contains unknown column %q", trimmed))
+		}
+	}
+	if dcs := strings.TrimSpace(cfg.Board.DefaultCreateState); dcs != "" {
+		if !seenColumns[dcs] {
+			errs = append(errs, fmt.Errorf("board.default_create_state %q is not a defined column", dcs))
+		}
+	}
+
 	// Priorities validation
 	if len(cfg.Priorities) == 0 {
 		errs = append(errs, errors.New("CFG-006: at least one priority must be defined"))
