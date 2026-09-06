@@ -38,8 +38,13 @@ async function buildCSS(): Promise<string> {
 	return stdout
 }
 
+interface BuildJSResult {
+	js: string
+	bundledPackages: string[]
+}
+
 // 2. Compile JavaScript (Preact, Signals, Valibot, Router, UI)
-async function buildJS(): Promise<string> {
+async function buildJS(): Promise<BuildJSResult> {
 	const entrypoint = resolve(webDir, 'src/main.tsx')
 	const result = await Bun.build({
 		entrypoints: [entrypoint],
@@ -53,6 +58,7 @@ async function buildJS(): Promise<string> {
 		},
 		drop: ['debugger'],
 		target: 'browser',
+		metafile: true,
 	})
 
 	if (!result.success) {
@@ -64,7 +70,30 @@ async function buildJS(): Promise<string> {
 		throw new Error('Bun.build produced no output files')
 	}
 
-	return await result.outputs[0].text()
+	const bundledPackages = new Set<string>()
+	if (result.metafile) {
+		for (const file of Object.keys(result.metafile.inputs)) {
+			const match = file.match(/node_modules\/((?:@[^/]+\/)?[^/]+)/)
+			if (match) {
+				const pkg = match[1]
+				if (
+					!pkg.startsWith('@types/')
+					&& pkg !== 'tailwindcss'
+					&& pkg !== 'bun-plugin-tailwind'
+					&& pkg !== 'daisyui'
+					&& !pkg.startsWith('@tailwindcss/')
+				) {
+					bundledPackages.add(pkg)
+				}
+			}
+		}
+	}
+
+	const js = await result.outputs[0].text()
+	return {
+		js,
+		bundledPackages: Array.from(bundledPackages).sort(),
+	}
 }
 
 // 3. Assemble Single-File index.html
@@ -73,7 +102,9 @@ async function main() {
 		throw new Error(`HTML template not found at: ${templatePath}`)
 	}
 
-	const [css, js] = await Promise.all([buildCSS(), buildJS()])
+	const [css, jsResult] = await Promise.all([buildCSS(), buildJS()])
+	const js = jsResult.js
+	const bundledPackages = jsResult.bundledPackages
 
 	const { createHash } = await import('node:crypto')
 	const scriptSha256 = createHash('sha256').update(js).digest('base64')
@@ -130,6 +161,10 @@ async function main() {
 	await Bun.write(resolve(distDir, 'script.sha256'), scriptHash)
 	await Bun.write(resolve(distDir, 'style.sha256'), styleHash)
 	await Bun.write(
+		resolve(distDir, 'bundled-packages.json'),
+		JSON.stringify(bundledPackages, null, 2),
+	)
+	await Bun.write(
 		resolve(distDir, 'hashes.json'),
 		JSON.stringify(
 			{
@@ -141,6 +176,10 @@ async function main() {
 			null,
 			2,
 		),
+	)
+
+	console.log(
+		`   ✓ Exported ${bundledPackages.length} bundled packages -> 'web/dist/bundled-packages.json'`,
 	)
 
 	const duration = (performance.now() - startTime).toFixed(0)

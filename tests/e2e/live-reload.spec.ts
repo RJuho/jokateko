@@ -76,6 +76,10 @@ summary = "Updated over disk file modification"
 		page,
 	}) => {
 		await page.goto(server.url)
+		await expect(
+			page.locator('[data-testid="task-card-260901-sse-task-alpha"]'),
+		).toBeVisible()
+		await page.waitForTimeout(300)
 
 		const newTaskPath = join(
 			server.dir,
@@ -88,7 +92,7 @@ id = "260901-sse-task-beta"
 title = "Dynamically Added Task Over Disk"
 status = "ready"
 priority = "high"
-tags = ["disk-event"]
+tags = ["live"]
 summary = "New task created directly on disk"
 +++
 ## Acceptance Criteria

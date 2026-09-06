@@ -85,8 +85,8 @@ func main() {
 		return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
 	})
 
-	// 5. Serialize JSON
-	data, err := json.MarshalIndent(report, "", "  ")
+	// 5. Serialize JSON with tab indentation matching project style
+	data, err := json.MarshalIndent(report, "", "\t")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to serialize licenses JSON: %v\n", err)
 		os.Exit(1)
@@ -187,7 +187,55 @@ type npmPackageJSON struct {
 	Dependencies map[string]string `json:"dependencies"`
 }
 
-func harvestNpmLicenses(webDir string) ([]PackageLicense, error) {
+func isExcludedNpmPackage(name string) bool {
+	if strings.HasPrefix(name, "@types/") {
+		return true
+	}
+	switch name {
+	case "tailwindcss", "daisyui", "bun-plugin-tailwind":
+		return true
+	}
+	if strings.HasPrefix(name, "@tailwindcss/") {
+		return true
+	}
+	return false
+}
+
+func getBundledPackageNames(webDir string) ([]string, error) {
+	// 1. Check if web/dist/bundled-packages.json exists
+	bundledPath := filepath.Join(webDir, "dist", "bundled-packages.json")
+	if data, err := os.ReadFile(bundledPath); err == nil {
+		var pkgs []string
+		if err := json.Unmarshal(data, &pkgs); err == nil && len(pkgs) > 0 {
+			return pkgs, nil
+		}
+	}
+
+	// 2. If Bun is installed, dynamically inspect Bun bundler metafile
+	if _, err := exec.LookPath("bun"); err == nil {
+		script := `const res = await Bun.build({ entrypoints: ['src/main.tsx'], target: 'browser', metafile: true });
+const pkgs = new Set();
+if (res.metafile) {
+  for (const file of Object.keys(res.metafile.inputs)) {
+    const m = file.match(/node_modules\/((?:@[^/]+\/)?[^/]+)/);
+    if (m) pkgs.add(m[1]);
+  }
+}
+console.log(JSON.stringify(Array.from(pkgs)));`
+		cmd := exec.Command("bun", "-e", script)
+		cmd.Dir = webDir
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err == nil {
+			var pkgs []string
+			if err := json.Unmarshal(stdout.Bytes(), &pkgs); err == nil && len(pkgs) > 0 {
+				return pkgs, nil
+			}
+		}
+	}
+
+	// 3. Fallback to web/package.json dependencies if bundle metadata or bun is unavailable
 	rootPkgFile := filepath.Join(webDir, "package.json")
 	rootData, err := os.ReadFile(rootPkgFile)
 	if err != nil {
@@ -199,21 +247,26 @@ func harvestNpmLicenses(webDir string) ([]PackageLicense, error) {
 		return nil, fmt.Errorf("unmarshal root package.json: %w", err)
 	}
 
-	nodeModulesDir := filepath.Join(webDir, "node_modules")
-	seen := make(map[string]bool)
-	queue := make([]string, 0)
-
+	var fallbackPkgs []string
 	for dep := range rootPkg.Dependencies {
-		queue = append(queue, dep)
+		fallbackPkgs = append(fallbackPkgs, dep)
+	}
+	return fallbackPkgs, nil
+}
+
+func harvestNpmLicenses(webDir string) ([]PackageLicense, error) {
+	packageNames, err := getBundledPackageNames(webDir)
+	if err != nil {
+		return nil, fmt.Errorf("resolve bundled packages: %w", err)
 	}
 
+	nodeModulesDir := filepath.Join(webDir, "node_modules")
+	seen := make(map[string]bool)
 	var pkgs []PackageLicense
 
-	for len(queue) > 0 {
-		dep := queue[0]
-		queue = queue[1:]
-
-		if seen[dep] {
+	for _, dep := range packageNames {
+		dep = strings.TrimSpace(dep)
+		if dep == "" || seen[dep] || isExcludedNpmPackage(dep) {
 			continue
 		}
 		seen[dep] = true
@@ -231,20 +284,16 @@ func harvestNpmLicenses(webDir string) ([]PackageLicense, error) {
 			continue
 		}
 
-		// Enqueue runtime subdependencies
-		for sub := range p.Dependencies {
-			if !seen[sub] {
-				queue = append(queue, sub)
-			}
-		}
-
 		spdx := extractNpmLicense(p.License)
-		_, licText := findLicenseInDir(pkgDir)
+		licFile, licText := findLicenseInDir(pkgDir)
 		if spdx == "" || spdx == "Unknown" {
 			spdx = detectSPDX(licText)
 		}
-		if spdx == "" {
+		if spdx == "Unknown" && licFile != "" {
 			spdx = "Custom"
+		}
+		if spdx == "" {
+			spdx = "Unknown"
 		}
 
 		url := extractNpmURL(p.Repository, p.Homepage)
@@ -274,6 +323,36 @@ func extractNpmLicense(v any) string {
 	return ""
 }
 
+func cleanURL(raw string) string {
+	u := strings.TrimSpace(raw)
+	if u == "" {
+		return ""
+	}
+	u = strings.TrimPrefix(u, "git+")
+	u = strings.TrimPrefix(u, "git://")
+	u = strings.TrimSuffix(u, ".git")
+
+	if strings.HasPrefix(u, "ssh://git@github.com/") {
+		u = "https://github.com/" + strings.TrimPrefix(u, "ssh://git@github.com/")
+	} else if strings.HasPrefix(u, "git@github.com:") {
+		u = "https://github.com/" + strings.TrimPrefix(u, "git@github.com:")
+	} else if strings.HasPrefix(u, "github:") {
+		u = "https://github.com/" + strings.TrimPrefix(u, "github:")
+	} else if strings.HasPrefix(u, "github.com/") {
+		u = "https://" + u
+	} else if strings.HasPrefix(u, "http://") {
+		u = "https://" + strings.TrimPrefix(u, "http://")
+	} else if !strings.HasPrefix(u, "https://") {
+		parts := strings.Split(u, "/")
+		if len(parts) == 2 && !strings.Contains(parts[0], ".") && !strings.Contains(parts[0], ":") {
+			u = "https://github.com/" + u
+		} else if strings.Contains(u, ".") {
+			u = "https://" + u
+		}
+	}
+	return u
+}
+
 func extractNpmURL(repo any, homepage string) string {
 	var repoURL string
 	switch r := repo.(type) {
@@ -285,20 +364,11 @@ func extractNpmURL(repo any, homepage string) string {
 		}
 	}
 
-	repoURL = strings.TrimPrefix(repoURL, "git+")
-	repoURL = strings.TrimPrefix(repoURL, "git://")
-	repoURL = strings.TrimSuffix(repoURL, ".git")
-
-	if strings.HasPrefix(repoURL, "ssh://git@github.com/") {
-		repoURL = "https://github.com/" + strings.TrimPrefix(repoURL, "ssh://git@github.com/")
-	} else if strings.HasPrefix(repoURL, "git@github.com:") {
-		repoURL = "https://github.com/" + strings.TrimPrefix(repoURL, "git@github.com:")
+	cleaned := cleanURL(repoURL)
+	if cleaned != "" {
+		return cleaned
 	}
-
-	if repoURL != "" {
-		return repoURL
-	}
-	return homepage
+	return cleanURL(homepage)
 }
 
 func findLicenseInDir(dir string) (string, string) {

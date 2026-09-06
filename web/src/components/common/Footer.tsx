@@ -1,4 +1,4 @@
-import { config, isAboutModalOpen } from '../../state/store'
+import { config, openAboutModal } from '../../state/store'
 import { t } from '../../utils/i18n'
 
 export function Footer() {
@@ -36,7 +36,7 @@ export function Footer() {
 				<span class='opacity-30'>•</span>
 				<button
 					type='button'
-					onClick={() => (isAboutModalOpen.value = true)}
+					onClick={() => openAboutModal('licenses')}
 					class='link link-hover hover:text-primary transition-colors cursor-pointer'
 					data-testid='footer-licenses-trigger'
 				>

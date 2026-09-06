@@ -53,8 +53,24 @@ test.describe("About & Licenses Modal E2E", () => {
 		// Filtered list should now include mermaid
 		await expect(modal.locator('[data-testid="license-package-item"]', { hasText: "mermaid" }).first()).toBeVisible();
 
-		// 7. Test ecosystem filter buttons
+		// Verify external repository link is normalized to https:// and opens in new tab
+		const repoLink = modal.locator('[data-testid="license-package-item"] a[title="Open repository"]').first();
+		if (await repoLink.count() > 0) {
+			const href = await repoLink.getAttribute("href");
+			expect(href).toMatch(/^https:\/\//);
+			expect(await repoLink.getAttribute("target")).toBe("_blank");
+			expect(await repoLink.getAttribute("rel")).toContain("noopener");
+		}
+
+		// 7. Test ecosystem filter buttons and verify types/CSS build tools are excluded
 		await searchInput.clear();
+		await searchInput.fill("@types/");
+		await expect(modal.locator('[data-testid="license-package-item"]')).toHaveCount(0);
+		await searchInput.clear();
+		await searchInput.fill("bun-plugin-tailwind");
+		await expect(modal.locator('[data-testid="license-package-item"]')).toHaveCount(0);
+		await searchInput.clear();
+
 		const goFilterBtn = modal.locator('[data-testid="filter-go-btn"]');
 		await goFilterBtn.click();
 		await expect(modal.locator('[data-testid="license-package-item"]', { hasText: "go-toml" }).first()).toBeVisible();
@@ -69,11 +85,14 @@ test.describe("About & Licenses Modal E2E", () => {
 		await closeBtn.click();
 		await expect(modal).not.toBeVisible();
 
-		// 10. Re-open via Footer Licenses trigger and close with Escape
+		// 10. Re-open via Footer Licenses trigger (should open directly to Open Source Licenses tab)
 		const footerTrigger = page.locator('[data-testid="footer-licenses-trigger"]');
 		await expect(footerTrigger).toBeVisible();
 		await footerTrigger.click();
 		await expect(modal).toBeVisible();
+
+		// Verify licenses search input is immediately visible (Licenses tab active)
+		await expect(modal.locator('[data-testid="license-search-input"]')).toBeVisible();
 
 		await page.keyboard.press("Escape");
 		await expect(modal).not.toBeVisible();

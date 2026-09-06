@@ -12,9 +12,9 @@ import {
 	connectionStatus,
 	filters,
 	glossary,
-	isAboutModalOpen,
 	milestones,
 	mode,
+	openAboutModal,
 	setSearchQuery,
 	strategies,
 	type Tab,
@@ -547,7 +547,7 @@ export function Header() {
 					<div class='hidden md:flex items-center shrink-0'>
 						<button
 							type='button'
-							onClick={() => (isAboutModalOpen.value = true)}
+							onClick={() => openAboutModal('about')}
 							class='btn btn-ghost btn-sm btn-square text-base-content/70 hover:text-base-content'
 							title='About & Licenses'
 							aria-label='About Jokateko and Open Source Licenses'
@@ -743,7 +743,7 @@ export function Header() {
 								type='button'
 								onClick={() => {
 									setIsMobileMenuOpen(false)
-									isAboutModalOpen.value = true
+									openAboutModal('about')
 								}}
 								data-testid='mobile-about-modal-trigger'
 								class='btn btn-sm btn-ghost justify-start gap-2 text-base-content/80'

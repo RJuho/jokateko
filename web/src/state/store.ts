@@ -154,6 +154,13 @@ export const activeTaskDetailId = signal<string | null>(null)
 export const activeTaskEditId = signal<string | null>(null)
 export const isCreateTaskModalOpen = signal<boolean>(false)
 export const isAboutModalOpen = signal<boolean>(false)
+export const aboutModalInitialTab = signal<'about' | 'licenses'>('about')
+
+export function openAboutModal(tab: 'about' | 'licenses' = 'about') {
+	aboutModalInitialTab.value = tab
+	isAboutModalOpen.value = true
+}
+
 export const createTaskInitialColumnId = signal<string | null>(null)
 export const createTaskInitialTargetDate = signal<string | null>(null)
 export const activeColumnDetailId = signal<string | null>(null)

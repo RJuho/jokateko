@@ -1,6 +1,47 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import staticLicensesData from '../../data/licenses.json'
-import { config, isAboutModalOpen, mode } from '../../state/store'
+import {
+	aboutModalInitialTab,
+	config,
+	isAboutModalOpen,
+	mode,
+} from '../../state/store'
+
+export function normalizeExternalURL(raw?: string): string {
+	if (!raw) return ''
+	let url = raw.trim()
+	url = url
+		.replace(/^git\+/, '')
+		.replace(/^git:\/\//, 'https://')
+		.replace(/\.git$/, '')
+	if (url.startsWith('ssh://git@github.com/')) {
+		return `https://github.com/${url.slice('ssh://git@github.com/'.length)}`
+	}
+	if (url.startsWith('git@github.com:')) {
+		return `https://github.com/${url.slice('git@github.com:'.length)}`
+	}
+	if (url.startsWith('github:')) {
+		return `https://github.com/${url.slice(7)}`
+	}
+	if (url.startsWith('http://')) {
+		return `https://${url.slice(7)}`
+	}
+	if (url.startsWith('https://')) {
+		return url
+	}
+	if (url.startsWith('github.com/')) {
+		return `https://${url}`
+	}
+	const parts = url.split('/')
+	if (
+		parts.length === 2
+		&& !parts[0].includes('.')
+		&& !parts[0].includes(':')
+	) {
+		return `https://github.com/${url}`
+	}
+	return url.includes('.') ? `https://${url}` : url
+}
 
 interface PackageLicense {
 	name: string
@@ -32,7 +73,15 @@ export function AboutModal() {
 		build?.version && build.version !== 'dev' ? build.version : '1.0.0'
 	const displayVersion = version.startsWith('v') ? version : `v${version}`
 
-	const [activeTab, setActiveTab] = useState<'about' | 'licenses'>('about')
+	const [activeTab, setActiveTab] = useState<'about' | 'licenses'>(
+		aboutModalInitialTab.value || 'about',
+	)
+
+	useEffect(() => {
+		if (isOpen) {
+			setActiveTab(aboutModalInitialTab.value || 'about')
+		}
+	}, [isOpen])
 	const [searchQuery, setSearchQuery] = useState('')
 	const [ecosystemFilter, setEcosystemFilter] = useState<'all' | 'go' | 'npm'>(
 		'all',
@@ -203,7 +252,9 @@ export function AboutModal() {
 								</p>
 								<div class='flex flex-wrap items-center gap-2 pt-1'>
 									<a
-										href='https://github.com/RJuho/jokateko'
+										href={normalizeExternalURL(
+											report.project.url || 'https://github.com/RJuho/jokateko',
+										)}
 										target='_blank'
 										rel='noopener noreferrer'
 										class='btn btn-xs sm:btn-sm btn-outline gap-1.5 text-xs'
@@ -368,7 +419,7 @@ export function AboutModal() {
 												<div class='flex items-center gap-1.5 shrink-0'>
 													{pkg.url && (
 														<a
-															href={pkg.url}
+															href={normalizeExternalURL(pkg.url)}
 															target='_blank'
 															rel='noopener noreferrer'
 															class='btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary'
