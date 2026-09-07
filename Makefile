@@ -93,3 +93,28 @@ devcontainer-build:
 # Build production minimal scratch Docker container image using devcontainer
 docker-build:
 	docker build --build-arg DEVCONTAINER_IMAGE=jokateko-devcontainer:latest -t $(BINARY_NAME):latest .
+
+FUZZTIME ?= 10s
+
+# Run Fuzz testing for Markdown parser
+fuzz-markdown:
+	@echo "Fuzzing Markdown Parser..."
+	CGO_ENABLED=0 go test -v ./internal/parser -fuzz=Fuzz -fuzztime=$(FUZZTIME)
+
+# Run Fuzz testing for REST API
+fuzz-api:
+	@echo "Fuzzing REST API..."
+	CGO_ENABLED=0 go test -v ./internal/server -fuzz=Fuzz -fuzztime=$(FUZZTIME)
+
+# Run Fuzz testing for MCP Endpoint
+fuzz-mcp:
+	@echo "Fuzzing MCP Server..."
+	CGO_ENABLED=0 go test -v ./internal/mcp -fuzz=Fuzz -fuzztime=$(FUZZTIME)
+
+# Run all fuzz tests
+fuzz-all: fuzz-markdown fuzz-api fuzz-mcp
+
+# Run Multichannel Integration Chaos Test
+chaos-test:
+	@echo "Running Multichannel Chaos Test (10s)..."
+	CGO_ENABLED=0 go test -v ./test/chaos -count=1
