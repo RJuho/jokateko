@@ -135,23 +135,32 @@ func (w *Watcher) Start(ctx context.Context) {
 
 		for {
 			select {
-			case <-ctx.Done():
-				return
-			case <-w.closed:
-				return
 			case <-timerCh:
 				flush()
 			case err, ok := <-w.fsWatcher.Errors:
 				if !ok {
 					return
 				}
+				
 				select {
+				case <-w.closed:
+					continue
+				case <-ctx.Done():
+					continue
 				case w.errorsCh <- err:
 				default:
 				}
 			case ev, ok := <-w.fsWatcher.Events:
 				if !ok {
 					return
+				}
+
+				select {
+				case <-w.closed:
+					continue
+				case <-ctx.Done():
+					continue
+				default:
 				}
 
 				if isIgnored(ev.Name) {
