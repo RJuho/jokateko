@@ -1,27 +1,33 @@
-.PHONY: all build test clean generate install-tools install-ai-tools ui-build lint e2e-test cross-compile docker-build devcontainer-build
+.PHONY: all build install test clean clean-cache generate install-tools install-ai-tools ui-build lint e2e-test cross-compile docker-build devcontainer-build fuzz-markdown fuzz-api fuzz-mcp fuzz-all chaos-test
 
-# Binary name and output directory
+# Binary name, output directory and install location
 BINARY_NAME := jokateko
-BIN_DIR := bin
+BIN_DIR     := bin
+INSTALL_DIR ?= $(HOME)/.local/bin
 
-# Version and CSP asset hash injection variables for link time
-VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-COMMIT      ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
-DATE        ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
-SCRIPT_HASH  = $(shell [ -f web/dist/script.sha256 ] && cat web/dist/script.sha256 2>/dev/null)
-STYLE_HASH   = $(shell [ -f web/dist/style.sha256 ] && cat web/dist/style.sha256 2>/dev/null)
+# Release targets for cross-compilation (GOOS/GOARCH)
+PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
+# Version injection variables for link time
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
+DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+
+# CSP script/style hashes are derived at runtime from the embedded index.html,
+# so they are intentionally not injected here (single source of truth).
 LDFLAGS = -X 'github.com/RJuho/jokateko/internal/version.Version=$(VERSION)' \
           -X 'github.com/RJuho/jokateko/internal/version.Commit=$(COMMIT)' \
           -X 'github.com/RJuho/jokateko/internal/version.Date=$(DATE)' \
-          -X 'github.com/RJuho/jokateko/internal/version.ScriptHash=$(SCRIPT_HASH)' \
-          -X 'github.com/RJuho/jokateko/internal/version.StyleHash=$(STYLE_HASH)' \
           -s -w
 
-# Route Go compiler temp directories into workspace filesystem
-GOTMPDIR ?= $(CURDIR)/.gopath/tmp
-export GOTMPDIR
-_mkdir := $(shell mkdir -p $(GOTMPDIR))
+GO_BUILD = CGO_ENABLED=0 go build -trimpath -ldflags="$(LDFLAGS)"
+
+# Web UI bundle: rebuilt whenever any frontend source or dependency changes
+UI_SRC := $(shell find web/src web/scripts -type f 2>/dev/null) web/index.html web/package.json web/bun.lock
+UI_OUT := web/dist/index.html.gz
+
+# Generated, git-tracked license report; regenerated only if missing (use `make generate` to refresh)
+LICENSES := internal/version/licenses.json
 
 all: test build
 
@@ -32,10 +38,10 @@ install-tools:
 # Install latest AI agent tooling (gopls Go MCP server, Claude Code CLI, and Google Antigravity CLI)
 install-ai-tools:
 	go install golang.org/x/tools/gopls@latest
-	@mkdir -p /home/bun/.local/bin
+	@mkdir -p $(INSTALL_DIR)
 	curl -fsSL https://antigravity.google/cli/install.sh | bash
 	curl -fsSL https://claude.ai/install.sh | bash
-	bunx skills update
+	bunx skills update -p -y
 
 # Generate type-safe queries using sqlc, TypeScript models, and open-source licenses
 generate:
@@ -43,23 +49,32 @@ generate:
 	go run ./cmd/gentypes
 	go run ./cmd/genlicenses
 
+web/node_modules: web/package.json web/bun.lock
+	cd web && bun install --frozen-lockfile
+	@touch $@
+
+$(UI_OUT): $(UI_SRC) web/node_modules
+	cd web && bun run build
+
+$(LICENSES):
+	go run ./cmd/genlicenses
+
+# Bundle Web UI using Bun (only when sources changed)
+ui-build: $(UI_OUT)
+
 # Run all Go tests with CGO disabled
-test:
-	@if [ ! -f internal/version/licenses.json ]; then go run ./cmd/genlicenses; fi
-	@if [ ! -f web/dist/script.sha256 ]; then $(MAKE) ui-build; fi
+test: $(UI_OUT) $(LICENSES)
 	CGO_ENABLED=0 go test -v ./...
 
-# Build the Go binary with injected link-time version and CSP asset hash flags
-build:
-	@if [ ! -f internal/version/licenses.json ]; then go run ./cmd/genlicenses; fi
-	@if [ ! -f web/dist/script.sha256 ]; then $(MAKE) ui-build; fi
-	mkdir -p $(BIN_DIR)
-	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/jokateko
+# Build the Go binary with injected link-time version flags (honours GOOS/GOARCH from the environment)
+build: $(UI_OUT) $(LICENSES)
+	@mkdir -p $(BIN_DIR)
+	$(GO_BUILD) -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/jokateko
 
-# Bundle Web UI using Bun
-ui-build:
-	@if [ ! -d web/node_modules ]; then cd web && bun install --frozen-lockfile; fi
-	cd web && bun run build
+# Build and install the binary into INSTALL_DIR (default ~/.local/bin)
+install: build
+	@mkdir -p $(INSTALL_DIR)
+	install -m 0755 $(BIN_DIR)/$(BINARY_NAME) $(INSTALL_DIR)/$(BINARY_NAME)
 
 # Run code diagnostics and vet
 lint:
@@ -69,23 +84,25 @@ lint:
 clean:
 	rm -rf $(BIN_DIR)
 
-# Run Playwright end-to-end tests
-e2e-test:
-	@if [ ! -d web/node_modules ]; then cd web && bun install --frozen-lockfile; fi
-	@mkdir -p $(GOTMPDIR)
-	TMPDIR=$(GOTMPDIR) bunx playwright test
+# Reclaim disk space: Go build/test/fuzz caches and Playwright outputs
+clean-cache:
+	go clean -cache -testcache -fuzzcache
+	rm -rf test-results playwright-report web/test-results web/playwright-report
+
+# Run Playwright end-to-end tests (ensures the browser matching the pinned Playwright version; no-op if present)
+e2e-test: web/node_modules
+	bunx playwright install chromium
+	bunx playwright test
 
 # Cross-compile static zero-CGO binaries across Linux, macOS, and Windows
-cross-compile:
-	@if [ ! -f web/dist/script.sha256 ]; then $(MAKE) ui-build; fi
-	mkdir -p $(GOTMPDIR) $(BIN_DIR)
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY_NAME)-linux-amd64 ./cmd/jokateko
-	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY_NAME)-linux-arm64 ./cmd/jokateko
-	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY_NAME)-darwin-amd64 ./cmd/jokateko
-	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY_NAME)-darwin-arm64 ./cmd/jokateko
-	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY_NAME)-windows-amd64.exe ./cmd/jokateko
+cross-compile: $(UI_OUT) $(LICENSES)
+	@mkdir -p $(BIN_DIR)
+	@set -e; for p in $(PLATFORMS); do \
+		os=$${p%/*}; arch=$${p#*/}; ext=; [ "$$os" = windows ] && ext=.exe; \
+		echo "building $$os/$$arch"; \
+		GOOS=$$os GOARCH=$$arch $(GO_BUILD) -o $(BIN_DIR)/$(BINARY_NAME)-$$os-$$arch$$ext ./cmd/jokateko; \
+	done
 	cd $(BIN_DIR) && sha256sum $(BINARY_NAME)-* > checksums.txt
-	rm -rf $(GOTMPDIR)
 
 # Build devcontainer image locally
 devcontainer-build:

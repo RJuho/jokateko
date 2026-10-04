@@ -14,7 +14,7 @@ Remember to check SKILLS and inspect the active MCP server to see what tools are
 ## Workflow
 *   Follow given task, document key details to Jokateko Tasks, or if suitable Strategies or Glossary. Check Jokateko MCP tools for Tasks, Strategies and Glossary.
 *   Do not make 'got commit' by yourself, everything must be validated by human.
-*   When you are done, leave task to 'In Preview' state to wait for human check. Also build Jokateko and place it to '/home/bun/.local/bin/'
+*   When you are done, leave task to 'In Preview' state to wait for human check. Also build and install Jokateko to '/home/bun/.local/bin/' with `make install`.
 
 ## 1. Project Overview
 This project is a local, Markdown-driven Kanban and task management tool designed for both human developers and AI agents. It operates on a "Tasks-as-Code" and "Spec-First" methodology, where the repository files are the absolute source of truth. The architecture relies on a local backend that handles safe file writing and provides structured Model Context Protocol (MCP) interfaces to AI agents.
@@ -26,7 +26,7 @@ Agents MUST NOT introduce any new libraries, frameworks, or dependencies without
 *   **Database & File Watching:** `modernc.org/sqlite` (no CGO) + `sqlc`, and `fsnotify` for unidirectional file tracking.
 *   **Markdown Parsing:** `yuin/goldmark`.
 *   **AI / MCP Integration:** Official Model Context Protocol Go SDK (`modelcontextprotocol/go-sdk`).
-*   **Frontend (JS):** Preact components and Valibot schema validation (`valibot`), bundled into a single self-contained HTML file using the Bun 1.4 native bundler. Styling uses Tailwind CSS Standalone CLI (no Node.js/NPM dependencies).
+*   **Frontend (JS):** Preact components and Valibot schema validation (`valibot`), bundled into a single self-contained HTML file using the Bun 1.4 native bundler. Styling uses Tailwind CSS.
 *   **Communication:** Server-Sent Events (SSE) for Go-to-browser updates, and native `fetch()` in the browser.
 
 ## 3. Build Process and Platform Support

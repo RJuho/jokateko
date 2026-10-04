@@ -28,9 +28,11 @@ USER bun
 
 ENV PATH="/home/bun/.local/bin/go/bin:/home/bun/go/bin:/home/bun/.local/bin:${PATH}"
 
-# Install pure Go 1.27 compiler
+# Install pure Go compiler matching the image architecture (amd64 / arm64)
+ARG GO_VERSION=1.27.1
+ARG TARGETARCH
 RUN mkdir -p /home/bun/.local/bin \
-    && curl -L https://go.dev/dl/go1.27.0.linux-amd64.tar.gz \
+    && curl -fL https://go.dev/dl/go${GO_VERSION}.linux-${TARGETARCH}.tar.gz \
     -o /home/bun/.local/bin/go.tar.gz \
     && tar -C /home/bun/.local/bin -xzf /home/bun/.local/bin/go.tar.gz \
     && rm /home/bun/.local/bin/go.tar.gz

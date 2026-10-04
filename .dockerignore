@@ -1,0 +1,17 @@
+# Keep the Docker build context small: dependencies and build outputs are
+# recreated inside the builder stage. .git is kept for `git describe` (VERSION).
+node_modules
+web/node_modules
+web/dist
+bin
+dist-kanban
+.gopath
+playwright-report
+test-results
+web/playwright-report
+web/test-results
+.playwright-cli
+.agents/skills
+.agents/cache
+.jokateko/cache
+**/.DS_Store

@@ -2,9 +2,13 @@
 ARG DEVCONTAINER_IMAGE=ghcr.io/rjuho/jokateko-devcontainer:latest
 
 # ==============================================================================
-# Builder stage: compiles Web UI and static binary using Jokateko devcontainer
+# Builder stage: compiles Web UI and static binary using Jokateko devcontainer.
+# Runs natively on the build host and cross-compiles for the target platform.
 # ==============================================================================
-FROM ${DEVCONTAINER_IMAGE} AS builder
+FROM --platform=$BUILDPLATFORM ${DEVCONTAINER_IMAGE} AS builder
+
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /app
 
@@ -19,7 +23,7 @@ COPY --chown=bun:bun . .
 USER bun
 
 # Build self-contained Web UI and compile zero-CGO static executable
-RUN make ui-build && make build
+RUN make ui-build && GOOS=$TARGETOS GOARCH=$TARGETARCH make build
 
 # ==============================================================================
 # Final stage: minimal, zero-attack-surface container (FROM scratch)
