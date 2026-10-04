@@ -1,0 +1,23 @@
+{
+	"mcpServers": {
+		"Jokateko": {
+			"type": "stdio",
+			"command": "jokateko",
+			"args": ["mcp"]
+		},
+		"Playwright": {
+			"type": "stdio",
+			"command": "bunx",
+			"args": ["@playwright/mcp@latest", "--headless", "--browser=chromium"]
+		},
+		"Valibot": {
+			"type": "http",
+			"url": "https://valibot.dev/mcp"
+		},
+		"Go": {
+			"type": "stdio",
+			"command": "gopls",
+			"args": ["mcp"]
+		}
+	}
+}
