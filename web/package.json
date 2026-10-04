@@ -10,6 +10,7 @@
 		"check": "biome check && bun run scripts/check-tailwind.ts",
 		"dev": "bun --hot scripts/dev.ts",
 		"test:e2e": "bunx playwright test --config ../playwright.config.ts",
+		"test:lighthouse": "bunx playwright test --config ../playwright.lighthouse.config.ts",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
@@ -27,6 +28,7 @@
 		"@playwright/test": "^1.63.0",
 		"@types/bun": "^1.4.2",
 		"@types/node": "26.6.4",
+		"lighthouse": "^13.5.0",
 		"typescript": "^7.0.2"
 	}
 }

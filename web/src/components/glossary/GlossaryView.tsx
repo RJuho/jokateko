@@ -37,9 +37,12 @@ export function GlossaryView() {
 		}
 	}, [activeGlossaryId.value])
 
-	// Term stays open until page is reloaded or search is used
+	// Term stays open until page is reloaded or search is used; the URL term is kept
+	// open so this mount-time run does not undo a deep link on initial page load
 	useEffect(() => {
-		setOpenedTermIds(new Set())
+		setOpenedTermIds(
+			new Set(activeGlossaryId.value ? [activeGlossaryId.value] : []),
+		)
 	}, [searchQuery])
 
 	const visibleTerms = allTerms.filter((term) =>

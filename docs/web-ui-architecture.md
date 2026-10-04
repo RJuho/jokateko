@@ -315,3 +315,35 @@ Playwright tests run deterministically against both the live daemon and the stat
 - Test 3: Verify moving a card updates the task markdown file on disk and propagates over SSE.
 - Test 4: Verify static build opens offline without network requests and functions in read-only mode.
 - Test 5: Verify Valibot validation correctly handles malformed snapshot data by displaying the diagnostic banner.
+
+### 7.1 Lighthouse Audits (Direct Playwright Chromium Integration)
+
+A separate suite (`tests/lighthouse/`, `playwright.lighthouse.config.ts`) audits every view with [Lighthouse](https://github.com/GoogleChrome/lighthouse) (dev-only dependency). Playwright launches Chromium with `--remote-debugging-port=<9222 + workerIndex>`, and `lighthouse(url, { port })` attaches to that browser over CDP. The suite runs in a single worker because the audits share the debugging port.
+
+```bash
+make lighthouse-test                 # builds bin/jokateko, then runs the suite
+cd web && bun run test:lighthouse    # suite only (expects an up-to-date bin/jokateko)
+```
+
+Each test seeds a temporary workspace through `startTestServer`. It then does a fresh load of the route in Playwright and checks the view's `data-testid` and `document.title`, which proves the deep link resolved before Lighthouse audits the same URL with the desktop preset.
+
+| Report name | Route |
+|---|---|
+| `board`, `board-task`, `board-milestone` | `#board`, `#task/<id>`, `#milestone/<id>` |
+| `calendar-month`, `calendar-week` | `#calendar/2026-09`, `#calendar/2026-W38` |
+| `calendar-task`, `calendar-milestone` | `#calendar/2026-09/task/<id>`, `#calendar/2026-09/milestone/<id>` |
+| `strategies`, `strategy-detail` | `#strategies`, `#strategy/<id>` |
+| `glossary`, `glossary-term` | `#glossary`, `#glossary/<id>` |
+
+Category minimums are soft-asserted per view. Override them with environment variables:
+
+| Variable | Default |
+|---|---|
+| `LH_MIN_PERFORMANCE` | 90 |
+| `LH_MIN_ACCESSIBILITY` | 90 |
+| `LH_MIN_BEST_PRACTICES` | 90 |
+| `LH_MIN_SEO` | 80 |
+
+The test log prints the scores for every view, plus the failing audit ids for any category below its minimum. Full HTML and JSON reports are written to `lighthouse-report/<name>.html|.json` (gitignored and removed by `make clean-cache`).
+
+> **Runner note:** under the Bun-backed Playwright runner, `*.spec.ts` entry files are parsed as plain JavaScript (no type annotations, `type` aliases or type-only imports). Imported helper modules may use TypeScript, but must derive types (`ReturnType<typeof …>`) instead of using `import type`.

@@ -45,6 +45,7 @@ web/dist/
 .playwright-cli/
 playwright-report/
 test-results/
+lighthouse-report/
 
 # Jokateko runtime cache
 .jokateko/cache/
