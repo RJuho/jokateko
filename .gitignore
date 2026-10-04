@@ -52,3 +52,6 @@ test-results/
 
 # SKILLS
 .agents/skills/
+
+# Claude local
+.claude/*.local.*
