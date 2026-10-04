@@ -17,7 +17,7 @@
 		},
 		{
 			"name": "github.com/modelcontextprotocol/go-sdk",
-			"version": "v1.7.0",
+			"version": "v1.8.0",
 			"license": "Apache-2.0",
 			"ecosystem": "go",
 			"url": "https://github.com/modelcontextprotocol/go-sdk",
@@ -33,7 +33,7 @@
 		},
 		{
 			"name": "github.com/yuin/goldmark",
-			"version": "v1.8.5",
+			"version": "v1.8.6",
 			"license": "MIT",
 			"ecosystem": "go",
 			"url": "https://github.com/yuin/goldmark",
@@ -41,7 +41,7 @@
 		},
 		{
 			"name": "modernc.org/sqlite",
-			"version": "v1.57.0",
+			"version": "v1.60.1",
 			"license": "BSD-3-Clause",
 			"ecosystem": "go",
 			"url": "https://modernc.org/sqlite",

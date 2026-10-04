@@ -4,14 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/RJuho/jokateko/internal/model"
-	"github.com/RJuho/jokateko/internal/parser"
-	"github.com/RJuho/jokateko/internal/store"
+	"github.com/RJuho/jokateko/internal/service"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -123,229 +120,115 @@ func (s *Server) toolListStrategies(ctx context.Context, _ *mcp.CallToolRequest,
 	return nil, summaries, nil
 }
 
+func toStrategyDetail(st model.Strategy) *StrategyDetail {
+	return &StrategyDetail{
+		ID:       st.ID,
+		Title:    st.Title,
+		Tier:     st.Tier,
+		Tags:     st.Tags,
+		Summary:  st.Summary,
+		Body:     st.Body,
+		FilePath: st.FilePath,
+	}
+}
+
 func (s *Server) toolGetStrategy(ctx context.Context, _ *mcp.CallToolRequest, in GetStrategyInput) (*mcp.CallToolResult, *StrategyDetail, error) {
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("strategy id is required")
-	}
-
-	strat, err := s.store.GetStrategy(ctx, id)
+	id, err := requireID(in.ID, "strategy")
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("strategy %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get strategy %q: %w", id, err)
+		return nil, nil, err
 	}
-
-	return nil, &StrategyDetail{
-		ID:       strat.ID,
-		Title:    strat.Title,
-		Tier:     strat.Tier,
-		Tags:     strat.Tags,
-		Summary:  strat.Summary,
-		Body:     strat.Body,
-		FilePath: strat.FilePath,
-	}, nil
+	strat, err := s.svc.GetStrategy(ctx, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nil, toStrategyDetail(strat), nil
 }
 
 func (s *Server) toolCreateStrategy(ctx context.Context, _ *mcp.CallToolRequest, in CreateStrategyInput) (*mcp.CallToolResult, *StrategyDetail, error) {
-	title := strings.TrimSpace(in.Title)
-	if title == "" {
-		return nil, nil, errors.New("title is required")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
 	}
-
-	summary := strings.TrimSpace(in.Summary)
-	if summary == "" {
+	if strings.TrimSpace(in.Summary) == "" {
 		return nil, nil, errors.New("summary is required")
 	}
-
-	tier := model.Tier(in.Tier)
-	if !tier.IsValid() {
-		return nil, nil, fmt.Errorf("invalid tier %d: tier must be 1 (Core Invariants), 2 (Domain Patterns), or 3 (Implementation Specs)", in.Tier)
+	// The tier is mandatory for agents: reject 0 instead of defaulting to Core.
+	if err := service.CheckTier(model.Tier(in.Tier)); err != nil {
+		return nil, nil, err
+	}
+	if err := s.svc.CheckTags(in.Tags); err != nil {
+		return nil, nil, err
 	}
 
-	if s.cfg.Tags.EnforceAllowed && len(in.Tags) > 0 {
-		for _, tag := range in.Tags {
-			if !slices.Contains(s.cfg.Tags.Allowed, tag) {
-				return nil, nil, fmt.Errorf("tag %q is not permitted. Allowed tags: %v", tag, s.cfg.Tags.Allowed)
-			}
-		}
-	}
-
-	tags := in.Tags
-	if tags == nil {
-		tags = []string{}
-	}
-
-	id := slugify(title)
-	fm := model.StrategyFrontmatter{
-		Title:   title,
-		Tier:    tier,
-		Summary: summary,
-		Tags:    tags,
-	}
-
-	fileBytes, err := parser.Format(fm, in.Body)
+	strat, err := s.svc.CreateStrategy(ctx, service.NewStrategy{
+		Title:   in.Title,
+		Tier:    model.Tier(in.Tier),
+		Tags:    in.Tags,
+		Summary: in.Summary,
+		Body:    in.Body,
+	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to format strategy markdown: %w", err)
+		return nil, nil, err
 	}
-
-	filePath := filepath.Join(s.StrategiesDir(), fmt.Sprintf("%s.md", id))
-	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
-		return nil, nil, fmt.Errorf("failed to save strategy file: %w", err)
-	}
-
-	strat := model.Strategy{
-		ID:       id,
-		Title:    title,
-		Tier:     tier,
-		Summary:  summary,
-		Tags:     tags,
-		Body:     in.Body,
-		FilePath: filePath,
-		ModTime:  time.Now(),
-	}
-
-	_ = s.store.UpsertStrategy(ctx, strat)
-
-	return nil, &StrategyDetail{
-		ID:       strat.ID,
-		Title:    strat.Title,
-		Tier:     strat.Tier,
-		Tags:     strat.Tags,
-		Summary:  strat.Summary,
-		Body:     strat.Body,
-		FilePath: strat.FilePath,
-	}, nil
+	return nil, toStrategyDetail(strat), nil
 }
 
 func (s *Server) toolUpdateStrategy(ctx context.Context, _ *mcp.CallToolRequest, in UpdateStrategyInput) (*mcp.CallToolResult, *StrategyDetail, error) {
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("strategy id is required")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
 	}
-
-	existing, err := s.store.GetStrategy(ctx, id)
+	id, err := requireID(in.ID, "strategy")
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("strategy %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get strategy %q: %w", id, err)
+		return nil, nil, err
 	}
-
-	title := existing.Title
-	if strings.TrimSpace(in.Title) != "" {
-		title = strings.TrimSpace(in.Title)
-	}
-
-	tier := existing.Tier
 	if in.Tier > 0 {
-		t := model.Tier(in.Tier)
-		if !t.IsValid() {
-			return nil, nil, fmt.Errorf("invalid tier %d: tier must be 1, 2, or 3", in.Tier)
+		if err := service.CheckTier(model.Tier(in.Tier)); err != nil {
+			return nil, nil, err
 		}
-		tier = t
 	}
-
-	summary := existing.Summary
-	if strings.TrimSpace(in.Summary) != "" {
-		summary = strings.TrimSpace(in.Summary)
-	}
-
-	tags := existing.Tags
 	if in.Tags != nil {
-		if s.cfg.Tags.EnforceAllowed && len(in.Tags) > 0 {
-			for _, tag := range in.Tags {
-				if !slices.Contains(s.cfg.Tags.Allowed, tag) {
-					return nil, nil, fmt.Errorf("tag %q is not permitted. Allowed tags: %v", tag, s.cfg.Tags.Allowed)
-				}
-			}
+		if err := s.svc.CheckTags(in.Tags); err != nil {
+			return nil, nil, err
 		}
-		tags = in.Tags
 	}
 
-	body := existing.Body
-	if in.Body != "" {
-		body = in.Body
-	}
-
-	fm := model.StrategyFrontmatter{
-		Title:   title,
-		Tier:    tier,
-		Summary: summary,
-		Tags:    tags,
-	}
-
-	fileBytes, err := parser.Format(fm, body)
+	strat, err := s.svc.UpdateStrategy(ctx, id, func(st *model.Strategy) error {
+		if v := strings.TrimSpace(in.Title); v != "" {
+			st.Title = v
+		}
+		if in.Tier > 0 {
+			st.Tier = model.Tier(in.Tier)
+		}
+		if v := strings.TrimSpace(in.Summary); v != "" {
+			st.Summary = v
+		}
+		if in.Tags != nil {
+			st.Tags = in.Tags
+		}
+		if in.Body != "" {
+			st.Body = in.Body
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to format strategy markdown: %w", err)
+		return nil, nil, err
 	}
-
-	filePath := existing.FilePath
-	if filePath == "" {
-		filePath = filepath.Join(s.StrategiesDir(), fmt.Sprintf("%s.md", id))
-	}
-
-	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
-		return nil, nil, fmt.Errorf("failed to save strategy file: %w", err)
-	}
-
-	updated := model.Strategy{
-		ID:       id,
-		Title:    title,
-		Tier:     tier,
-		Summary:  summary,
-		Tags:     tags,
-		Body:     body,
-		FilePath: filePath,
-		ModTime:  time.Now(),
-	}
-
-	_ = s.store.UpsertStrategy(ctx, updated)
-
-	return nil, &StrategyDetail{
-		ID:       updated.ID,
-		Title:    updated.Title,
-		Tier:     updated.Tier,
-		Tags:     updated.Tags,
-		Summary:  updated.Summary,
-		Body:     updated.Body,
-		FilePath: updated.FilePath,
-	}, nil
+	return nil, toStrategyDetail(strat), nil
 }
 
 func (s *Server) toolDeleteStrategy(ctx context.Context, _ *mcp.CallToolRequest, in DeleteStrategyInput) (*mcp.CallToolResult, *DeleteEntityOutput, error) {
-	if !s.cfg.MCP.AllowMutations {
-		return nil, nil, errors.New("mutations are disabled in configuration")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
 	}
-
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("strategy id is required")
-	}
-
-	strat, err := s.store.GetStrategy(ctx, id)
+	id, err := requireID(in.ID, "strategy")
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("strategy %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get strategy %q: %w", id, err)
+		return nil, nil, err
 	}
-
-	if strat.FilePath != "" {
-		if err := s.writer.RemoveFile(strat.FilePath); err != nil {
-			return nil, nil, fmt.Errorf("failed to remove strategy file: %w", err)
-		}
+	if err := s.svc.DeleteStrategy(ctx, id); err != nil {
+		return nil, nil, err
 	}
-
-	if err := s.store.DeleteStrategy(ctx, id); err != nil {
-		return nil, nil, fmt.Errorf("failed to delete strategy from store: %w", err)
-	}
-
 	return nil, &DeleteEntityOutput{
 		Success: true,
 		ID:      id,
 		Message: fmt.Sprintf("Strategy %q deleted successfully", id),
 	}, nil
 }
-

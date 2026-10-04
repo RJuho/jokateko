@@ -2,26 +2,23 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"net/http"
-	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/RJuho/jokateko/internal/config"
 	"github.com/RJuho/jokateko/internal/mcp"
 	"github.com/RJuho/jokateko/internal/server"
+	"github.com/RJuho/jokateko/internal/service"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/internal/watcher"
 	"github.com/RJuho/jokateko/internal/writer"
-	sdk_mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func cmdServe(args []string, stdout, stderr io.Writer) int {
+func cmdServe(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	dirFlag := fs.String("dir", ".", "Project root directory to serve")
@@ -49,6 +46,12 @@ func cmdServe(args []string, stdout, stderr io.Writer) int {
 		cfg.Server.Port = *portFlag
 	}
 
+	if *timeoutFlag > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, *timeoutFlag)
+		defer cancel()
+	}
+
 	// 2. Initialize in-memory store
 	st, err := store.OpenMemory()
 	if err != nil {
@@ -59,117 +62,32 @@ func cmdServe(args []string, stdout, stderr io.Writer) int {
 		_ = st.Close()
 	}()
 
-	// 3. Initialize suppression cache and atomic writer
+	// 3. Suppression cache, atomic writer, SSE hub and the shared mutation service.
+	// REST and MCP mutations both go through svc, so both reach the Web UI via SSE.
 	sc := writer.NewSuppressionCache(3 * time.Second)
 	wr := writer.New(sc)
 
-	// 4. Set up ingestion pipeline
-	resolveDir := func(rel string) string {
-		if filepath.IsAbs(rel) {
-			return rel
-		}
-		return filepath.Join(workspaceDir, rel)
-	}
-
-	ingestCfg := watcher.IngestConfig{
-		TasksDir:      resolveDir(cfg.Paths.Tasks),
-		MilestonesDir: resolveDir(cfg.Paths.Milestones),
-		StrategiesDir: resolveDir(cfg.Paths.Strategies),
-		GlossaryDir:   resolveDir(cfg.Paths.Glossary),
-		ConfigFile:    filepath.Join(workspaceDir, ".jokateko", "config.toml"),
-	}
-
-	pipeline := watcher.NewPipeline(st, sc, ingestCfg)
-
-	// Ingest all existing project markdown files into memory
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	if err := pipeline.ProcessAll(ctx); err != nil {
-		fmt.Fprintf(stderr, "warning: error during initial directory scan: %v\n", err)
-	}
-
-	// 5. Initialize SSE Hub
 	sse := server.NewSSEHub()
 	sse.Start()
 	defer sse.Stop()
 
-	// Connect pipeline changes to SSE hub
-	pipeline.SetOnEntityChange(func(e watcher.IngestEvent) {
-		opName := "updated"
-		if e.Op == watcher.OpDelete {
-			opName = "deleted"
-		}
-		eventName := fmt.Sprintf("%s.%s", e.EntityType, opName)
+	svc := service.New(cfg, workspaceDir, st, wr, sse)
 
-		if e.Op == watcher.OpDelete {
-			sse.Broadcast(eventName, map[string]string{
-				"id": e.EntityID,
-			})
-			return
-		}
-
-		ctx := context.Background()
-		switch e.EntityType {
-		case "task":
-			if task, err := st.GetTask(ctx, e.EntityID); err == nil {
-				sse.Broadcast(eventName, task)
-				return
-			}
-		case "milestone":
-			if ms, err := st.GetMilestone(ctx, e.EntityID); err == nil {
-				sse.Broadcast(eventName, ms)
-				return
-			}
-		case "strategy":
-			if strat, err := st.GetStrategy(ctx, e.EntityID); err == nil {
-				sse.Broadcast(eventName, strat)
-				return
-			}
-		case "glossary":
-			if term, err := st.GetGlossaryTerm(ctx, e.EntityID); err == nil {
-				sse.Broadcast(eventName, term)
-				return
-			}
-		}
-
-		sse.Broadcast(eventName, map[string]string{
-			"id": e.EntityID,
-		})
-	})
-
-	// 6. Start filesystem watcher
-	watchDirs := []string{
-		ingestCfg.TasksDir,
-		ingestCfg.MilestonesDir,
-		ingestCfg.StrategiesDir,
-		ingestCfg.GlossaryDir,
+	// 4. Load project files and keep the store in sync with external edits.
+	logf := func(format string, args ...any) {
+		fmt.Fprintf(stderr, format+"\n", args...)
 	}
-
-	fsw, err := watcher.New(watchDirs, 50*time.Millisecond)
+	stopPipeline, err := watcher.StartPipeline(ctx, st, sc, svc.Dirs(), func(e watcher.IngestEvent) {
+		broadcastIngest(ctx, sse, st, e)
+	}, logf)
 	if err != nil {
-		fmt.Fprintf(stderr, "warning: failed to start filesystem watcher: %v\n", err)
-	} else {
-		defer func() {
-			_ = fsw.Close()
-		}()
-		fsw.Start(ctx)
-
-		go func() {
-			for ev := range fsw.Events() {
-				if err := pipeline.HandleEvent(ctx, ev); err != nil {
-					logError(stderr, fmt.Sprintf("failed to handle file event for %s: %v", ev.Path, err))
-				}
-			}
-		}()
+		logf("warning: %v", err)
 	}
+	defer stopPipeline()
 
-	// 7. Start HTTP Server with MCP support
-	srv := server.New(cfg, workspaceDir, st, wr, sse)
-	mcpSrv := mcp.New(cfg, workspaceDir, st, wr)
-	srv.SetMCPHandler(sdk_mcp.NewSSEHandler(func(req *http.Request) *sdk_mcp.Server {
-		return mcpSrv.MCPServer()
-	}, nil))
+	// 5. Start HTTP Server with MCP support (Streamable HTTP transport)
+	srv := server.New(svc, sse)
+	srv.SetMCPHandler(mcp.New(svc).HTTPHandler())
 
 	if err := srv.Start(); err != nil {
 		fmt.Fprintf(stderr, "failed to start HTTP server: %v\n", err)
@@ -179,23 +97,11 @@ func cmdServe(args []string, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "Jokateko daemon active: http://%s\n", srv.Addr())
 	fmt.Fprintf(stdout, "Serving project %q at %s\n", cfg.Project.Name, workspaceDir)
 
-	// Wait for termination signal
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-
-	var timerCh <-chan time.Time
-	if *timeoutFlag > 0 {
-		timer := time.NewTimer(*timeoutFlag)
-		defer timer.Stop()
-		timerCh = timer.C
-	}
-
-	select {
-	case sig := <-sigCh:
-		fmt.Fprintf(stdout, "\nReceived signal %s, shutting down...\n", sig)
-	case <-timerCh:
+	<-ctx.Done()
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		fmt.Fprintln(stdout, "\nTimeout reached, shutting down...")
-	case <-ctx.Done():
+	} else {
+		fmt.Fprintln(stdout, "\nReceived shutdown signal, shutting down...")
 	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -208,6 +114,31 @@ func cmdServe(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-func logError(w io.Writer, msg string) {
-	fmt.Fprintf(w, "[ERROR] %s\n", msg)
+// broadcastIngest forwards an externally made file change to Web UI clients,
+// sending the freshly indexed entity when it can be loaded.
+func broadcastIngest(ctx context.Context, sse *server.SSEHub, st *store.Store, e watcher.IngestEvent) {
+	if e.Op == watcher.OpDelete {
+		sse.Broadcast(e.EntityType+".deleted", map[string]string{"id": e.EntityID})
+		return
+	}
+
+	eventName := e.EntityType + ".updated"
+	var (
+		payload any
+		err     error
+	)
+	switch e.EntityType {
+	case "task":
+		payload, err = st.GetTask(ctx, e.EntityID)
+	case "milestone":
+		payload, err = st.GetMilestone(ctx, e.EntityID)
+	case "strategy":
+		payload, err = st.GetStrategy(ctx, e.EntityID)
+	case "glossary":
+		payload, err = st.GetGlossaryTerm(ctx, e.EntityID)
+	}
+	if payload == nil || err != nil {
+		payload = map[string]string{"id": e.EntityID}
+	}
+	sse.Broadcast(eventName, payload)
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/RJuho/jokateko/internal/config"
 	"github.com/RJuho/jokateko/internal/model"
 	"github.com/RJuho/jokateko/internal/server"
+	"github.com/RJuho/jokateko/internal/service"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/internal/writer"
 	"github.com/RJuho/jokateko/web"
@@ -58,7 +59,7 @@ func setupTestServer(t *testing.T) (*server.Server, string, *store.Store, *serve
 		sse.Stop()
 	})
 
-	srv := server.New(cfg, dir, st, wr, sse)
+	srv := server.New(service.New(cfg, dir, st, wr, sse), sse)
 	return srv, dir, st, sse
 }
 
@@ -572,7 +573,7 @@ func TestTaskDeletionSafeguards(t *testing.T) {
 	taskAPayload := map[string]any{
 		"id":       "260901-task-a",
 		"title":    "Task A",
-		"status":   "todo",
+		"status":   "backlog",
 		"priority": "medium",
 		"tags":     []string{"backend"},
 		"summary":  "Base task",
@@ -590,7 +591,7 @@ func TestTaskDeletionSafeguards(t *testing.T) {
 	taskBPayload := map[string]any{
 		"id":           "260902-task-b",
 		"title":        "Task B",
-		"status":       "todo",
+		"status":       "backlog",
 		"priority":     "medium",
 		"tags":         []string{"backend"},
 		"summary":      "Dependent task",
@@ -660,7 +661,7 @@ func TestMilestoneDeletionSafeguards(t *testing.T) {
 	taskPayload := map[string]any{
 		"id":        "260901-assigned-task",
 		"title":     "Assigned Task",
-		"status":    "todo",
+		"status":    "backlog",
 		"priority":  "medium",
 		"milestone": "260915-mvp",
 		"tags":      []string{"backend"},
@@ -712,7 +713,7 @@ func TestTaskDependenciesEndpoints(t *testing.T) {
 	taskA := map[string]any{
 		"id":      "260901-task-a",
 		"title":   "Task A",
-		"status":  "todo",
+		"status":  "backlog",
 		"summary": "Task A summary",
 		"body":    "# Task A",
 	}
@@ -728,7 +729,7 @@ func TestTaskDependenciesEndpoints(t *testing.T) {
 	taskB := map[string]any{
 		"id":      "260902-task-b",
 		"title":   "Task B",
-		"status":  "todo",
+		"status":  "backlog",
 		"summary": "Task B summary",
 		"body":    "# Task B",
 	}
@@ -999,6 +1000,3 @@ func TestUpdateTaskStatus(t *testing.T) {
 		t.Errorf("expected 404 Not Found on missing task, got %d", rec.Code)
 	}
 }
-
-
-

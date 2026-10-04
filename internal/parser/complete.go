@@ -199,4 +199,3 @@ func IsOnlyCheckboxToggle(oldBody, newBody string) bool {
 	}
 	return normalize(oldBody) == normalize(newBody)
 }
-

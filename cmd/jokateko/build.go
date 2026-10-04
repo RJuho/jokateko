@@ -72,20 +72,7 @@ func cmdBuild(args []string, stdout, stderr io.Writer) int {
 	sc := writer.NewSuppressionCache(time.Second)
 
 	// 3. Ingestion pipeline
-	resolveDir := func(p string) string {
-		if filepath.IsAbs(p) {
-			return p
-		}
-		return filepath.Join(workspaceDir, p)
-	}
-
-	ingestCfg := watcher.IngestConfig{
-		TasksDir:      resolveDir(cfg.Paths.Tasks),
-		MilestonesDir: resolveDir(cfg.Paths.Milestones),
-		StrategiesDir: resolveDir(cfg.Paths.Strategies),
-		GlossaryDir:   resolveDir(cfg.Paths.Glossary),
-	}
-	pipeline := watcher.NewPipeline(st, sc, ingestCfg)
+	pipeline := watcher.NewPipeline(st, sc, cfg.ResolveDirs(workspaceDir))
 
 	ctx := context.Background()
 	if err := pipeline.ProcessAll(ctx); err != nil {

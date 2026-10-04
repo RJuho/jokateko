@@ -7,6 +7,7 @@ import (
 	"github.com/RJuho/jokateko/internal/config"
 	internalmcp "github.com/RJuho/jokateko/internal/mcp"
 	"github.com/RJuho/jokateko/internal/model"
+	"github.com/RJuho/jokateko/internal/service"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/internal/writer"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -183,9 +184,8 @@ func TestMCP_Instructions(t *testing.T) {
 	}
 	defer st.Close()
 	wr := writer.New(nil)
-	customServer := internalmcp.New(cfg, dir, st, wr)
+	customServer := internalmcp.New(service.New(cfg, dir, st, wr, nil))
 	if customServer.Instructions() != "Custom project guidance for AI agents." {
 		t.Errorf("expected custom instructions, got: %q", customServer.Instructions())
 	}
 }
-

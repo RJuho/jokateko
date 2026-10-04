@@ -3,6 +3,7 @@
 package config
 
 import (
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -141,4 +142,51 @@ func (m MCPConfig) Timeout() time.Duration {
 		return 30 * time.Second
 	}
 	return time.Duration(m.TimeoutSeconds) * time.Second
+}
+
+// Dirs holds the absolute entity directory paths of a workspace.
+type Dirs struct {
+	Tasks      string
+	Milestones string
+	Strategies string
+	Glossary   string
+}
+
+// All returns the entity directories in a stable order.
+func (d Dirs) All() []string {
+	return []string{d.Tasks, d.Milestones, d.Strategies, d.Glossary}
+}
+
+// ResolveDirs returns the configured entity directories resolved against workspaceDir.
+// Absolute paths are kept as-is.
+func (c *Config) ResolveDirs(workspaceDir string) Dirs {
+	resolve := func(p string) string {
+		if filepath.IsAbs(p) {
+			return filepath.Clean(p)
+		}
+		return filepath.Join(workspaceDir, p)
+	}
+	return Dirs{
+		Tasks:      resolve(c.Paths.Tasks),
+		Milestones: resolve(c.Paths.Milestones),
+		Strategies: resolve(c.Paths.Strategies),
+		Glossary:   resolve(c.Paths.Glossary),
+	}
+}
+
+// Columns returns the board columns as model columns, in configured order.
+func (c *Config) Columns() []model.Column {
+	cols := make([]model.Column, 0, len(c.Board.Columns))
+	for _, col := range c.Board.Columns {
+		cols = append(cols, model.Column{
+			ID:            col.ID,
+			Name:          col.Name,
+			Color:         col.Color,
+			HandledBy:     col.HandledBy,
+			Instructions:  col.Instructions,
+			SortBy:        col.SortBy,
+			SortDirection: col.SortDirection,
+		})
+	}
+	return cols
 }

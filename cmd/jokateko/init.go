@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -50,7 +51,7 @@ func cmdInit(args []string, stdout, stderr io.Writer) int {
 
 	// 2. Default config.toml
 	configFile := filepath.Join(jokatekoDir, "config.toml")
-	if _, err := os.Stat(configFile); os.IsNotExist(err) || *replaceFlag {
+	if _, err := os.Stat(configFile); errors.Is(err, os.ErrNotExist) || *replaceFlag {
 		commentedConfig := config.GenerateCommentedConfig(projectName, "Local, Markdown-driven Kanban and task management")
 		if err := os.WriteFile(configFile, []byte(commentedConfig), 0644); err != nil {
 			fmt.Fprintf(stderr, "failed to write config.toml: %v\n", err)
@@ -63,7 +64,7 @@ func cmdInit(args []string, stdout, stderr io.Writer) int {
 
 	// Sample Strategy
 	stratFile := filepath.Join(stratDir, "architecture.md")
-	if _, err := os.Stat(stratFile); os.IsNotExist(err) {
+	if _, err := os.Stat(stratFile); errors.Is(err, os.ErrNotExist) {
 		stratContent := `+++
 title = "Tasks-as-Code Architecture"
 tier = 1
@@ -80,7 +81,7 @@ All tasks, milestones, and architectural strategies are stored as versioned Mark
 
 	// Sample Glossary
 	glossFile := filepath.Join(glossDir, "tasks-as-code.md")
-	if _, err := os.Stat(glossFile); os.IsNotExist(err) {
+	if _, err := os.Stat(glossFile); errors.Is(err, os.ErrNotExist) {
 		glossContent := `+++
 title = "Tasks-as-Code"
 summary = "A methodology where tasks and project specs are version-controlled alongside source code"
@@ -97,7 +98,7 @@ Tasks-as-Code treats work items and specifications as code artifacts with pull r
 	// Sample Milestone
 	msSlug := fmt.Sprintf("%s-mvp", today)
 	msFile := filepath.Join(msDir, fmt.Sprintf("%s.md", msSlug))
-	if _, err := os.Stat(msFile); os.IsNotExist(err) {
+	if _, err := os.Stat(msFile); errors.Is(err, os.ErrNotExist) {
 		targetDate := time.Now().AddDate(0, 1, 0).Format("2006-01-02")
 		msContent := fmt.Sprintf(`+++
 title = "MVP Release"
@@ -116,7 +117,7 @@ Deliver the core foundational milestones for the initial usable release.
 
 	// Sample Task
 	taskFile := filepath.Join(tasksDir, fmt.Sprintf("%s-initial-setup.md", today))
-	if _, err := os.Stat(taskFile); os.IsNotExist(err) {
+	if _, err := os.Stat(taskFile); errors.Is(err, os.ErrNotExist) {
 		taskContent := fmt.Sprintf(`+++
 title = "Initial Project Setup"
 status = "ready"

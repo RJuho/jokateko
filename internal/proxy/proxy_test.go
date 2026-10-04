@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/RJuho/jokateko/internal/model"
 	"github.com/RJuho/jokateko/internal/proxy"
 	"github.com/RJuho/jokateko/internal/server"
+	"github.com/RJuho/jokateko/internal/service"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/internal/writer"
 	sdk_mcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -39,11 +41,13 @@ func TestProxy_ProbeDaemon(t *testing.T) {
 		t.Error("expected ProbeDaemon to return false for inactive daemon")
 	}
 
-	// 2. Active daemon (mocked HTTP server)
+	// 2. Active daemon (mocked HTTP server) serving the workspace reported in health
+	var healthWorkspace atomic.Value
+	healthWorkspace.Store(tempDir)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/health" {
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"status":"ok"}`))
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "workspace": healthWorkspace.Load().(string)})
 			return
 		}
 		http.NotFound(w, r)
@@ -58,6 +62,12 @@ func TestProxy_ProbeDaemon(t *testing.T) {
 
 	if !runnerActive.ProbeDaemon(ctx) {
 		t.Error("expected ProbeDaemon to return true for active daemon")
+	}
+
+	// 3. A daemon serving a different project on the same port must be ignored
+	healthWorkspace.Store(t.TempDir())
+	if runnerActive.ProbeDaemon(ctx) {
+		t.Error("expected ProbeDaemon to return false for a daemon serving another workspace")
 	}
 }
 
@@ -166,11 +176,10 @@ func TestProxy_ProxyMode(t *testing.T) {
 	defer sse.Stop()
 
 	// Start daemon HTTP server with MCP handler
-	srv := server.New(cfg, dir, st, wr, sse)
-	mcpSrv := mcp.New(cfg, dir, st, wr)
-	srv.SetMCPHandler(sdk_mcp.NewSSEHandler(func(req *http.Request) *sdk_mcp.Server {
-		return mcpSrv.MCPServer()
-	}, nil))
+	svc := service.New(cfg, dir, st, wr, sse)
+	srv := server.New(svc, sse)
+	mcpSrv := mcp.New(svc)
+	srv.SetMCPHandler(mcpSrv.HTTPHandler())
 
 	if err := srv.Start(); err != nil {
 		t.Fatalf("failed to start daemon server: %v", err)
@@ -346,11 +355,10 @@ This task is read directly from disk by the standalone engine.
 		dCfg.Server.Host = "127.0.0.1"
 		dCfg.Server.Port = daemonPort
 
-		srv := server.New(dCfg, dir, st, wr, sse)
-		mcpSrv := mcp.New(dCfg, dir, st, wr)
-		srv.SetMCPHandler(sdk_mcp.NewSSEHandler(func(req *http.Request) *sdk_mcp.Server {
-			return mcpSrv.MCPServer()
-		}, nil))
+		svc := service.New(dCfg, dir, st, wr, sse)
+		srv := server.New(svc, sse)
+		mcpSrv := mcp.New(svc)
+		srv.SetMCPHandler(mcpSrv.HTTPHandler())
 
 		if err := srv.Start(); err != nil {
 			t.Fatalf("failed to start daemon server on port %d: %v", daemonPort, err)
@@ -429,4 +437,3 @@ This task is read directly from disk by the standalone engine.
 		t.Errorf("expected at least 3 local engine closes, got %d", closes)
 	}
 }
-

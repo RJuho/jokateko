@@ -100,69 +100,54 @@ func isIgnored(path string) bool {
 }
 
 // Start runs the debouncing event loop until ctx is canceled or the watcher is closed.
+// Events and Errors are closed when the loop exits.
 func (w *Watcher) Start(ctx context.Context) {
 	go func() {
 		defer close(w.eventsCh)
 		defer close(w.errorsCh)
 
 		pending := make(map[string]FileOp)
-		var (
-			timer   *time.Timer
-			timerCh <-chan time.Time
-		)
+		timer := time.NewTimer(w.debounce)
+		timer.Stop()
+		defer timer.Stop()
 
-		resetTimer := func() {
-			if timer != nil {
-				timer.Stop()
-			}
-			timer = time.NewTimer(w.debounce)
-			timerCh = timer.C
-		}
-
-		flush := func() {
+		// flush delivers pending events; it reports false when the loop must exit.
+		flush := func() bool {
 			for path, op := range pending {
 				select {
 				case w.eventsCh <- FileEvent{Path: path, Op: op}:
 				case <-ctx.Done():
-					return
+					return false
 				case <-w.closed:
-					return
+					return false
 				}
 			}
-			pending = make(map[string]FileOp)
-			timerCh = nil
+			clear(pending)
+			return true
 		}
 
 		for {
 			select {
-			case <-timerCh:
-				flush()
+			case <-ctx.Done():
+				return
+			case <-w.closed:
+				return
+			case <-timer.C:
+				if !flush() {
+					return
+				}
 			case err, ok := <-w.fsWatcher.Errors:
 				if !ok {
 					return
 				}
-				
 				select {
-				case <-w.closed:
-					continue
-				case <-ctx.Done():
-					continue
 				case w.errorsCh <- err:
-				default:
+				default: // drop when nobody is listening
 				}
 			case ev, ok := <-w.fsWatcher.Events:
 				if !ok {
 					return
 				}
-
-				select {
-				case <-w.closed:
-					continue
-				case <-ctx.Done():
-					continue
-				default:
-				}
-
 				if isIgnored(ev.Name) {
 					continue
 				}
@@ -174,13 +159,15 @@ func (w *Watcher) Start(ctx context.Context) {
 				}
 
 				cleanPath := filepath.Clean(ev.Name)
-				if ev.Has(fsnotify.Remove) || ev.Has(fsnotify.Rename) {
+				switch {
+				case ev.Has(fsnotify.Remove) || ev.Has(fsnotify.Rename):
 					pending[cleanPath] = OpDelete
-					resetTimer()
-				} else if ev.Has(fsnotify.Write) || ev.Has(fsnotify.Create) {
+				case ev.Has(fsnotify.Write) || ev.Has(fsnotify.Create):
 					pending[cleanPath] = OpWrite
-					resetTimer()
+				default:
+					continue
 				}
+				timer.Reset(w.debounce)
 			}
 		}
 	}()

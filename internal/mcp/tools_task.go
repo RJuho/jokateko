@@ -4,15 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/RJuho/jokateko/internal/model"
 	"github.com/RJuho/jokateko/internal/parser"
-	"github.com/RJuho/jokateko/internal/store"
-	"github.com/RJuho/jokateko/internal/validator"
+	"github.com/RJuho/jokateko/internal/service"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -297,18 +294,7 @@ func (s *Server) toolListTasks(ctx context.Context, _ *mcp.CallToolRequest, in L
 		return nil, nil, fmt.Errorf("failed to list tasks: %w", err)
 	}
 
-	cols := make([]model.Column, 0, len(s.cfg.Board.Columns))
-	for _, c := range s.cfg.Board.Columns {
-		cols = append(cols, model.Column{
-			ID:            c.ID,
-			Name:          c.Name,
-			Color:         c.Color,
-			HandledBy:     c.HandledBy,
-			Instructions:  c.Instructions,
-			SortBy:        c.SortBy,
-			SortDirection: c.SortDirection,
-		})
-	}
+	cols := s.cfg.Columns()
 
 	if in.Status != "" {
 		idx := slices.IndexFunc(cols, func(c model.Column) bool { return c.ID == in.Status })
@@ -346,50 +332,25 @@ func (s *Server) toolListTasks(ctx context.Context, _ *mcp.CallToolRequest, in L
 }
 
 func (s *Server) toolGetTask(ctx context.Context, _ *mcp.CallToolRequest, in GetTaskInput) (*mcp.CallToolResult, *TaskDetail, error) {
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("task id is required")
-	}
-
-	task, err := s.store.GetTask(ctx, id)
+	id, err := requireID(in.ID, "task")
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("task %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+		return nil, nil, err
 	}
-
-	return nil, &TaskDetail{
-		ID:                task.ID,
-		Title:             task.Title,
-		Status:            task.Status,
-		Priority:          task.Priority,
-		Milestone:         task.Milestone,
-		Tags:              task.Tags,
-		Summary:           task.Summary,
-		Dependencies:      task.Dependencies,
-		Body:              task.Body,
-		TotalCriteria:     task.TotalCriteria,
-		CompletedCriteria: task.CompletedCriteria,
-		FilePath:          task.FilePath,
-		CreatedAt:         task.CreatedAt,
-		ChangedAt:         task.ChangedAt,
-		TargetAt:          task.TargetAt,
-	}, nil
+	task, err := s.svc.GetTask(ctx, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nil, toTaskDetail(task), nil
 }
 
 func (s *Server) toolListTaskItems(ctx context.Context, _ *mcp.CallToolRequest, in ListTaskItemsInput) (*mcp.CallToolResult, *ListTaskItemsOutput, error) {
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("task id is required")
-	}
-
-	task, err := s.store.GetTask(ctx, id)
+	id, err := requireID(in.ID, "task")
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("task %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+		return nil, nil, err
+	}
+	task, err := s.svc.GetTask(ctx, id)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	total, completed, items := parser.ExtractAcceptanceCriteria([]byte(task.Body))
@@ -410,67 +371,41 @@ func (s *Server) toolListTaskItems(ctx context.Context, _ *mcp.CallToolRequest, 
 	}, nil
 }
 
+func toTaskDetail(t model.Task) *TaskDetail {
+	return &TaskDetail{
+		ID:                t.ID,
+		Title:             t.Title,
+		Status:            t.Status,
+		Priority:          t.Priority,
+		Milestone:         t.Milestone,
+		Tags:              t.Tags,
+		Summary:           t.Summary,
+		Dependencies:      t.Dependencies,
+		Body:              t.Body,
+		TotalCriteria:     t.TotalCriteria,
+		CompletedCriteria: t.CompletedCriteria,
+		FilePath:          t.FilePath,
+		CreatedAt:         t.CreatedAt,
+		ChangedAt:         t.ChangedAt,
+		TargetAt:          t.TargetAt,
+	}
+}
+
 func (s *Server) toolUpdateTaskItem(ctx context.Context, _ *mcp.CallToolRequest, in UpdateTaskItemInput) (*mcp.CallToolResult, *UpdateTaskItemOutput, error) {
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("task id is required")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
 	}
-
-	task, err := s.store.GetTask(ctx, id)
+	id, err := requireID(in.ID, "task")
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("task %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+		return nil, nil, err
 	}
 
-	newBody, err := parser.UpdateCheckboxByIndex(task.Body, in.Index, in.Completed)
+	task, err := s.svc.UpdateTaskItem(ctx, id, in.Index, in.Completed)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to update checkbox item: %w", err)
+		return nil, nil, err
 	}
 
-	if task.CreatedAt == "" {
-		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
-	}
-	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
-
-	fm := model.TaskFrontmatter{
-		Title:        task.Title,
-		Status:       task.Status,
-		Priority:     task.Priority,
-		Milestone:    task.Milestone,
-		Tags:         task.Tags,
-		Summary:      task.Summary,
-		Dependencies: task.Dependencies,
-		CreatedAt:    task.CreatedAt,
-		ChangedAt:    task.ChangedAt,
-		TargetAt:     task.TargetAt,
-	}
-
-	fileBytes, err := parser.Format(fm, newBody)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to format task markdown: %w", err)
-	}
-
-	filePath := task.FilePath
-	if filePath == "" {
-		filePath = filepath.Join(s.TasksDir(), fmt.Sprintf("%s.md", id))
-	}
-
-	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
-		return nil, nil, fmt.Errorf("failed to save task file: %w", err)
-	}
-
-	total, completed, items := parser.ExtractAcceptanceCriteria([]byte(newBody))
-	task.Body = newBody
-	task.TotalCriteria = total
-	task.CompletedCriteria = completed
-	task.ModTime = time.Now()
-
-	if err := s.store.UpsertTask(ctx, task); err != nil {
-		return nil, nil, fmt.Errorf("failed to index updated task: %w", err)
-	}
-
+	_, _, items := parser.ExtractAcceptanceCriteria([]byte(task.Body))
 	text := ""
 	if in.Index >= 1 && in.Index <= len(items) {
 		text = items[in.Index-1].Text
@@ -481,148 +416,47 @@ func (s *Server) toolUpdateTaskItem(ctx context.Context, _ *mcp.CallToolRequest,
 		Index:          in.Index,
 		Text:           text,
 		Completed:      in.Completed,
-		TotalItems:     total,
-		CompletedItems: completed,
+		TotalItems:     task.TotalCriteria,
+		CompletedItems: task.CompletedCriteria,
 	}, nil
 }
 
 func (s *Server) toolCreateTask(ctx context.Context, _ *mcp.CallToolRequest, in CreateTaskInput) (*mcp.CallToolResult, *TaskDetail, error) {
-	title := strings.TrimSpace(in.Title)
-	if title == "" {
-		return nil, nil, errors.New("title is required")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
+	}
+	if err := s.svc.CheckTags(in.Tags); err != nil {
+		return nil, nil, err
+	}
+	milestone := strings.TrimSpace(in.Milestone)
+	if err := s.checkMilestoneOpen(ctx, milestone, in.ReopenMilestone); err != nil {
+		return nil, nil, err
 	}
 
-	summary := strings.TrimSpace(in.Summary)
-	if summary == "" {
-		return nil, nil, errors.New("summary is required")
-	}
-
-	// 1. Tag validation guard
-	if s.cfg.Tags.EnforceAllowed && len(in.Tags) > 0 {
-		for _, tag := range in.Tags {
-			if !slices.Contains(s.cfg.Tags.Allowed, tag) {
-				return nil, nil, fmt.Errorf("tag %q is not permitted. Allowed tags: %v", tag, s.cfg.Tags.Allowed)
-			}
-		}
-	}
-
-	// 2. Closed Milestone Guard
-	milestoneSlug := strings.TrimSpace(in.Milestone)
-	if milestoneSlug != "" {
-		ms, err := s.store.GetMilestone(ctx, milestoneSlug)
-		if err == nil {
-			isCompleted := ms.Status == model.MilestoneStatusClosed || (ms.TotalTasks > 0 && ms.CompletedTasks == ms.TotalTasks)
-			if isCompleted && !in.ReopenMilestone {
-				return nil, nil, fmt.Errorf("cannot attach task to completed milestone %q (100%% tasks done). Set reopen_milestone=true to explicitly attach tasks to this milestone", milestoneSlug)
-			}
-		}
-	}
-
-	status := in.Status
-	if status == "" {
-		if s.cfg != nil && strings.TrimSpace(s.cfg.Board.DefaultCreateState) != "" {
-			status = strings.TrimSpace(s.cfg.Board.DefaultCreateState)
-		} else if len(s.cfg.Board.Columns) > 0 {
-			status = s.cfg.Board.Columns[0].ID
-		} else {
-			status = "backlog"
-		}
-	} else if !s.isValidColumn(status) {
-		return nil, nil, fmt.Errorf("status %q is not a valid board column", status)
-	}
-
-	priority := model.Priority(in.Priority)
-	if !priority.IsValid() {
-		priority = model.PriorityMedium
-	}
-
-	tags := in.Tags
-	if tags == nil {
-		tags = []string{}
-	}
-
-	deps := in.Dependencies
-	if deps == nil {
-		deps = []string{}
-	}
-
-	targetAt, err := parser.NormalizeTimestamp(in.TargetAt)
+	task, err := s.svc.CreateTask(ctx, service.NewTask{
+		Title:        in.Title,
+		Status:       in.Status,
+		Priority:     model.Priority(in.Priority),
+		Milestone:    milestone,
+		Tags:         in.Tags,
+		Summary:      in.Summary,
+		Dependencies: in.Dependencies,
+		TargetAt:     in.TargetAt,
+		Body:         in.Body,
+	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid target_at format: %w", err)
+		return nil, nil, err
 	}
-
-	now := time.Now().UTC().Format(time.RFC3339)
-	id := fmt.Sprintf("%s-%s", time.Now().Format("060102"), slugify(title))
-	fm := model.TaskFrontmatter{
-		Title:        title,
-		Status:       status,
-		Priority:     priority,
-		Milestone:    milestoneSlug,
-		Tags:         tags,
-		Summary:      summary,
-		Dependencies: deps,
-		CreatedAt:    now,
-		ChangedAt:    now,
-		TargetAt:     targetAt,
-	}
-
-	fileBytes, err := parser.Format(fm, in.Body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to format task markdown: %w", err)
-	}
-
-	filePath := filepath.Join(s.TasksDir(), fmt.Sprintf("%s.md", id))
-	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
-		return nil, nil, fmt.Errorf("failed to save task file: %w", err)
-	}
-
-	total, completed, _ := parser.ExtractAcceptanceCriteria([]byte(in.Body))
-	task := model.Task{
-		ID:                id,
-		Title:             title,
-		Status:            status,
-		Priority:          priority,
-		Milestone:         milestoneSlug,
-		Tags:              tags,
-		Summary:           summary,
-		Dependencies:      deps,
-		Body:              in.Body,
-		TotalCriteria:     total,
-		CompletedCriteria: completed,
-		FilePath:          filePath,
-		ModTime:           time.Now(),
-		CreatedAt:         now,
-		ChangedAt:         now,
-		TargetAt:          targetAt,
-	}
-
-	if err := s.store.UpsertTask(ctx, task); err != nil {
-		return nil, nil, fmt.Errorf("failed to index created task: %w", err)
-	}
-
-	return nil, &TaskDetail{
-		ID:                task.ID,
-		Title:             task.Title,
-		Status:            task.Status,
-		Priority:          task.Priority,
-		Milestone:         task.Milestone,
-		Tags:              task.Tags,
-		Summary:           task.Summary,
-		Dependencies:      task.Dependencies,
-		Body:              task.Body,
-		TotalCriteria:     task.TotalCriteria,
-		CompletedCriteria: task.CompletedCriteria,
-		FilePath:          task.FilePath,
-		CreatedAt:         task.CreatedAt,
-		ChangedAt:         task.ChangedAt,
-		TargetAt:          task.TargetAt,
-	}, nil
+	return nil, toTaskDetail(task), nil
 }
 
 func (s *Server) toolUpdateTaskStatus(ctx context.Context, _ *mcp.CallToolRequest, in UpdateTaskStatusInput) (*mcp.CallToolResult, *UpdateTaskStatusOutput, error) {
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("task id is required")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
+	}
+	id, err := requireID(in.ID, "task")
+	if err != nil {
+		return nil, nil, err
 	}
 
 	status := strings.TrimSpace(in.Status)
@@ -630,170 +464,39 @@ func (s *Server) toolUpdateTaskStatus(ctx context.Context, _ *mcp.CallToolReques
 	if strings.EqualFold(status, "done") {
 		return nil, nil, errors.New("cannot set status to 'done' directly via update_task_status. You must invoke the complete_task tool to document what was done, why it was done, and provide an updated summary")
 	}
-
-	if !s.isValidColumn(status) {
+	if !s.cfg.HasColumn(status) {
 		return nil, nil, fmt.Errorf("status %q is not a valid board column", status)
 	}
 
-	task, err := s.store.GetTask(ctx, id)
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("task %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+	if _, err := s.svc.UpdateTaskStatus(ctx, id, status); err != nil {
+		return nil, nil, err
 	}
-
-	task.Status = status
-	if task.CreatedAt == "" {
-		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
-	}
-	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
-
-	fm := model.TaskFrontmatter{
-		Title:        task.Title,
-		Status:       task.Status,
-		Priority:     task.Priority,
-		Milestone:    task.Milestone,
-		Tags:         task.Tags,
-		Summary:      task.Summary,
-		Dependencies: task.Dependencies,
-		CreatedAt:    task.CreatedAt,
-		ChangedAt:    task.ChangedAt,
-		TargetAt:     task.TargetAt,
-	}
-
-	fileBytes, err := parser.Format(fm, task.Body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to format task markdown: %w", err)
-	}
-
-	filePath := task.FilePath
-	if filePath == "" {
-		filePath = filepath.Join(s.TasksDir(), fmt.Sprintf("%s.md", id))
-	}
-
-	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
-		return nil, nil, fmt.Errorf("failed to save task file: %w", err)
-	}
-
-	task.ModTime = time.Now()
-	if err := s.store.UpsertTask(ctx, task); err != nil {
-		return nil, nil, fmt.Errorf("failed to update task status in store: %w", err)
-	}
-
-	return nil, &UpdateTaskStatusOutput{
-		ID:     id,
-		Status: status,
-	}, nil
+	return nil, &UpdateTaskStatusOutput{ID: id, Status: status}, nil
 }
 
 func (s *Server) toolCompleteTask(ctx context.Context, _ *mcp.CallToolRequest, in CompleteTaskInput) (*mcp.CallToolResult, *CompleteTaskOutput, error) {
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("task id is required")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
 	}
-
-	summary := strings.TrimSpace(in.Summary)
-	if summary == "" {
-		return nil, nil, errors.New("summary is required when completing a task")
-	}
-
-	whatDone := strings.TrimSpace(in.WhatDone)
-	if whatDone == "" {
-		return nil, nil, errors.New("what_done documentation is required when completing a task")
-	}
-
-	whyDone := strings.TrimSpace(in.WhyDone)
-	if whyDone == "" {
-		return nil, nil, errors.New("why_done rationale is required when completing a task")
-	}
-
-	task, err := s.store.GetTask(ctx, id)
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("task %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
-	}
-
-	// 1. Dependency Safety Verification
-	if !in.IgnoreDependencies && len(task.Dependencies) > 0 {
-		blockers, err := s.store.GetBlockingTasks(ctx, id)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to check task dependencies: %w", err)
-		}
-		if len(blockers) > 0 {
-			var blockerSlugs []string
-			for _, b := range blockers {
-				blockerSlugs = append(blockerSlugs, b.ID)
-			}
-			return nil, nil, fmt.Errorf("cannot complete task: blocking dependencies remain unfinished: %v. Use ignore_dependencies=true to override", blockerSlugs)
-		}
-	}
-
-	// 2. Acceptance Criteria Verification (Strict Open Checkbox Guard)
-	newBody, err := parser.CompleteTaskBody(task.Body, time.Now(), whatDone, whyDone)
+	id, err := requireID(in.ID, "task")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// 3. Update task
-	task.Status = "done"
-	task.Summary = summary
-	task.Body = newBody
-
-	total, completed, _ := parser.ExtractAcceptanceCriteria([]byte(newBody))
-	task.TotalCriteria = total
-	task.CompletedCriteria = completed
-	task.ModTime = time.Now()
-
-	if task.CreatedAt == "" {
-		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
-	}
-	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
-
-	fm := model.TaskFrontmatter{
-		Title:        task.Title,
-		Status:       task.Status,
-		Priority:     task.Priority,
-		Milestone:    task.Milestone,
-		Tags:         task.Tags,
-		Summary:      task.Summary,
-		Dependencies: task.Dependencies,
-		CreatedAt:    task.CreatedAt,
-		ChangedAt:    task.ChangedAt,
-		TargetAt:     task.TargetAt,
-	}
-
-	fileBytes, err := parser.Format(fm, newBody)
+	task, unblockedTasks, err := s.svc.CompleteTask(ctx, service.CompleteTaskInput{
+		ID:                 id,
+		Summary:            in.Summary,
+		WhatDone:           in.WhatDone,
+		WhyDone:            in.WhyDone,
+		IgnoreDependencies: in.IgnoreDependencies,
+	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to format task markdown: %w", err)
+		return nil, nil, err
 	}
 
-	filePath := task.FilePath
-	if filePath == "" {
-		filePath = filepath.Join(s.TasksDir(), fmt.Sprintf("%s.md", id))
-	}
-
-	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
-		return nil, nil, fmt.Errorf("failed to save completed task file: %w", err)
-	}
-
-	if err := s.store.UpsertTask(ctx, task); err != nil {
-		return nil, nil, fmt.Errorf("failed to index completed task: %w", err)
-	}
-
-	// 4. Check downstream unblocked tasks
-	unblockedTasks, err := s.store.FindUnblockedTasks(ctx, id)
-	var unblocked []UnblockedTaskInfo
-	if err == nil {
-		for _, dt := range unblockedTasks {
-			unblocked = append(unblocked, UnblockedTaskInfo{
-				ID:     dt.ID,
-				Title:  dt.Title,
-				Status: dt.Status,
-			})
-		}
+	unblocked := make([]UnblockedTaskInfo, 0, len(unblockedTasks))
+	for _, dt := range unblockedTasks {
+		unblocked = append(unblocked, UnblockedTaskInfo{ID: dt.ID, Title: dt.Title, Status: dt.Status})
 	}
 
 	msg := fmt.Sprintf("Task %s marked as done.", id)
@@ -804,220 +507,89 @@ func (s *Server) toolCompleteTask(ctx context.Context, _ *mcp.CallToolRequest, i
 	return nil, &CompleteTaskOutput{
 		Success:        true,
 		ID:             id,
-		Status:         "done",
-		Summary:        summary,
+		Status:         task.Status,
+		Summary:        task.Summary,
 		UnblockedTasks: unblocked,
 		Message:        msg,
 	}, nil
 }
 
 func (s *Server) toolUpdateTaskContent(ctx context.Context, _ *mcp.CallToolRequest, in UpdateTaskContentInput) (*mcp.CallToolResult, *TaskDetail, error) {
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("task id is required")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
 	}
-
-	task, err := s.store.GetTask(ctx, id)
+	id, err := requireID(in.ID, "task")
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("task %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+		return nil, nil, err
 	}
-
-	if in.Title != nil {
-		t := strings.TrimSpace(*in.Title)
-		if t != "" {
-			task.Title = t
-		}
-	}
-	if in.Summary != nil {
-		s := strings.TrimSpace(*in.Summary)
-		if s != "" {
-			task.Summary = s
-		}
-	}
-	if in.Priority != nil {
-		p := model.Priority(*in.Priority)
-		if p.IsValid() {
-			task.Priority = p
+	if in.Tags != nil {
+		if err := s.svc.CheckTags(*in.Tags); err != nil {
+			return nil, nil, err
 		}
 	}
 	if in.Milestone != nil {
-		msSlug := strings.TrimSpace(*in.Milestone)
-		if msSlug != "" {
-			ms, err := s.store.GetMilestone(ctx, msSlug)
-			if err == nil {
-				isCompleted := ms.Status == model.MilestoneStatusClosed || (ms.TotalTasks > 0 && ms.CompletedTasks == ms.TotalTasks)
-				if isCompleted && !in.ReopenMilestone {
-					return nil, nil, fmt.Errorf("cannot attach task to completed milestone %q. Set reopen_milestone=true to proceed", msSlug)
-				}
+		if err := s.checkMilestoneOpen(ctx, strings.TrimSpace(*in.Milestone), in.ReopenMilestone); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	task, err := s.svc.UpdateTask(ctx, id, func(t *model.Task) error {
+		if in.Title != nil {
+			if v := strings.TrimSpace(*in.Title); v != "" {
+				t.Title = v
 			}
 		}
-		task.Milestone = msSlug
-	}
-	if in.Tags != nil {
-		tags := *in.Tags
-		if s.cfg.Tags.EnforceAllowed && len(tags) > 0 {
-			for _, tag := range tags {
-				if !slices.Contains(s.cfg.Tags.Allowed, tag) {
-					return nil, nil, fmt.Errorf("tag %q is not permitted. Allowed tags: %v", tag, s.cfg.Tags.Allowed)
-				}
+		if in.Summary != nil {
+			if v := strings.TrimSpace(*in.Summary); v != "" {
+				t.Summary = v
 			}
 		}
-		task.Tags = tags
-	}
-	if in.Dependencies != nil {
-		task.Dependencies = *in.Dependencies
-	}
-	if in.TargetAt != nil {
-		targetAt, err := parser.NormalizeTimestamp(*in.TargetAt)
-		if err != nil {
-			return nil, nil, fmt.Errorf("invalid target_at format: %w", err)
-		}
-		task.TargetAt = targetAt
-	}
-	if in.Body != nil && *in.Body != task.Body {
-		if !s.cfg.IsTaskEditable(task.Status) && !parser.IsOnlyCheckboxToggle(task.Body, *in.Body) {
-			editable := s.cfg.Board.EditableStates
-			if len(editable) == 0 {
-				editable = []string{"backlog"}
+		if in.Priority != nil {
+			if p := model.Priority(*in.Priority); p.IsValid() {
+				t.Priority = p
 			}
-			return nil, nil, fmt.Errorf("cannot edit task body while task is in %q status; task body is only editable in [%s]; move task to an editable status to revise specification, or use add_task_note to append notes", task.Status, strings.Join(editable, ", "))
 		}
-		task.Body = *in.Body
-	}
-
-	total, completed, _ := parser.ExtractAcceptanceCriteria([]byte(task.Body))
-	task.TotalCriteria = total
-	task.CompletedCriteria = completed
-	task.ModTime = time.Now()
-
-	if task.CreatedAt == "" {
-		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
-	}
-	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
-
-	fm := model.TaskFrontmatter{
-		Title:        task.Title,
-		Status:       task.Status,
-		Priority:     task.Priority,
-		Milestone:    task.Milestone,
-		Tags:         task.Tags,
-		Summary:      task.Summary,
-		Dependencies: task.Dependencies,
-		CreatedAt:    task.CreatedAt,
-		ChangedAt:    task.ChangedAt,
-		TargetAt:     task.TargetAt,
-	}
-
-	fileBytes, err := parser.Format(fm, task.Body)
+		if in.Milestone != nil {
+			t.Milestone = strings.TrimSpace(*in.Milestone)
+		}
+		if in.Tags != nil {
+			t.Tags = *in.Tags
+		}
+		if in.Dependencies != nil {
+			t.Dependencies = *in.Dependencies
+		}
+		if in.TargetAt != nil {
+			targetAt, err := service.NormalizeTargetAt(*in.TargetAt)
+			if err != nil {
+				return err
+			}
+			t.TargetAt = targetAt
+		}
+		if in.Body != nil {
+			if err := s.svc.CheckBodyEdit(t.Status, t.Body, *in.Body, "use add_task_note to append notes"); err != nil {
+				return err
+			}
+			t.Body = *in.Body
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to format task markdown: %w", err)
+		return nil, nil, err
 	}
-
-	filePath := task.FilePath
-	if filePath == "" {
-		filePath = filepath.Join(s.TasksDir(), fmt.Sprintf("%s.md", id))
-	}
-
-	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
-		return nil, nil, fmt.Errorf("failed to save task file: %w", err)
-	}
-
-	if err := s.store.UpsertTask(ctx, task); err != nil {
-		return nil, nil, fmt.Errorf("failed to index updated task: %w", err)
-	}
-
-	return nil, &TaskDetail{
-		ID:                task.ID,
-		Title:             task.Title,
-		Status:            task.Status,
-		Priority:          task.Priority,
-		Milestone:         task.Milestone,
-		Tags:              task.Tags,
-		Summary:           task.Summary,
-		Dependencies:      task.Dependencies,
-		Body:              task.Body,
-		TotalCriteria:     task.TotalCriteria,
-		CompletedCriteria: task.CompletedCriteria,
-		FilePath:          task.FilePath,
-		CreatedAt:         task.CreatedAt,
-		ChangedAt:         task.ChangedAt,
-		TargetAt:          task.TargetAt,
-	}, nil
-}
-
-func (s *Server) isValidColumn(colID string) bool {
-	for _, c := range s.cfg.Board.Columns {
-		if c.ID == colID {
-			return true
-		}
-	}
-	return false
-}
-
-func slugify(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
-	var sb strings.Builder
-	for _, r := range s {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			sb.WriteRune(r)
-		} else if r == ' ' || r == '-' || r == '_' {
-			if sb.Len() > 0 && sb.String()[sb.Len()-1] != '-' {
-				sb.WriteByte('-')
-			}
-		}
-	}
-	res := strings.Trim(sb.String(), "-")
-	if res == "" {
-		return "task"
-	}
-	if len(res) > 40 {
-		return res[:40]
-	}
-	return res
+	return nil, toTaskDetail(task), nil
 }
 
 func (s *Server) toolDeleteTask(ctx context.Context, _ *mcp.CallToolRequest, in DeleteTaskInput) (*mcp.CallToolResult, *DeleteEntityOutput, error) {
-	if !s.cfg.MCP.AllowMutations {
-		return nil, nil, errors.New("mutations are disabled in configuration")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
 	}
-
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("task id is required")
-	}
-
-	task, err := s.store.GetTask(ctx, id)
+	id, err := requireID(in.ID, "task")
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("task %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+		return nil, nil, err
 	}
-
-	if !in.Force {
-		downstream, err := s.store.GetDownstreamTasks(ctx, id)
-		if err == nil && len(downstream) > 0 {
-			downstreamIDs := make([]string, len(downstream))
-			for i, d := range downstream {
-				downstreamIDs[i] = d.ID
-			}
-			return nil, nil, fmt.Errorf("cannot delete task %q: %d task(s) depend on it (%s). Set force=true to delete anyway", id, len(downstream), strings.Join(downstreamIDs, ", "))
-		}
+	if err := s.svc.DeleteTask(ctx, id, in.Force); err != nil {
+		return nil, nil, err
 	}
-
-	if task.FilePath != "" {
-		if err := s.writer.RemoveFile(task.FilePath); err != nil {
-			return nil, nil, fmt.Errorf("failed to remove task file: %w", err)
-		}
-	}
-
-	if err := s.store.DeleteTask(ctx, id); err != nil {
-		return nil, nil, fmt.Errorf("failed to delete task from store: %w", err)
-	}
-
 	return nil, &DeleteEntityOutput{
 		Success: true,
 		ID:      id,
@@ -1026,186 +598,53 @@ func (s *Server) toolDeleteTask(ctx context.Context, _ *mcp.CallToolRequest, in 
 }
 
 func (s *Server) toolAddTaskDependency(ctx context.Context, _ *mcp.CallToolRequest, in AddTaskDependencyInput) (*mcp.CallToolResult, *TaskDependencyOutput, error) {
-	if !s.cfg.MCP.AllowMutations {
-		return nil, nil, errors.New("mutations are disabled in configuration")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
 	}
-
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("task id is required")
+	id, err := requireID(in.ID, "task")
+	if err != nil {
+		return nil, nil, err
 	}
 	depID := strings.TrimSpace(in.DependencyID)
 	if depID == "" {
 		return nil, nil, errors.New("dependency_id is required")
 	}
 
-	if id == depID {
-		return nil, nil, fmt.Errorf("task %q cannot depend on itself", id)
-	}
-
-	task, err := s.store.GetTask(ctx, id)
+	task, added, err := s.svc.AddTaskDependency(ctx, id, depID)
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("task %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+		return nil, nil, err
 	}
 
-	if _, err := s.store.GetTask(ctx, depID); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("dependency task %q not found", depID)
-		}
-		return nil, nil, fmt.Errorf("failed to get dependency task %q: %w", depID, err)
+	msg := fmt.Sprintf("Dependency %q added to task %q", depID, id)
+	if !added {
+		msg = fmt.Sprintf("Dependency %q already exists on task %q", depID, id)
 	}
-
-	if slices.Contains(task.Dependencies, depID) {
-		return nil, &TaskDependencyOutput{
-			Success:      true,
-			ID:           id,
-			DependencyID: depID,
-			Dependencies: task.Dependencies,
-			Message:      fmt.Sprintf("Dependency %q already exists on task %q", depID, id),
-		}, nil
-	}
-
-	tasks, err := s.store.ListTasks(ctx, model.FilterCriteria{})
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to list tasks for cycle check: %w", err)
-	}
-
-	depsGraph := make(map[string][]string, len(tasks)+1)
-	taskFiles := make(map[string]string, len(tasks)+1)
-	for _, t := range tasks {
-		depsGraph[t.ID] = t.Dependencies
-		taskFiles[t.ID] = t.FilePath
-	}
-	depsGraph[id] = append(slices.Clone(task.Dependencies), depID)
-
-	cycleDiags := validator.DetectCycles(depsGraph, taskFiles)
-	if len(cycleDiags) > 0 {
-		var msgs []string
-		for _, d := range cycleDiags {
-			if len(d.Context) > 0 {
-				msgs = append(msgs, d.Context...)
-			} else {
-				msgs = append(msgs, d.Message)
-			}
-		}
-		return nil, nil, fmt.Errorf("circular dependency detected: %s", strings.Join(msgs, "; "))
-	}
-
-	task.Dependencies = append(task.Dependencies, depID)
-	if task.CreatedAt == "" {
-		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
-	}
-	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
-
-	fm := model.TaskFrontmatter{
-		Title:        task.Title,
-		Status:       task.Status,
-		Priority:     task.Priority,
-		Milestone:    task.Milestone,
-		Tags:         task.Tags,
-		Summary:      task.Summary,
-		Dependencies: task.Dependencies,
-		CreatedAt:    task.CreatedAt,
-		ChangedAt:    task.ChangedAt,
-		TargetAt:     task.TargetAt,
-	}
-
-	fileBytes, err := parser.Format(fm, task.Body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to format task markdown: %w", err)
-	}
-
-	filePath := task.FilePath
-	if filePath == "" {
-		filePath = filepath.Join(s.TasksDir(), fmt.Sprintf("%s.md", id))
-		task.FilePath = filePath
-	}
-
-	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
-		return nil, nil, fmt.Errorf("failed to save task file: %w", err)
-	}
-
-	if err := s.store.UpsertTask(ctx, task); err != nil {
-		return nil, nil, fmt.Errorf("failed to update task in store: %w", err)
-	}
-
 	return nil, &TaskDependencyOutput{
 		Success:      true,
 		ID:           id,
 		DependencyID: depID,
 		Dependencies: task.Dependencies,
-		Message:      fmt.Sprintf("Dependency %q added to task %q", depID, id),
+		Message:      msg,
 	}, nil
 }
 
 func (s *Server) toolRemoveTaskDependency(ctx context.Context, _ *mcp.CallToolRequest, in RemoveTaskDependencyInput) (*mcp.CallToolResult, *TaskDependencyOutput, error) {
-	if !s.cfg.MCP.AllowMutations {
-		return nil, nil, errors.New("mutations are disabled in configuration")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
 	}
-
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("task id is required")
+	id, err := requireID(in.ID, "task")
+	if err != nil {
+		return nil, nil, err
 	}
 	depID := strings.TrimSpace(in.DependencyID)
 	if depID == "" {
 		return nil, nil, errors.New("dependency_id is required")
 	}
 
-	task, err := s.store.GetTask(ctx, id)
+	task, err := s.svc.RemoveTaskDependency(ctx, id, depID)
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("task %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+		return nil, nil, err
 	}
-
-	idx := slices.Index(task.Dependencies, depID)
-	if idx == -1 {
-		return nil, nil, fmt.Errorf("dependency %q not found on task %q", depID, id)
-	}
-
-	task.Dependencies = slices.Delete(task.Dependencies, idx, idx+1)
-	if task.CreatedAt == "" {
-		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
-	}
-	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
-
-	fm := model.TaskFrontmatter{
-		Title:        task.Title,
-		Status:       task.Status,
-		Priority:     task.Priority,
-		Milestone:    task.Milestone,
-		Tags:         task.Tags,
-		Summary:      task.Summary,
-		Dependencies: task.Dependencies,
-		CreatedAt:    task.CreatedAt,
-		ChangedAt:    task.ChangedAt,
-		TargetAt:     task.TargetAt,
-	}
-
-	fileBytes, err := parser.Format(fm, task.Body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to format task markdown: %w", err)
-	}
-
-	filePath := task.FilePath
-	if filePath == "" {
-		filePath = filepath.Join(s.TasksDir(), fmt.Sprintf("%s.md", id))
-		task.FilePath = filePath
-	}
-
-	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
-		return nil, nil, fmt.Errorf("failed to save task file: %w", err)
-	}
-
-	if err := s.store.UpsertTask(ctx, task); err != nil {
-		return nil, nil, fmt.Errorf("failed to update task in store: %w", err)
-	}
-
 	return nil, &TaskDependencyOutput{
 		Success:      true,
 		ID:           id,
@@ -1216,159 +655,50 @@ func (s *Server) toolRemoveTaskDependency(ctx context.Context, _ *mcp.CallToolRe
 }
 
 func (s *Server) toolAddTaskNote(ctx context.Context, _ *mcp.CallToolRequest, in AddTaskNoteInput) (*mcp.CallToolResult, *AddTaskNoteOutput, error) {
-	if !s.cfg.MCP.AllowMutations {
-		return nil, nil, errors.New("mutations are disabled in configuration")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
 	}
-
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("task id is required")
-	}
-
-	note := strings.TrimSpace(in.Note)
-	if note == "" {
-		return nil, nil, errors.New("note content is required")
-	}
-
-	task, err := s.store.GetTask(ctx, id)
+	id, err := requireID(in.ID, "task")
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("task %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+		return nil, nil, err
 	}
 
-	newBody, err := parser.AppendTaskNote(task.Body, time.Now(), note)
+	task, err := s.svc.AddTaskNote(ctx, id, in.Note)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to append note: %w", err)
+		return nil, nil, err
 	}
-
-	task.Body = newBody
-	total, completed, _ := parser.ExtractAcceptanceCriteria([]byte(newBody))
-	task.TotalCriteria = total
-	task.CompletedCriteria = completed
-	task.ModTime = time.Now()
-	if task.CreatedAt == "" {
-		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
-	}
-	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
-
-	fm := model.TaskFrontmatter{
-		Title:        task.Title,
-		Status:       task.Status,
-		Priority:     task.Priority,
-		Milestone:    task.Milestone,
-		Tags:         task.Tags,
-		Summary:      task.Summary,
-		Dependencies: task.Dependencies,
-		CreatedAt:    task.CreatedAt,
-		ChangedAt:    task.ChangedAt,
-		TargetAt:     task.TargetAt,
-	}
-
-	fileBytes, err := parser.Format(fm, task.Body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to format task markdown: %w", err)
-	}
-
-	filePath := task.FilePath
-	if filePath == "" {
-		filePath = filepath.Join(s.TasksDir(), fmt.Sprintf("%s.md", id))
-		task.FilePath = filePath
-	}
-
-	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
-		return nil, nil, fmt.Errorf("failed to save task file: %w", err)
-	}
-
-	if err := s.store.UpsertTask(ctx, task); err != nil {
-		return nil, nil, fmt.Errorf("failed to update task in store: %w", err)
-	}
-
 	return nil, &AddTaskNoteOutput{
 		Success:           true,
 		ID:                id,
-		Note:              note,
-		TotalCriteria:     total,
-		CompletedCriteria: completed,
+		Note:              strings.TrimSpace(in.Note),
+		TotalCriteria:     task.TotalCriteria,
+		CompletedCriteria: task.CompletedCriteria,
 		Message:           fmt.Sprintf("Note appended to task %q under ## Notes", id),
 	}, nil
 }
 
 func (s *Server) toolSetTaskTarget(ctx context.Context, _ *mcp.CallToolRequest, in SetTaskTargetInput) (*mcp.CallToolResult, *SetTaskTargetOutput, error) {
-	if !s.cfg.MCP.AllowMutations {
-		return nil, nil, errors.New("mutations are disabled in configuration")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
 	}
-
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("task id is required")
-	}
-
-	task, err := s.store.GetTask(ctx, id)
+	id, err := requireID(in.ID, "task")
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("task %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get task %q: %w", id, err)
+		return nil, nil, err
 	}
 
-	targetAt, err := parser.NormalizeTimestamp(in.TargetAt)
+	task, err := s.svc.SetTaskTarget(ctx, id, in.TargetAt)
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid target_at format: %w", err)
+		return nil, nil, err
 	}
 
-	task.TargetAt = targetAt
-	if task.CreatedAt == "" {
-		task.CreatedAt = parser.DeriveFallbackCreatedAt(id, task.ModTime)
-	}
-	task.ChangedAt = time.Now().UTC().Format(time.RFC3339)
-	task.ModTime = time.Now()
-
-	fm := model.TaskFrontmatter{
-		Title:        task.Title,
-		Status:       task.Status,
-		Priority:     task.Priority,
-		Milestone:    task.Milestone,
-		Tags:         task.Tags,
-		Summary:      task.Summary,
-		Dependencies: task.Dependencies,
-		CreatedAt:    task.CreatedAt,
-		ChangedAt:    task.ChangedAt,
-		TargetAt:     task.TargetAt,
-	}
-
-	fileBytes, err := parser.Format(fm, task.Body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to format task markdown: %w", err)
-	}
-
-	filePath := task.FilePath
-	if filePath == "" {
-		filePath = filepath.Join(s.TasksDir(), fmt.Sprintf("%s.md", id))
-		task.FilePath = filePath
-	}
-
-	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
-		return nil, nil, fmt.Errorf("failed to save task file: %w", err)
-	}
-
-	if err := s.store.UpsertTask(ctx, task); err != nil {
-		return nil, nil, fmt.Errorf("failed to update task in store: %w", err)
-	}
-
-	msg := fmt.Sprintf("Target date for task %q updated to %s", id, targetAt)
-	if targetAt == "" {
+	msg := fmt.Sprintf("Target date for task %q updated to %s", id, task.TargetAt)
+	if task.TargetAt == "" {
 		msg = fmt.Sprintf("Target date for task %q cleared", id)
 	}
-
 	return nil, &SetTaskTargetOutput{
 		Success:  true,
 		ID:       id,
-		TargetAt: targetAt,
+		TargetAt: task.TargetAt,
 		Message:  msg,
 	}, nil
 }
-
-
-

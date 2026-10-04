@@ -15,7 +15,7 @@ type cacheEntry struct {
 // SuppressionCache records recent self-originated file mutations to prevent
 // circular watcher echo events when Jokateko writes files to disk.
 type SuppressionCache struct {
-	mu      sync.RWMutex
+	mu      sync.Mutex
 	entries map[string]cacheEntry
 	ttl     time.Duration
 }

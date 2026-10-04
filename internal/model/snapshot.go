@@ -94,8 +94,8 @@ type TranslationsConfig struct {
 
 // BuildConfig represents build timestamp and VCS metadata embedded into static exports.
 type BuildConfig struct {
-	Time   string `json:"time,omitempty"`
-	Branch string `json:"branch,omitempty"`
+	Time    string `json:"time,omitempty"`
+	Branch  string `json:"branch,omitempty"`
 	Commit  string `json:"commit,omitempty"`
 	Version string `json:"version,omitempty"`
 }

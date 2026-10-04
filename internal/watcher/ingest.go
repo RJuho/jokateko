@@ -2,25 +2,19 @@ package watcher
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/RJuho/jokateko/internal/config"
 	"github.com/RJuho/jokateko/internal/parser"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/internal/writer"
 )
-
-// IngestConfig defines directory paths monitored by the ingestion pipeline.
-type IngestConfig struct {
-	TasksDir      string
-	MilestonesDir string
-	StrategiesDir string
-	GlossaryDir   string
-	ConfigFile    string
-}
 
 // IngestEvent represents a notification that an entity changed in the store.
 type IngestEvent struct {
@@ -34,29 +28,22 @@ type IngestEvent struct {
 type Pipeline struct {
 	store          *store.Store
 	suppressCache  *writer.SuppressionCache
-	cfg            IngestConfig
-	onConfigChange func()
+	dirs           config.Dirs
 	onEntityChange func(IngestEvent)
 }
 
-// NewPipeline creates an ingestion pipeline with the given store, suppression cache, and directory layout.
-func NewPipeline(st *store.Store, sc *writer.SuppressionCache, cfg IngestConfig) *Pipeline {
+// NewPipeline creates an ingestion pipeline for the given store, suppression cache, and entity directories.
+func NewPipeline(st *store.Store, sc *writer.SuppressionCache, dirs config.Dirs) *Pipeline {
 	return &Pipeline{
 		store:         st,
 		suppressCache: sc,
-		cfg: IngestConfig{
-			TasksDir:      filepath.Clean(cfg.TasksDir),
-			MilestonesDir: filepath.Clean(cfg.MilestonesDir),
-			StrategiesDir: filepath.Clean(cfg.StrategiesDir),
-			GlossaryDir:   filepath.Clean(cfg.GlossaryDir),
-			ConfigFile:    filepath.Clean(cfg.ConfigFile),
+		dirs: config.Dirs{
+			Tasks:      filepath.Clean(dirs.Tasks),
+			Milestones: filepath.Clean(dirs.Milestones),
+			Strategies: filepath.Clean(dirs.Strategies),
+			Glossary:   filepath.Clean(dirs.Glossary),
 		},
 	}
-}
-
-// SetOnConfigChange registers a callback invoked when the configuration file changes.
-func (p *Pipeline) SetOnConfigChange(fn func()) {
-	p.onConfigChange = fn
 }
 
 // SetOnEntityChange registers a callback invoked when any entity is created, updated, or removed in the store.
@@ -79,29 +66,21 @@ func (p *Pipeline) isInDir(dir, path string) bool {
 func (p *Pipeline) HandleEvent(ctx context.Context, ev FileEvent) error {
 	cleanPath := filepath.Clean(ev.Path)
 
-	// 1. Config file handling
-	if p.cfg.ConfigFile != "" && cleanPath == p.cfg.ConfigFile {
-		if p.onConfigChange != nil {
-			p.onConfigChange()
-		}
-		return nil
-	}
-
 	// Only process markdown files for entities
 	if filepath.Ext(cleanPath) != ".md" {
 		return nil
 	}
 
-	// 2. Identify entity type
+	// 1. Identify entity type
 	var entityType string
 	switch {
-	case p.isInDir(p.cfg.TasksDir, cleanPath):
+	case p.isInDir(p.dirs.Tasks, cleanPath):
 		entityType = "task"
-	case p.isInDir(p.cfg.MilestonesDir, cleanPath):
+	case p.isInDir(p.dirs.Milestones, cleanPath):
 		entityType = "milestone"
-	case p.isInDir(p.cfg.StrategiesDir, cleanPath):
+	case p.isInDir(p.dirs.Strategies, cleanPath):
 		entityType = "strategy"
-	case p.isInDir(p.cfg.GlossaryDir, cleanPath):
+	case p.isInDir(p.dirs.Glossary, cleanPath):
 		entityType = "glossary"
 	default:
 		return nil // Not in a monitored entity folder
@@ -109,7 +88,7 @@ func (p *Pipeline) HandleEvent(ctx context.Context, ev FileEvent) error {
 
 	entityID := strings.TrimSuffix(filepath.Base(cleanPath), ".md")
 
-	// 3. Handle delete operation
+	// 2. Handle delete operation
 	if ev.Op == OpDelete {
 		if p.suppressCache != nil && p.suppressCache.ShouldSuppressDelete(cleanPath) {
 			return nil
@@ -136,10 +115,10 @@ func (p *Pipeline) HandleEvent(ctx context.Context, ev FileEvent) error {
 		return nil
 	}
 
-	// 4. Handle write operation (create or update)
+	// 3. Handle write operation (create or update)
 	data, err := os.ReadFile(cleanPath)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return nil
 		}
 		return fmt.Errorf("failed to read file %q: %w", cleanPath, err)
@@ -207,25 +186,20 @@ func (p *Pipeline) HandleEvent(ctx context.Context, ev FileEvent) error {
 	return nil
 }
 
-// ProcessAll walks all configured entity directories and loads existing markdown files into the store.
+// ProcessAll walks all entity directories and loads existing markdown files into the store.
+// A file that fails to parse does not stop the scan; all failures are returned joined.
 func (p *Pipeline) ProcessAll(ctx context.Context) error {
-	dirs := []string{
-		p.cfg.TasksDir,
-		p.cfg.MilestonesDir,
-		p.cfg.StrategiesDir,
-		p.cfg.GlossaryDir,
-	}
-
-	for _, d := range dirs {
-		if d == "" {
+	var errs []error
+	for _, d := range p.dirs.All() {
+		if d == "" || d == "." {
 			continue
 		}
 		entries, err := os.ReadDir(d)
 		if err != nil {
-			if os.IsNotExist(err) {
-				continue
+			if !errors.Is(err, fs.ErrNotExist) {
+				errs = append(errs, fmt.Errorf("failed to read directory %q: %w", d, err))
 			}
-			return fmt.Errorf("failed to read directory %q: %w", d, err)
+			continue
 		}
 
 		for _, entry := range entries {
@@ -234,10 +208,49 @@ func (p *Pipeline) ProcessAll(ctx context.Context) error {
 			}
 			path := filepath.Join(d, entry.Name())
 			if err := p.HandleEvent(ctx, FileEvent{Path: path, Op: OpWrite}); err != nil {
-				return err
+				errs = append(errs, err)
 			}
 		}
 	}
+	return errors.Join(errs...)
+}
 
-	return nil
+// StartPipeline loads every entity file into st and then keeps st in sync with
+// filesystem changes until ctx is cancelled or stop is called. onChange (optional)
+// is invoked for each ingested change. Initial scan and event errors are reported
+// through logf. If the filesystem watcher cannot be started, the store is still
+// loaded and err describes the watcher failure; stop is always safe to call.
+func StartPipeline(ctx context.Context, st *store.Store, sc *writer.SuppressionCache, dirs config.Dirs, onChange func(IngestEvent), logf func(format string, args ...any)) (stop func(), err error) {
+	pipeline := NewPipeline(st, sc, dirs)
+	pipeline.SetOnEntityChange(onChange)
+
+	if err := pipeline.ProcessAll(ctx); err != nil {
+		logf("warning: errors during initial directory scan:\n%v", err)
+	}
+
+	fsw, err := New(dirs.All(), 50*time.Millisecond)
+	if err != nil {
+		return func() {}, fmt.Errorf("failed to start filesystem watcher: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	fsw.Start(ctx)
+
+	go func() {
+		for ev := range fsw.Events() {
+			if err := pipeline.HandleEvent(ctx, ev); err != nil {
+				logf("[ERROR] failed to handle file event for %s: %v", ev.Path, err)
+			}
+		}
+	}()
+	go func() {
+		for err := range fsw.Errors() {
+			logf("[ERROR] filesystem watcher: %v", err)
+		}
+	}()
+
+	return func() {
+		cancel()
+		_ = fsw.Close()
+	}, nil
 }

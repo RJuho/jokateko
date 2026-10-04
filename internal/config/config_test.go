@@ -323,7 +323,6 @@ func TestLoadEmptyTOMLFile(t *testing.T) {
 	}
 }
 
-
 func TestEnvironmentOverrides(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -990,9 +989,3 @@ func TestValidateBoardCreatablePolicies(t *testing.T) {
 		}
 	})
 }
-
-
-
-
-
-

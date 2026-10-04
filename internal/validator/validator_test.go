@@ -364,5 +364,3 @@ tags = []
 		t.Error("expected STR-003 invalid tier diagnostic")
 	}
 }
-
-

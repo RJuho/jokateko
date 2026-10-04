@@ -3,11 +3,12 @@ package mcp
 import (
 	"bytes"
 	"context"
+	"io"
 	"testing"
 	"time"
-	"io"
 
 	"github.com/RJuho/jokateko/internal/config"
+	"github.com/RJuho/jokateko/internal/service"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/internal/writer"
 	sdk_mcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -35,9 +36,9 @@ func FuzzMCPServer(f *testing.F) {
 
 		sc := writer.NewSuppressionCache(time.Second)
 		wr := writer.New(sc)
-		
+
 		cfg := &config.Config{}
-		srv := New(cfg, t.TempDir(), st, wr)
+		srv := New(service.New(cfg, t.TempDir(), st, wr, nil))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 		defer cancel()
@@ -46,7 +47,7 @@ func FuzzMCPServer(f *testing.F) {
 			Reader: io.NopCloser(bytes.NewReader(payload)),
 			Writer: nopWriteCloser{},
 		}
-		
+
 		_ = srv.MCPServer().Run(ctx, transport)
 	})
 }

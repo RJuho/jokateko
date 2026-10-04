@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -12,21 +13,17 @@ import (
 )
 
 func main() {
-	// Set up top-level signal handling for graceful shutdown
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-sigCh
-		os.Exit(0)
-	}()
-
-	code := run(os.Args[1:], os.Stdout, os.Stderr)
+	// A single signal context drives graceful shutdown of long-running commands,
+	// so their deferred cleanup always runs.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	code := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
+	stop()
 	os.Exit(code)
 }
 
-func run(args []string, stdout, stderr io.Writer) int {
+func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		return cmdServe(nil, stdout, stderr)
+		return cmdServe(ctx, nil, stdout, stderr)
 	}
 
 	cmd := args[0]
@@ -34,7 +31,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	switch cmd {
 	case "serve":
-		return cmdServe(subArgs, stdout, stderr)
+		return cmdServe(ctx, subArgs, stdout, stderr)
 	case "parse", "lint":
 		return cmdParse(subArgs, stdout, stderr)
 	case "init":
@@ -42,7 +39,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "build":
 		return cmdBuild(subArgs, stdout, stderr)
 	case "mcp":
-		return cmdMCP(subArgs, stdout, stderr)
+		return runMCP(ctx, subArgs, os.Stdin, stdout, stderr)
 	case "version", "-v", "--version", "-version":
 		return cmdVersion(subArgs, stdout, stderr)
 	case "about":

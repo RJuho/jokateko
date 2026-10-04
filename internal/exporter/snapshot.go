@@ -23,18 +23,7 @@ func BuildSnapshot(ctx context.Context, cfg *config.Config, st *store.Store) (*m
 		cfg = config.Default("")
 	}
 
-	cols := make([]model.Column, 0, len(cfg.Board.Columns))
-	for _, c := range cfg.Board.Columns {
-		cols = append(cols, model.Column{
-			ID:            c.ID,
-			Name:          c.Name,
-			Color:         c.Color,
-			HandledBy:     c.HandledBy,
-			Instructions:  c.Instructions,
-			SortBy:        c.SortBy,
-			SortDirection: c.SortDirection,
-		})
-	}
+	cols := cfg.Columns()
 
 	tasks, err := st.ListTasks(ctx, model.FilterCriteria{})
 	if err != nil {
@@ -119,8 +108,8 @@ func resolveGitInfo(dir string) (branch, commit string) {
 		return "", ""
 	}
 	s := strings.TrimSpace(string(data))
-	if strings.HasPrefix(s, "ref: refs/heads/") {
-		branch = strings.TrimPrefix(s, "ref: refs/heads/")
+	if ref, ok := strings.CutPrefix(s, "ref: refs/heads/"); ok {
+		branch = ref
 		refPath := filepath.Join(dir, ".git", "refs", "heads", branch)
 		if refData, err := os.ReadFile(refPath); err == nil {
 			commit = strings.TrimSpace(string(refData))

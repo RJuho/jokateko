@@ -45,6 +45,7 @@ jokateko/
 │   ├── watcher/                # fsnotify unidirectional file observer & debouncer
 │   ├── writer/                 # Safe atomic file writes (temp file + rename)
 │   ├── validator/              # Dry-run linting & dependency graph validation
+│   ├── service/                # Shared REST/MCP mutation workflows (validation, IDs, persistence, events)
 │   ├── server/                 # HTTP server, REST endpoints, SSE hub, static embed
 │   ├── mcp/                    # Official MCP Go SDK server & tool definitions
 │   ├── proxy/                  # MCP stdio proxy to running daemon HTTP server
@@ -137,6 +138,15 @@ jokateko/
     - `GET /api/glossary`
     - `GET /api/health` -> Health check endpoint for status and CLI proxy discovery.
     - `GET /api/events` -> SSE stream broadcasting entity change events (`task.created`, `task.updated`, `task.deleted`, `board.refreshed`).
+  - Security: rejects cross-site state-changing requests (`http.CrossOriginProtection`; configured CORS origins stay trusted), rejects non-loopback `Host` headers on loopback connections (DNS rebinding), requires `application/json` for POST/PUT bodies, and caps bodies at 1 MiB.
+
+### `internal/service/`
+- **Role:** Shared mutation workflows for the REST API and MCP tools.
+- **Responsibilities:**
+  - Validates input, including entity IDs (lowercase slugs only, so they are always safe file names) and board columns.
+  - Allocates IDs: explicit duplicates are rejected with a conflict, generated IDs get a `-2`, `-3`, ... suffix instead of overwriting.
+  - Writes Markdown atomically via `internal/writer/`, re-indexes `internal/store/`, and broadcasts SSE change events.
+  - Serializes mutations so concurrent REST and MCP read-modify-write cycles cannot lose updates.
 
 ### `internal/mcp/`
 - **Role:** Model Context Protocol implementation for AI agents.
@@ -145,14 +155,14 @@ jokateko/
   - Exposes tools: `list_tasks`, `get_task`, `create_task`, `update_task_status`, `complete_task`, `update_task_content`, `list_milestones`, `create_milestone`, `update_milestone`, `list_strategies`, `get_strategy`, `lookup_glossary`, `search_tasks`, `search_milestones`, `search_strategies`, `search_glossary`, `search_all`, `list_tags`, `get_board_state`.
   - Exposes resources: `jokateko://board`, `jokateko://strategies/tier1`, `jokateko://glossary`.
   - Exposes prompt templates: `next_task`.
-  - Queries `internal/store/` and executes mutations via `internal/writer/`.
+  - Queries `internal/store/` and executes mutations via `internal/service/`, so agent changes are broadcast to the Web UI over SSE.
 
 ### `internal/proxy/`
 - **Role:** Stdio MCP proxy to running daemon.
 - **Responsibilities:**
   - Used by `jokateko mcp` when `jokateko serve` is already running.
-  - Sends a health probe to `http://127.0.0.1:<port>/api/health` using the configured server port.
-  - If daemon responds, bridges incoming stdio JSON-RPC messages to the daemon's HTTP/SSE endpoint.
+  - Sends a health probe to `http://127.0.0.1:<port>/api/health` using the configured server port, and requires the reported `workspace` to match.
+  - If daemon responds, bridges incoming stdio JSON-RPC messages to the daemon's Streamable HTTP endpoint.
   - If daemon is NOT running, launches standalone in-memory store and MCP server directly within the process.
 
 ### `internal/exporter/`

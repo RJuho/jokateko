@@ -222,12 +222,7 @@ func (c *Config) IsAllowedTag(tag string) bool {
 
 // HasColumn checks if a given column ID is defined in the board configuration.
 func (c *Config) HasColumn(columnID string) bool {
-	for _, col := range c.Board.Columns {
-		if col.ID == columnID {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(c.Board.Columns, func(col ColumnConfig) bool { return col.ID == columnID })
 }
 
 // HasPriority checks if a given priority ID is defined in the priorities configuration.
@@ -259,5 +254,3 @@ func (c *Config) GetTier(tierID string) (model.TierConfig, bool) {
 	}
 	return model.TierConfig{}, false
 }
-
-

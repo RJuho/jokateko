@@ -363,4 +363,3 @@ func TestIsOnlyCheckboxToggle(t *testing.T) {
 		t.Error("expected IsOnlyCheckboxToggle to be false when item is added")
 	}
 }
-

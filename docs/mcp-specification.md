@@ -29,17 +29,17 @@ AI agents **must not** create, edit, or delete `.jokateko/` markdown files direc
 ### 2.1 Daemon Mode (`jokateko serve`)
 When the primary daemon is started:
 - Launches the HTTP REST, SSE, and health server on the configured port (default `8080`).
-- Serves an MCP HTTP/SSE transport endpoint at `http://127.0.0.1:8080/api/mcp`.
-- Exposes a lightweight health check at `GET /api/health` returning JSON metadata (version, status, uptime).
+- Serves an MCP Streamable HTTP endpoint (stateless mode, SDK DNS-rebinding protection enabled) at `http://127.0.0.1:8080/api/mcp`.
+- Exposes a lightweight health check at `GET /api/health` returning JSON metadata (version, status, uptime, workspace).
 - Operates entirely without ephemeral lockfiles on disk.
 
 ### 2.2 Dedicated Stdio Command (`jokateko mcp`)
 External agent environments typically launch MCP servers via standard input/output (`stdio`).
 When `jokateko mcp` is executed:
-1. **Checks for Running Daemon:** Sends a quick probe request to the configured daemon port (`GET http://127.0.0.1:<port>/api/health` with a 100ms timeout).
+1. **Checks for Running Daemon:** Sends a quick probe request to the configured daemon port (`GET http://127.0.0.1:<port>/api/health` with a short timeout) and only accepts a daemon whose reported `workspace` is the same project directory.
 2. **If Daemon is Running (Proxy Mode):**
    - Operates as a lightweight stdio bridge.
-   - Forwards agent JSON-RPC messages to the daemon's HTTP/SSE endpoint (`/api/mcp`).
+   - Forwards agent JSON-RPC messages to the daemon's Streamable HTTP endpoint (`/api/mcp`).
    - Prevents port collision, duplicate file watchers, or duplicate in-memory SQLite instances.
 3. **If Daemon is NOT Running (Standalone Mode):**
    - Initializes an in-memory SQLite store.

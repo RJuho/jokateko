@@ -6,20 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 
 	"github.com/RJuho/jokateko/internal/config"
 	"github.com/RJuho/jokateko/internal/proxy"
 )
 
-func cmdMCP(args []string, stdout, stderr io.Writer) int {
-	return runMCP(args, os.Stdin, stdout, stderr)
-}
-
-func runMCP(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+func runMCP(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("mcp", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	dirFlag := fs.String("dir", ".", "Project root directory")
@@ -38,6 +31,7 @@ func runMCP(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 	cfg, err := config.Load(workspaceDir)
 	if err != nil {
+		fmt.Fprintf(stderr, "warning: using default configuration: %v\n", err)
 		cfg = config.Default(workspaceDir)
 	}
 
@@ -45,25 +39,11 @@ func runMCP(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		cfg.Server.Port = *portFlag
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	if *timeoutFlag > 0 {
 		var timeoutCancel context.CancelFunc
 		ctx, timeoutCancel = context.WithTimeout(ctx, *timeoutFlag)
 		defer timeoutCancel()
 	}
-
-	// Listen for termination signal
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		select {
-		case <-sigCh:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
 
 	runner := proxy.NewRunner(cfg, workspaceDir, stdin, stdout, stderr)
 	if err := runner.Run(ctx); err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, io.EOF) {

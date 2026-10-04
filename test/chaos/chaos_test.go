@@ -119,8 +119,8 @@ func TestMultichannelChaos(t *testing.T) {
 					"params": map[string]interface{}{
 						"name": "create_task",
 						"arguments": map[string]interface{}{
-							"title":   fmt.Sprintf("MCP Chaos %d", rand.Intn(1000)),
-							"summary": "Chaos summary",
+							"title":    fmt.Sprintf("MCP Chaos %d", rand.Intn(1000)),
+							"summary":  "Chaos summary",
 							"priority": "low",
 						},
 					},

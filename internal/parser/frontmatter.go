@@ -310,12 +310,12 @@ func ParseStrategy(content []byte, id string) (*model.Strategy, error) {
 	bodyHTML, _ := RenderHTML([]byte(bodyStr))
 
 	return &model.Strategy{
-		ID:      id,
-		Title:   strings.TrimSpace(fm.Title),
-		Tier:    fm.Tier,
-		Tags:    tags,
-		Summary: strings.TrimSpace(fm.Summary),
-		Body:    bodyStr,
+		ID:       id,
+		Title:    strings.TrimSpace(fm.Title),
+		Tier:     fm.Tier,
+		Tags:     tags,
+		Summary:  strings.TrimSpace(fm.Summary),
+		Body:     bodyStr,
 		BodyHTML: bodyHTML,
 	}, nil
 }
@@ -344,11 +344,11 @@ func ParseGlossaryTerm(content []byte, id string) (*model.GlossaryTerm, error) {
 	bodyHTML, _ := RenderHTML([]byte(bodyStr))
 
 	return &model.GlossaryTerm{
-		ID:      id,
-		Title:   strings.TrimSpace(fm.Title),
-		Tags:    tags,
-		Summary: strings.TrimSpace(fm.Summary),
-		Body:    bodyStr,
+		ID:       id,
+		Title:    strings.TrimSpace(fm.Title),
+		Tags:     tags,
+		Summary:  strings.TrimSpace(fm.Summary),
+		Body:     bodyStr,
 		BodyHTML: bodyHTML,
 	}, nil
 }

@@ -5,10 +5,12 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/RJuho/jokateko/internal/config"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/internal/watcher"
 	"github.com/RJuho/jokateko/internal/writer"
@@ -66,7 +68,6 @@ func TestIngestionPipeline(t *testing.T) {
 	msDir := filepath.Join(tempDir, "milestones")
 	stratDir := filepath.Join(tempDir, "strategies")
 	glossDir := filepath.Join(tempDir, "glossary")
-	configFile := filepath.Join(tempDir, "config.toml")
 
 	for _, d := range []string{tasksDir, msDir, stratDir, glossDir} {
 		_ = os.MkdirAll(d, 0755)
@@ -83,12 +84,11 @@ func TestIngestionPipeline(t *testing.T) {
 	cache := writer.NewSuppressionCache(500 * time.Millisecond)
 	wr := writer.New(cache)
 
-	cfg := watcher.IngestConfig{
-		TasksDir:      tasksDir,
-		MilestonesDir: msDir,
-		StrategiesDir: stratDir,
-		GlossaryDir:   glossDir,
-		ConfigFile:    configFile,
+	cfg := config.Dirs{
+		Tasks:      tasksDir,
+		Milestones: msDir,
+		Strategies: stratDir,
+		Glossary:   glossDir,
 	}
 
 	pipeline := watcher.NewPipeline(st, cache, cfg)
@@ -96,11 +96,6 @@ func TestIngestionPipeline(t *testing.T) {
 	var entityChangeCount atomic.Int32
 	pipeline.SetOnEntityChange(func(e watcher.IngestEvent) {
 		entityChangeCount.Add(1)
-	})
-
-	var configChangeCount atomic.Int32
-	pipeline.SetOnConfigChange(func() {
-		configChangeCount.Add(1)
 	})
 
 	ctx := context.Background()
@@ -222,16 +217,33 @@ tags = ["concept"]
 		t.Errorf("glossary term not found in store: %v", err)
 	}
 
-	// Config change
-	if err := pipeline.HandleEvent(ctx, watcher.FileEvent{Path: configFile, Op: watcher.OpWrite}); err != nil {
-		t.Fatalf("HandleEvent config failed: %v", err)
-	}
-	if count := configChangeCount.Load(); count != 1 {
-		t.Errorf("expected 1 config change callback, got %d", count)
-	}
-
 	// 5. Test ProcessAll
 	if err := pipeline.ProcessAll(ctx); err != nil {
 		t.Fatalf("ProcessAll failed: %v", err)
+	}
+}
+
+func TestProcessAll_ContinuesPastMalformedFiles(t *testing.T) {
+	dir := t.TempDir()
+	tasksDir := filepath.Join(dir, "tasks")
+	_ = os.MkdirAll(tasksDir, 0o755)
+
+	// "a-broken" sorts first so a fail-fast scan would never reach the good file.
+	_ = os.WriteFile(filepath.Join(tasksDir, "a-broken.md"), []byte("+++\ntitle = \n+++\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(tasksDir, "b-good.md"), []byte("+++\ntitle = \"Good\"\nstatus = \"backlog\"\nsummary = \"ok\"\n+++\n"), 0o644)
+
+	st, err := store.OpenMemory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = st.Close() }()
+
+	p := watcher.NewPipeline(st, nil, config.Dirs{Tasks: tasksDir})
+	err = p.ProcessAll(t.Context())
+	if err == nil || !strings.Contains(err.Error(), "a-broken.md") {
+		t.Fatalf("expected an error naming the malformed file, got %v", err)
+	}
+	if _, err := st.GetTask(t.Context(), "b-good"); err != nil {
+		t.Fatalf("valid file after a malformed one was not loaded: %v", err)
 	}
 }

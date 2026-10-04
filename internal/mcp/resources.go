@@ -45,18 +45,7 @@ func (s *Server) registerResources() {
 }
 
 func (s *Server) resourceBoard(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-	cols := make([]model.Column, 0, len(s.cfg.Board.Columns))
-	for _, c := range s.cfg.Board.Columns {
-		cols = append(cols, model.Column{
-			ID:            c.ID,
-			Name:          c.Name,
-			Color:         c.Color,
-			HandledBy:     c.HandledBy,
-			Instructions:  c.Instructions,
-			SortBy:        c.SortBy,
-			SortDirection: c.SortDirection,
-		})
-	}
+	cols := s.cfg.Columns()
 
 	board, err := s.store.GetBoardState(ctx, s.cfg.Project.Name, cols, model.FilterCriteria{})
 	if err != nil {
@@ -141,7 +130,6 @@ func (s *Server) resourceStrategyTiers(_ context.Context, req *mcp.ReadResourceR
 		},
 	}, nil
 }
-
 
 func (s *Server) resourceGlossary(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 	terms, err := s.store.ListGlossaryTerms(ctx)

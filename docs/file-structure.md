@@ -52,6 +52,11 @@ This document details both the **Source Repository Layout** (where Jokateko itse
 │   │   ├── validator.go                # Project validator, DAG dependency checker
 │   │   ├── cycle.go                    # Cycle detection algorithm (DFS)
 │   │   └── validator_test.go
+│   ├── service/
+│   │   ├── service.go                  # Service core, error kinds, ID validation & allocation
+│   │   ├── tasks.go                    # Task mutation workflows (create, update, deps, notes, complete)
+│   │   ├── entities.go                 # Milestone, strategy and glossary mutation workflows
+│   │   └── service_test.go
 │   ├── server/
 │   │   ├── server.go                   # HTTP server router & listener
 │   │   ├── sse.go                      # SSE Hub, client subscriber registry, broadcaster

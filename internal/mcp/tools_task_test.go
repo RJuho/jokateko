@@ -11,6 +11,7 @@ import (
 	"github.com/RJuho/jokateko/internal/config"
 	internalmcp "github.com/RJuho/jokateko/internal/mcp"
 	"github.com/RJuho/jokateko/internal/model"
+	"github.com/RJuho/jokateko/internal/service"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/internal/writer"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -41,7 +42,7 @@ func setupTestMCP(t *testing.T) (*internalmcp.Server, string, *store.Store, *mcp
 	sc := writer.NewSuppressionCache(time.Second)
 	wr := writer.New(sc)
 
-	srv := internalmcp.New(cfg, dir, st, wr)
+	srv := internalmcp.New(service.New(cfg, dir, st, wr, nil))
 
 	// Set up in-memory client-server session
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
@@ -776,6 +777,3 @@ func TestMCPTaskSortingAndBoardAlignment(t *testing.T) {
 		}
 	}
 }
-
-
-

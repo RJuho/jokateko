@@ -1,7 +1,9 @@
 package validator
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -112,7 +114,7 @@ func ValidateWorkspace(workspaceDir string) (*ValidationResult, error) {
 
 	// 1. Locate and validate config.toml
 	cfgPath := filepath.Join(workspaceDir, "config.toml")
-	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
+	if _, err := os.Stat(cfgPath); errors.Is(err, fs.ErrNotExist) {
 		cfgPath = filepath.Join(workspaceDir, ".jokateko", "config.toml")
 	}
 

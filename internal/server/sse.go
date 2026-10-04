@@ -73,6 +73,9 @@ func (h *SSEHub) Stop() {
 
 // Broadcast dispatches an event to all connected clients.
 func (h *SSEHub) Broadcast(eventType string, payload any) {
+	if h == nil {
+		return
+	}
 	select {
 	case h.broadcastCh <- SSEEvent{Type: eventType, Payload: payload}:
 	default:

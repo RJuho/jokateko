@@ -13,7 +13,7 @@ import (
 
 func TestCLI_Version(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"version"}, &stdout, &stderr)
+	code := run(t.Context(), []string{"version"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d. stderr: %s", code, stderr.String())
 	}
@@ -24,7 +24,7 @@ func TestCLI_Version(t *testing.T) {
 	// JSON format
 	stdout.Reset()
 	stderr.Reset()
-	code = run([]string{"version", "-json"}, &stdout, &stderr)
+	code = run(t.Context(), []string{"version", "-json"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d. stderr: %s", code, stderr.String())
 	}
@@ -40,7 +40,7 @@ func TestCLI_Version(t *testing.T) {
 
 func TestCLI_Help(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"help"}, &stdout, &stderr)
+	code := run(t.Context(), []string{"help"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
@@ -51,7 +51,7 @@ func TestCLI_Help(t *testing.T) {
 
 func TestCLI_UnknownCommand(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"nonexistent-cmd"}, &stdout, &stderr)
+	code := run(t.Context(), []string{"nonexistent-cmd"}, &stdout, &stderr)
 	if code != 1 {
 		t.Fatalf("expected exit code 1, got %d", code)
 	}
@@ -65,7 +65,7 @@ func TestCLI_InitAndParseCycle(t *testing.T) {
 
 	// 1. Run 'init'
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"init", "-dir", tempDir, "-name", "CLI Project"}, &stdout, &stderr)
+	code := run(t.Context(), []string{"init", "-dir", tempDir, "-name", "CLI Project"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("init failed with code %d. stderr: %s", code, stderr.String())
 	}
@@ -100,7 +100,7 @@ func TestCLI_InitAndParseCycle(t *testing.T) {
 	// 2. Run 'parse' on initialized project
 	stdout.Reset()
 	stderr.Reset()
-	code = run([]string{"parse", "-dir", tempDir}, &stdout, &stderr)
+	code = run(t.Context(), []string{"parse", "-dir", tempDir}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("parse failed with code %d. stderr:\n%s\nstdout:\n%s", code, stderr.String(), stdout.String())
 	}
@@ -111,7 +111,7 @@ func TestCLI_InitAndParseCycle(t *testing.T) {
 	// 3. Run 'lint' (alias for parse)
 	stdout.Reset()
 	stderr.Reset()
-	code = run([]string{"lint", "-dir", tempDir}, &stdout, &stderr)
+	code = run(t.Context(), []string{"lint", "-dir", tempDir}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("lint alias failed with code %d", code)
 	}
@@ -122,7 +122,7 @@ func TestCLI_Build(t *testing.T) {
 
 	// Initialize workspace first
 	var stdout, stderr bytes.Buffer
-	if code := run([]string{"init", "-dir", tempDir}, &stdout, &stderr); code != 0 {
+	if code := run(t.Context(), []string{"init", "-dir", tempDir}, &stdout, &stderr); code != 0 {
 		t.Fatalf("failed to init workspace: %s", stderr.String())
 	}
 
@@ -130,7 +130,7 @@ func TestCLI_Build(t *testing.T) {
 	stderr.Reset()
 
 	outFile := filepath.Join(tempDir, "dist", "index.html")
-	code := run([]string{"build", "-dir", tempDir, "-out", outFile}, &stdout, &stderr)
+	code := run(t.Context(), []string{"build", "-dir", tempDir, "-out", outFile}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("build failed with exit code %d. stderr: %s", code, stderr.String())
 	}
@@ -149,7 +149,7 @@ func TestCLI_Build(t *testing.T) {
 	// --mermaidjs accepts bundled and rejects unknown modes
 	stdout.Reset()
 	stderr.Reset()
-	if code := run([]string{"build", "-dir", tempDir, "-out", outFile, "--mermaidjs=bundled"}, &stdout, &stderr); code != 0 {
+	if code := run(t.Context(), []string{"build", "-dir", tempDir, "-out", outFile, "--mermaidjs=bundled"}, &stdout, &stderr); code != 0 {
 		t.Fatalf("build --mermaidjs=bundled failed: %s", stderr.String())
 	}
 	if !strings.Contains(stdout.String(), "mermaidjs=bundled") {
@@ -157,7 +157,7 @@ func TestCLI_Build(t *testing.T) {
 	}
 
 	stderr.Reset()
-	if code := run([]string{"build", "-dir", tempDir, "-out", outFile, "--mermaidjs=inline"}, &stdout, &stderr); code == 0 {
+	if code := run(t.Context(), []string{"build", "-dir", tempDir, "-out", outFile, "--mermaidjs=inline"}, &stdout, &stderr); code == 0 {
 		t.Fatal("expected build to fail for invalid --mermaidjs value")
 	}
 	if !strings.Contains(stderr.String(), "invalid mermaidjs mode") {
@@ -170,7 +170,7 @@ func TestCLI_Serve(t *testing.T) {
 
 	// Initialize workspace first
 	var stdout, stderr bytes.Buffer
-	if code := run([]string{"init", "-dir", tempDir}, &stdout, &stderr); code != 0 {
+	if code := run(t.Context(), []string{"init", "-dir", tempDir}, &stdout, &stderr); code != 0 {
 		t.Fatalf("failed to init workspace: %s", stderr.String())
 	}
 
@@ -178,7 +178,7 @@ func TestCLI_Serve(t *testing.T) {
 	stderr.Reset()
 
 	// Run serve with port 0 (dynamic port) and 150ms timeout
-	code := run([]string{"serve", "-dir", tempDir, "-port", "0", "-timeout", "150ms"}, &stdout, &stderr)
+	code := run(t.Context(), []string{"serve", "-dir", tempDir, "-port", "0", "-timeout", "150ms"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("serve failed with exit code %d. stderr: %s", code, stderr.String())
 	}
@@ -193,7 +193,7 @@ func TestCLI_MCP(t *testing.T) {
 
 	// Initialize workspace first
 	var stdout, stderr bytes.Buffer
-	if code := run([]string{"init", "-dir", tempDir}, &stdout, &stderr); code != 0 {
+	if code := run(t.Context(), []string{"init", "-dir", tempDir}, &stdout, &stderr); code != 0 {
 		t.Fatalf("failed to init workspace: %s", stderr.String())
 	}
 
@@ -201,7 +201,7 @@ func TestCLI_MCP(t *testing.T) {
 	stderr.Reset()
 
 	// Run mcp with 150ms timeout (standalone fallback)
-	code := runMCP([]string{"-dir", tempDir, "-timeout", "150ms"}, strings.NewReader(""), &stdout, &stderr)
+	code := runMCP(t.Context(), []string{"-dir", tempDir, "-timeout", "150ms"}, strings.NewReader(""), &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("runMCP failed with exit code %d. stderr: %s", code, stderr.String())
 	}
@@ -216,7 +216,7 @@ func TestCLI_InitReplace(t *testing.T) {
 
 	// 1. Initial init
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"init", "-dir", tempDir, "-name", "Original Name"}, &stdout, &stderr)
+	code := run(t.Context(), []string{"init", "-dir", tempDir, "-name", "Original Name"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("initial init failed: %s", stderr.String())
 	}
@@ -235,7 +235,7 @@ name = "Modified Custom Name"
 	// 2. Running init without --replace should NOT overwrite the config
 	stdout.Reset()
 	stderr.Reset()
-	code = run([]string{"init", "-dir", tempDir, "-name", "Ignored Name"}, &stdout, &stderr)
+	code = run(t.Context(), []string{"init", "-dir", tempDir, "-name", "Ignored Name"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("second init failed: %s", stderr.String())
 	}
@@ -251,7 +251,7 @@ name = "Modified Custom Name"
 	// 3. Running init with --replace should overwrite the config with fresh default template
 	stdout.Reset()
 	stderr.Reset()
-	code = run([]string{"init", "-dir", tempDir, "-name", "Replaced Name", "--replace"}, &stdout, &stderr)
+	code = run(t.Context(), []string{"init", "-dir", tempDir, "-name", "Replaced Name", "--replace"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("init with --replace failed: %s", stderr.String())
 	}
@@ -271,7 +271,7 @@ name = "Modified Custom Name"
 
 func TestCLI_About(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"about"}, &stdout, &stderr)
+	code := run(t.Context(), []string{"about"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d. stderr: %s", code, stderr.String())
 	}
@@ -289,7 +289,7 @@ func TestCLI_About(t *testing.T) {
 	// JSON format
 	stdout.Reset()
 	stderr.Reset()
-	code = run([]string{"about", "-json"}, &stdout, &stderr)
+	code = run(t.Context(), []string{"about", "-json"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("expected exit code 0 for about -json, got %d. stderr: %s", code, stderr.String())
 	}
@@ -305,7 +305,7 @@ func TestCLI_About(t *testing.T) {
 
 func TestCLI_Licenses(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"licenses"}, &stdout, &stderr)
+	code := run(t.Context(), []string{"licenses"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d. stderr: %s", code, stderr.String())
 	}
@@ -323,7 +323,7 @@ func TestCLI_Licenses(t *testing.T) {
 	// Full flag format
 	stdout.Reset()
 	stderr.Reset()
-	code = run([]string{"licenses", "-full"}, &stdout, &stderr)
+	code = run(t.Context(), []string{"licenses", "-full"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("expected exit code 0 for licenses -full, got %d. stderr: %s", code, stderr.String())
 	}
@@ -334,7 +334,7 @@ func TestCLI_Licenses(t *testing.T) {
 	// JSON format
 	stdout.Reset()
 	stderr.Reset()
-	code = run([]string{"licenses", "-json"}, &stdout, &stderr)
+	code = run(t.Context(), []string{"licenses", "-json"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("expected exit code 0 for licenses -json, got %d. stderr: %s", code, stderr.String())
 	}
@@ -353,6 +353,3 @@ func TestCLI_Licenses(t *testing.T) {
 		t.Errorf("expected packages array not to be empty")
 	}
 }
-
-
-

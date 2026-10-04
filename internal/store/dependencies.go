@@ -38,11 +38,7 @@ func (s *Store) GetBlockingTasks(ctx context.Context, taskID string) ([]TaskStub
 
 	tasks := make([]TaskStub, 0, len(rows))
 	for _, r := range rows {
-		tasks = append(tasks, TaskStub{
-			ID:     r.ID,
-			Title:  r.Title,
-			Status: r.Status,
-		})
+		tasks = append(tasks, TaskStub(r))
 	}
 
 	return tasks, nil
@@ -60,11 +56,7 @@ func (s *Store) GetDownstreamTasks(ctx context.Context, taskID string) ([]TaskSt
 
 	tasks := make([]TaskStub, 0, len(rows))
 	for _, r := range rows {
-		tasks = append(tasks, TaskStub{
-			ID:     r.ID,
-			Title:  r.Title,
-			Status: r.Status,
-		})
+		tasks = append(tasks, TaskStub(r))
 	}
 
 	return tasks, nil
@@ -89,11 +81,7 @@ func (s *Store) FindUnblockedTasks(ctx context.Context, completedTaskID string) 
 		}
 
 		if unfinishedCount == 0 {
-			unblocked = append(unblocked, TaskStub{
-				ID:     down.ID,
-				Title:  down.Title,
-				Status: down.Status,
-			})
+			unblocked = append(unblocked, TaskStub(down))
 		}
 	}
 

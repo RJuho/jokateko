@@ -7,9 +7,12 @@ import (
 	"github.com/RJuho/jokateko/internal/version"
 )
 
+// HealthResponse is returned by GET /api/health. Workspace lets `jokateko mcp`
+// verify that a daemon serves the same project before proxying to it.
 type HealthResponse struct {
 	Status        string `json:"status"`
 	Project       string `json:"project"`
+	Workspace     string `json:"workspace"`
 	Version       string `json:"version"`
 	Commit        string `json:"commit"`
 	UptimeSeconds int64  `json:"uptime_seconds"`
@@ -20,6 +23,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	resp := HealthResponse{
 		Status:        "ok",
 		Project:       s.cfg.Project.Name,
+		Workspace:     s.svc.WorkspaceDir(),
 		Version:       info.Version,
 		Commit:        info.Commit,
 		UptimeSeconds: int64(time.Since(s.startTime).Seconds()),

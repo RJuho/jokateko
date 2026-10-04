@@ -10,6 +10,7 @@ import (
 	"github.com/RJuho/jokateko/internal/config"
 	internalmcp "github.com/RJuho/jokateko/internal/mcp"
 	"github.com/RJuho/jokateko/internal/model"
+	"github.com/RJuho/jokateko/internal/service"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/internal/writer"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -605,7 +606,7 @@ func TestMCP_BoardPoliciesAndWorkflowOwnership(t *testing.T) {
 	sc := writer.NewSuppressionCache(time.Second)
 	wr := writer.New(sc)
 
-	srv := internalmcp.New(cfg, dir, st, wr)
+	srv := internalmcp.New(service.New(cfg, dir, st, wr, nil))
 
 	// 1. Verify dynamic instructions injection
 	instr := srv.Instructions()
@@ -665,5 +666,3 @@ func TestMCP_BoardPoliciesAndWorkflowOwnership(t *testing.T) {
 		t.Errorf("expected task status to default to 'ready', got %q", task.Status)
 	}
 }
-
-

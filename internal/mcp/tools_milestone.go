@@ -4,14 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
-	"slices"
 	"strings"
-	"time"
 
 	"github.com/RJuho/jokateko/internal/model"
-	"github.com/RJuho/jokateko/internal/parser"
-	"github.com/RJuho/jokateko/internal/store"
+	"github.com/RJuho/jokateko/internal/service"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -122,8 +118,8 @@ func (s *Server) toolListMilestones(ctx context.Context, _ *mcp.CallToolRequest,
 
 	summaries := make([]MilestoneSummary, 0, len(milestones))
 	for _, ms := range milestones {
-		isArchived := ms.Status == model.MilestoneStatusClosed || (ms.TotalTasks > 0 && ms.CompletedTasks == ms.TotalTasks)
-		if !in.IncludeArchived && isArchived {
+		archived := isArchived(ms)
+		if !in.IncludeArchived && archived {
 			continue
 		}
 
@@ -131,7 +127,7 @@ func (s *Server) toolListMilestones(ctx context.Context, _ *mcp.CallToolRequest,
 			ID:                 ms.ID,
 			Title:              ms.Title,
 			Status:             ms.Status,
-			IsArchived:         isArchived,
+			IsArchived:         archived,
 			TargetDate:         ms.TargetDate,
 			TargetStartAt:      ms.TargetStartAt,
 			TargetEndAt:        ms.TargetEndAt,
@@ -147,35 +143,20 @@ func (s *Server) toolListMilestones(ctx context.Context, _ *mcp.CallToolRequest,
 	return nil, summaries, nil
 }
 
-func (s *Server) toolGetMilestone(ctx context.Context, _ *mcp.CallToolRequest, in GetMilestoneInput) (*mcp.CallToolResult, *MilestoneDetail, error) {
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("milestone id is required")
-	}
-
-	ms, err := s.store.GetMilestone(ctx, id)
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("milestone %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get milestone %q: %w", id, err)
-	}
-
-	assignedTasks, err := s.store.ListTasks(ctx, model.FilterCriteria{Milestone: id})
-	taskSlugs := make([]string, 0, len(assignedTasks))
-	if err == nil {
-		for _, t := range assignedTasks {
+// milestoneDetail converts a milestone into the MCP detail view, including assigned task slugs.
+func (s *Server) milestoneDetail(ctx context.Context, ms model.Milestone) *MilestoneDetail {
+	taskSlugs := []string{}
+	if assigned, err := s.store.ListTasks(ctx, model.FilterCriteria{Milestone: ms.ID}); err == nil {
+		for _, t := range assigned {
 			taskSlugs = append(taskSlugs, t.ID)
 		}
 	}
 
-	isArchived := ms.Status == model.MilestoneStatusClosed || (ms.TotalTasks > 0 && ms.CompletedTasks == ms.TotalTasks)
-
-	return nil, &MilestoneDetail{
+	return &MilestoneDetail{
 		ID:                 ms.ID,
 		Title:              ms.Title,
 		Status:             ms.Status,
-		IsArchived:         isArchived,
+		IsArchived:         isArchived(ms),
 		TargetDate:         ms.TargetDate,
 		TargetStartAt:      ms.TargetStartAt,
 		TargetEndAt:        ms.TargetEndAt,
@@ -188,237 +169,103 @@ func (s *Server) toolGetMilestone(ctx context.Context, _ *mcp.CallToolRequest, i
 		ProgressPercentage: ms.ProgressPercentage,
 		AssignedTasks:      taskSlugs,
 		FilePath:           ms.FilePath,
-	}, nil
+	}
+}
+
+func (s *Server) toolGetMilestone(ctx context.Context, _ *mcp.CallToolRequest, in GetMilestoneInput) (*mcp.CallToolResult, *MilestoneDetail, error) {
+	id, err := requireID(in.ID, "milestone")
+	if err != nil {
+		return nil, nil, err
+	}
+	ms, err := s.svc.GetMilestone(ctx, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nil, s.milestoneDetail(ctx, ms), nil
 }
 
 func (s *Server) toolCreateMilestone(ctx context.Context, _ *mcp.CallToolRequest, in CreateMilestoneInput) (*mcp.CallToolResult, *MilestoneDetail, error) {
-	title := strings.TrimSpace(in.Title)
-	if title == "" {
-		return nil, nil, errors.New("title is required")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
 	}
-
-	summary := strings.TrimSpace(in.Summary)
-	if summary == "" {
+	if strings.TrimSpace(in.Summary) == "" {
 		return nil, nil, errors.New("summary is required")
 	}
-
-	if s.cfg.Tags.EnforceAllowed && len(in.Tags) > 0 {
-		for _, tag := range in.Tags {
-			if !slices.Contains(s.cfg.Tags.Allowed, tag) {
-				return nil, nil, fmt.Errorf("tag %q is not permitted. Allowed tags: %v", tag, s.cfg.Tags.Allowed)
-			}
-		}
+	if err := s.svc.CheckTags(in.Tags); err != nil {
+		return nil, nil, err
 	}
 
-	tags := in.Tags
-	if tags == nil {
-		tags = []string{}
-	}
-
-	targetDate := strings.TrimSpace(in.TargetDate)
-	id := fmt.Sprintf("%s-%s", time.Now().Format("060102"), slugify(title))
-
-	fm := model.MilestoneFrontmatter{
-		Title:      title,
-		Status:     model.MilestoneStatusOpen,
-		TargetDate: targetDate,
-		Tags:       tags,
-		Summary:    summary,
-	}
-
-	fileBytes, err := parser.Format(fm, in.Body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to format milestone markdown: %w", err)
-	}
-
-	filePath := filepath.Join(s.MilestonesDir(), fmt.Sprintf("%s.md", id))
-	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
-		return nil, nil, fmt.Errorf("failed to save milestone file: %w", err)
-	}
-
-	ms := model.Milestone{
-		ID:         id,
-		Title:      title,
-		Status:     model.MilestoneStatusOpen,
-		TargetDate: targetDate,
-		Tags:       tags,
-		Summary:    summary,
+	ms, err := s.svc.CreateMilestone(ctx, service.NewMilestone{
+		Title:      in.Title,
+		TargetDate: in.TargetDate,
+		Tags:       in.Tags,
+		Summary:    in.Summary,
 		Body:       in.Body,
-		FilePath:   filePath,
-		ModTime:    time.Now(),
+	})
+	if err != nil {
+		return nil, nil, err
 	}
-
-	if err := s.store.UpsertMilestone(ctx, ms); err != nil {
-		return nil, nil, fmt.Errorf("failed to index milestone: %w", err)
-	}
-
-	return nil, &MilestoneDetail{
-		ID:                 ms.ID,
-		Title:              ms.Title,
-		Status:             ms.Status,
-		IsArchived:         false,
-		TargetDate:         ms.TargetDate,
-		TargetStartAt:      ms.TargetStartAt,
-		TargetEndAt:        ms.TargetEndAt,
-		TargetTimeframe:    ms.TargetTimeframe,
-		Tags:               ms.Tags,
-		Summary:            ms.Summary,
-		Body:               ms.Body,
-		TotalTasks:         0,
-		CompletedTasks:     0,
-		ProgressPercentage: 0,
-		AssignedTasks:      []string{},
-		FilePath:           filePath,
-	}, nil
+	return nil, s.milestoneDetail(ctx, ms), nil
 }
 
 func (s *Server) toolUpdateMilestone(ctx context.Context, _ *mcp.CallToolRequest, in UpdateMilestoneInput) (*mcp.CallToolResult, *MilestoneDetail, error) {
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("milestone id is required")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
 	}
-
-	ms, err := s.store.GetMilestone(ctx, id)
+	id, err := requireID(in.ID, "milestone")
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("milestone %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get milestone %q: %w", id, err)
+		return nil, nil, err
 	}
-
-	if in.Status != nil {
-		switch st := strings.ToLower(strings.TrimSpace(*in.Status)); st {
-		case "open":
-			ms.Status = model.MilestoneStatusOpen
-		case "closed":
-			ms.Status = model.MilestoneStatusClosed
-		default:
-			return nil, nil, fmt.Errorf("invalid status %q; expected 'open' or 'closed'", *in.Status)
-		}
-	}
-
-	if in.TargetDate != nil {
-		ms.TargetDate = strings.TrimSpace(*in.TargetDate)
-	}
-
-	if in.Summary != nil {
-		s := strings.TrimSpace(*in.Summary)
-		if s != "" {
-			ms.Summary = s
-		}
-	}
-
 	if in.Tags != nil {
-		tags := *in.Tags
-		if s.cfg.Tags.EnforceAllowed && len(tags) > 0 {
-			for _, tag := range tags {
-				if !slices.Contains(s.cfg.Tags.Allowed, tag) {
-					return nil, nil, fmt.Errorf("tag %q is not permitted. Allowed tags: %v", tag, s.cfg.Tags.Allowed)
-				}
+		if err := s.svc.CheckTags(*in.Tags); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	ms, err := s.svc.UpdateMilestone(ctx, id, func(ms *model.Milestone) error {
+		if in.Status != nil {
+			st, err := service.ParseMilestoneStatus(*in.Status)
+			if err != nil {
+				return err
+			}
+			ms.Status = st
+		}
+		if in.TargetDate != nil {
+			ms.TargetDate = strings.TrimSpace(*in.TargetDate)
+		}
+		if in.Summary != nil {
+			if v := strings.TrimSpace(*in.Summary); v != "" {
+				ms.Summary = v
 			}
 		}
-		ms.Tags = tags
-	}
-
-	if in.Body != nil {
-		ms.Body = *in.Body
-	}
-
-	fm := model.MilestoneFrontmatter{
-		Title:      ms.Title,
-		Status:     ms.Status,
-		TargetDate: ms.TargetDate,
-		Tags:       ms.Tags,
-		Summary:    ms.Summary,
-	}
-
-	fileBytes, err := parser.Format(fm, ms.Body)
+		if in.Tags != nil {
+			ms.Tags = *in.Tags
+		}
+		if in.Body != nil {
+			ms.Body = *in.Body
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to format milestone markdown: %w", err)
+		return nil, nil, err
 	}
-
-	filePath := ms.FilePath
-	if filePath == "" {
-		filePath = filepath.Join(s.MilestonesDir(), fmt.Sprintf("%s.md", id))
-	}
-
-	if err := s.writer.WriteFile(filePath, fileBytes, 0644); err != nil {
-		return nil, nil, fmt.Errorf("failed to save milestone file: %w", err)
-	}
-
-	ms.ModTime = time.Now()
-	if err := s.store.UpsertMilestone(ctx, ms); err != nil {
-		return nil, nil, fmt.Errorf("failed to index updated milestone: %w", err)
-	}
-
-	if updatedMs, err := s.store.GetMilestone(ctx, id); err == nil {
-		ms = updatedMs
-	}
-
-	assignedTasks, _ := s.store.ListTasks(ctx, model.FilterCriteria{Milestone: id})
-	taskSlugs := make([]string, 0, len(assignedTasks))
-	for _, t := range assignedTasks {
-		taskSlugs = append(taskSlugs, t.ID)
-	}
-
-	isArchived := ms.Status == model.MilestoneStatusClosed || (ms.TotalTasks > 0 && ms.CompletedTasks == ms.TotalTasks)
-
-	return nil, &MilestoneDetail{
-		ID:                 ms.ID,
-		Title:              ms.Title,
-		Status:             ms.Status,
-		IsArchived:         isArchived,
-		TargetDate:         ms.TargetDate,
-		TargetStartAt:      ms.TargetStartAt,
-		TargetEndAt:        ms.TargetEndAt,
-		TargetTimeframe:    ms.TargetTimeframe,
-		Tags:               ms.Tags,
-		Summary:            ms.Summary,
-		Body:               ms.Body,
-		TotalTasks:         ms.TotalTasks,
-		CompletedTasks:     ms.CompletedTasks,
-		ProgressPercentage: ms.ProgressPercentage,
-		AssignedTasks:      taskSlugs,
-		FilePath:           filePath,
-	}, nil
+	return nil, s.milestoneDetail(ctx, ms), nil
 }
 
 func (s *Server) toolDeleteMilestone(ctx context.Context, _ *mcp.CallToolRequest, in DeleteMilestoneInput) (*mcp.CallToolResult, *DeleteEntityOutput, error) {
-	if !s.cfg.MCP.AllowMutations {
-		return nil, nil, errors.New("mutations are disabled in configuration")
+	if err := s.checkMutations(); err != nil {
+		return nil, nil, err
 	}
-
-	id := strings.TrimSpace(in.ID)
-	if id == "" {
-		return nil, nil, errors.New("milestone id is required")
-	}
-
-	ms, err := s.store.GetMilestone(ctx, id)
+	id, err := requireID(in.ID, "milestone")
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, fmt.Errorf("milestone %q not found", id)
-		}
-		return nil, nil, fmt.Errorf("failed to get milestone %q: %w", id, err)
+		return nil, nil, err
 	}
-
-	if !in.Force && ms.TotalTasks > 0 {
-		return nil, nil, fmt.Errorf("cannot delete milestone %q: %d task(s) are assigned to it. Set force=true to delete anyway", id, ms.TotalTasks)
+	if err := s.svc.DeleteMilestone(ctx, id, in.Force); err != nil {
+		return nil, nil, err
 	}
-
-	if ms.FilePath != "" {
-		if err := s.writer.RemoveFile(ms.FilePath); err != nil {
-			return nil, nil, fmt.Errorf("failed to remove milestone file: %w", err)
-		}
-	}
-
-	if err := s.store.DeleteMilestone(ctx, id); err != nil {
-		return nil, nil, fmt.Errorf("failed to delete milestone from store: %w", err)
-	}
-
 	return nil, &DeleteEntityOutput{
 		Success: true,
 		ID:      id,
 		Message: fmt.Sprintf("Milestone %q deleted successfully", id),
 	}, nil
 }
-

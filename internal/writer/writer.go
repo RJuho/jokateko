@@ -1,9 +1,12 @@
 package writer
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 // Writer provides atomic filesystem mutation operations to guarantee data integrity
@@ -75,6 +78,9 @@ func (w *Writer) WriteFile(targetPath string, data []byte, perm os.FileMode) err
 	}
 
 	success = true
+
+	// Persist the rename itself; without this a crash can lose the new directory entry.
+	syncDir(dir)
 	return nil
 }
 
@@ -84,7 +90,7 @@ func (w *Writer) RemoveFile(targetPath string) error {
 		w.suppressCache.RecordDelete(targetPath)
 	}
 
-	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(targetPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("failed to remove file %q: %w", targetPath, err)
 	}
 
@@ -94,4 +100,18 @@ func (w *Writer) RemoveFile(targetPath string) error {
 // SuppressionCache returns the active suppression cache or nil.
 func (w *Writer) SuppressionCache() *SuppressionCache {
 	return w.suppressCache
+}
+
+// syncDir flushes directory metadata (such as a completed rename) to disk.
+// It is best-effort: some platforms, notably Windows, cannot fsync directories.
+func syncDir(dir string) {
+	if runtime.GOOS == "windows" {
+		return
+	}
+	d, err := os.Open(dir)
+	if err != nil {
+		return
+	}
+	_ = d.Sync()
+	_ = d.Close()
 }

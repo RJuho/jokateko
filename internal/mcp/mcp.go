@@ -3,14 +3,17 @@
 package mcp
 
 import (
+	"context"
+	"errors"
 	"fmt"
-	"path/filepath"
+	"net/http"
 	"strings"
 
 	"github.com/RJuho/jokateko/internal/config"
+	"github.com/RJuho/jokateko/internal/model"
+	"github.com/RJuho/jokateko/internal/service"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/internal/version"
-	"github.com/RJuho/jokateko/internal/writer"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -37,9 +40,8 @@ type DeleteEntityOutput struct {
 type Server struct {
 	mcpServer    *mcp.Server
 	cfg          *config.Config
-	workspaceDir string
+	svc          *service.Service
 	store        *store.Store
-	writer       *writer.Writer
 	instructions string
 }
 
@@ -66,10 +68,8 @@ func formatWorkflowGuidance(cols []config.ColumnConfig) string {
 }
 
 // New initializes an MCP server with all Jokateko tools, resources, and prompt templates.
-func New(cfg *config.Config, workspaceDir string, st *store.Store, wr *writer.Writer) *Server {
-	if cfg == nil {
-		cfg = config.Default(workspaceDir)
-	}
+func New(svc *service.Service) *Server {
+	cfg := svc.Config()
 
 	impl := &mcp.Implementation{
 		Name:        "jokateko",
@@ -94,9 +94,8 @@ func New(cfg *config.Config, workspaceDir string, st *store.Store, wr *writer.Wr
 	server := &Server{
 		mcpServer:    mcp.NewServer(impl, opts),
 		cfg:          cfg,
-		workspaceDir: workspaceDir,
-		store:        st,
-		writer:       wr,
+		svc:          svc,
+		store:        svc.Store(),
 		instructions: instructions,
 	}
 
@@ -121,44 +120,59 @@ func (s *Server) MCPServer() *mcp.Server {
 	return s.mcpServer
 }
 
-// TasksDir returns the absolute path to the tasks directory.
-func (s *Server) TasksDir() string {
-	p := s.cfg.Paths.Tasks
-	if filepath.IsAbs(p) {
-		return p
-	}
-	return filepath.Join(s.workspaceDir, p)
-}
-
-// MilestonesDir returns the absolute path to the milestones directory.
-func (s *Server) MilestonesDir() string {
-	p := s.cfg.Paths.Milestones
-	if filepath.IsAbs(p) {
-		return p
-	}
-	return filepath.Join(s.workspaceDir, p)
-}
-
-// StrategiesDir returns the absolute path to the strategies directory.
-func (s *Server) StrategiesDir() string {
-	p := s.cfg.Paths.Strategies
-	if filepath.IsAbs(p) {
-		return p
-	}
-	return filepath.Join(s.workspaceDir, p)
-}
-
-// GlossaryDir returns the absolute path to the glossary directory.
-func (s *Server) GlossaryDir() string {
-	p := s.cfg.Paths.Glossary
-	if filepath.IsAbs(p) {
-		return p
-	}
-	return filepath.Join(s.workspaceDir, p)
-}
-
 // Instructions returns the active MCP server system instructions string.
 func (s *Server) Instructions() string {
 	return s.instructions
 }
 
+var errMutationsDisabled = errors.New("mutations are disabled in configuration")
+
+// checkMutations rejects write tools when [mcp] allow_mutations is false.
+func (s *Server) checkMutations() error {
+	if !s.cfg.MCP.AllowMutations {
+		return errMutationsDisabled
+	}
+	return nil
+}
+
+// checkMilestoneOpen refuses to attach tasks to a closed or fully completed
+// milestone unless the agent explicitly asks to reopen it.
+func (s *Server) checkMilestoneOpen(ctx context.Context, slug string, reopen bool) error {
+	if slug == "" || reopen {
+		return nil
+	}
+	ms, err := s.store.GetMilestone(ctx, slug)
+	if err != nil {
+		return nil
+	}
+	if isArchived(ms) {
+		return fmt.Errorf("cannot attach task to completed milestone %q (100%% tasks done). Set reopen_milestone=true to explicitly attach tasks to this milestone", slug)
+	}
+	return nil
+}
+
+// isArchived reports whether a milestone is closed or has all tasks completed.
+func isArchived(ms model.Milestone) bool {
+	return ms.Status == model.MilestoneStatusClosed || (ms.TotalTasks > 0 && ms.CompletedTasks == ms.TotalTasks)
+}
+
+// requireID trims id and returns an error naming kind when it is empty.
+func requireID(id, kind string) (string, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return "", fmt.Errorf("%s id is required", kind)
+	}
+	return id, nil
+}
+
+// HTTPHandler returns the Streamable HTTP transport handler for this server.
+//
+// The server keeps no per-session state, so it runs in stateless mode: this is
+// required for clients speaking the sessionless 2026-07-28 protocol revision,
+// while older clients still complete the legacy initialize handshake. The SDK's
+// default localhost (DNS rebinding) protection stays enabled.
+func (s *Server) HTTPHandler() http.Handler {
+	return mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
+		return s.mcpServer
+	}, &mcp.StreamableHTTPOptions{Stateless: true})
+}

@@ -8,15 +8,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/RJuho/jokateko/internal/config"
 	"github.com/RJuho/jokateko/internal/mcp"
+	"github.com/RJuho/jokateko/internal/service"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/internal/watcher"
 	"github.com/RJuho/jokateko/internal/writer"
@@ -25,12 +28,12 @@ import (
 )
 
 type localEngine struct {
-	store       *store.Store
-	watcher     *watcher.Watcher
-	cancel      context.CancelFunc
-	mcpConn     sdk_mcp.Connection
-	pipeClosers []io.Closer
-	closed      atomic.Bool
+	store        *store.Store
+	stopPipeline func()
+	cancel       context.CancelFunc
+	mcpConn      sdk_mcp.Connection
+	pipeClosers  []io.Closer
+	closed       atomic.Bool
 }
 
 func (le *localEngine) Close() {
@@ -46,8 +49,8 @@ func (le *localEngine) Close() {
 	if le.cancel != nil {
 		le.cancel()
 	}
-	if le.watcher != nil {
-		_ = le.watcher.Close()
+	if le.stopPipeline != nil {
+		le.stopPipeline()
 	}
 	if le.store != nil {
 		_ = le.store.Close()
@@ -282,10 +285,16 @@ func (r *Runner) Run(ctx context.Context) error {
 				r.mu.RLock()
 				switching := r.switching
 				isProxy := r.isProxy
+				current := r.activeBackend
 				r.mu.RUnlock()
 
 				if switching {
 					time.Sleep(5 * time.Millisecond)
+					continue
+				}
+				// The read failed because a switch closed the previous backend;
+				// the new backend is healthy, so just start reading from it.
+				if current != backend {
 					continue
 				}
 
@@ -321,12 +330,25 @@ func (r *Runner) ProbeDaemon(ctx context.Context) bool {
 	return r.probeDaemon(ctx)
 }
 
-func (r *Runner) probeDaemon(ctx context.Context) bool {
+// daemonBaseURL returns the base URL of the serve daemon for this workspace.
+// Only loopback hosts are probed; anything else falls back to 127.0.0.1.
+func (r *Runner) daemonBaseURL() string {
 	port := r.cfg.Server.Port
 	if port <= 0 {
 		port = 8080
 	}
+	host := "127.0.0.1"
+	if h := r.cfg.Server.Host; h == "localhost" {
+		host = h
+	} else if ip := net.ParseIP(h); ip != nil && ip.IsLoopback() {
+		host = h
+	}
+	return "http://" + net.JoinHostPort(host, strconv.Itoa(port))
+}
 
+// probeDaemon reports whether a healthy serve daemon for this same workspace is listening.
+// A daemon serving a different project on the same port is ignored.
+func (r *Runner) probeDaemon(ctx context.Context) bool {
 	timeout := r.probeTimeout
 	if timeout <= 0 {
 		timeout = 150 * time.Millisecond
@@ -335,8 +357,7 @@ func (r *Runner) probeDaemon(ctx context.Context) bool {
 	probeCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	url := fmt.Sprintf("http://127.0.0.1:%d/api/health", port)
-	req, err := http.NewRequestWithContext(probeCtx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(probeCtx, http.MethodGet, r.daemonBaseURL()+"/api/health", nil)
 	if err != nil {
 		return false
 	}
@@ -348,17 +369,37 @@ func (r *Runner) probeDaemon(ctx context.Context) bool {
 	}
 	defer resp.Body.Close()
 
-	return resp.StatusCode == http.StatusOK
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+
+	var health struct {
+		Workspace string `json:"workspace"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&health); err != nil {
+		return false
+	}
+	return sameDir(health.Workspace, r.workspaceDir)
+}
+
+// sameDir reports whether a and b name the same directory.
+func sameDir(a, b string) bool {
+	if a == "" || b == "" {
+		return false
+	}
+	if filepath.Clean(a) == filepath.Clean(b) {
+		return true
+	}
+	ai, errA := os.Stat(a)
+	bi, errB := os.Stat(b)
+	return errA == nil && errB == nil && os.SameFile(ai, bi)
 }
 
 func (r *Runner) connectDaemon(ctx context.Context) (sdk_mcp.Connection, error) {
-	port := r.cfg.Server.Port
-	if port <= 0 {
-		port = 8080
-	}
-	mcpEndpoint := fmt.Sprintf("http://127.0.0.1:%d/api/mcp", port)
-	transport := &sdk_mcp.SSEClientTransport{
-		Endpoint: mcpEndpoint,
+	transport := &sdk_mcp.StreamableClientTransport{
+		Endpoint: r.daemonBaseURL() + "/api/mcp",
+		// The daemon runs a stateless server, which has no standalone SSE stream.
+		DisableStandaloneSSE: true,
 	}
 	return transport.Connect(ctx)
 }
@@ -371,46 +412,19 @@ func (r *Runner) startLocalEngine(ctx context.Context) (*localEngine, sdk_mcp.Co
 
 	sc := writer.NewSuppressionCache(time.Second)
 	wr := writer.New(sc)
-
-	resolveDir := func(p string) string {
-		if filepath.IsAbs(p) {
-			return p
-		}
-		return filepath.Join(r.workspaceDir, p)
-	}
-
-	ingestCfg := watcher.IngestConfig{
-		TasksDir:      resolveDir(r.cfg.Paths.Tasks),
-		MilestonesDir: resolveDir(r.cfg.Paths.Milestones),
-		StrategiesDir: resolveDir(r.cfg.Paths.Strategies),
-		GlossaryDir:   resolveDir(r.cfg.Paths.Glossary),
-	}
-	pipeline := watcher.NewPipeline(st, sc, ingestCfg)
-	if err := pipeline.ProcessAll(ctx); err != nil {
-		fmt.Fprintf(r.stderr, "warning: error during initial directory scan: %v\n", err)
-	}
+	dirs := r.cfg.ResolveDirs(r.workspaceDir)
 
 	localCtx, localCancel := context.WithCancel(ctx)
-	watchDirs := []string{
-		ingestCfg.TasksDir,
-		ingestCfg.MilestonesDir,
-		ingestCfg.StrategiesDir,
-		ingestCfg.GlossaryDir,
+	logf := func(format string, args ...any) {
+		fmt.Fprintf(r.stderr, format+"\n", args...)
+	}
+	stopPipeline, err := watcher.StartPipeline(localCtx, st, sc, dirs, nil, logf)
+	if err != nil {
+		logf("warning: %v", err)
 	}
 
-	var fsw *watcher.Watcher
-	w, err := watcher.New(watchDirs, 50*time.Millisecond)
-	if err == nil {
-		fsw = w
-		fsw.Start(localCtx)
-		go func() {
-			for ev := range fsw.Events() {
-				_ = pipeline.HandleEvent(localCtx, ev)
-			}
-		}()
-	}
-
-	mcpSrv := mcp.New(r.cfg, r.workspaceDir, st, wr)
+	// The standalone engine has no Web UI, so changes need no notifier.
+	mcpSrv := mcp.New(service.New(r.cfg, r.workspaceDir, st, wr, nil))
 
 	serverIn, clientOut := io.Pipe()
 	clientIn, serverOut := io.Pipe()
@@ -430,9 +444,7 @@ func (r *Runner) startLocalEngine(ctx context.Context) (*localEngine, sdk_mcp.Co
 	localConn, err := localConnTransport.Connect(localCtx)
 	if err != nil {
 		localCancel()
-		if fsw != nil {
-			_ = fsw.Close()
-		}
+		stopPipeline()
 		_ = st.Close()
 		_ = serverIn.Close()
 		_ = serverOut.Close()
@@ -442,11 +454,11 @@ func (r *Runner) startLocalEngine(ctx context.Context) (*localEngine, sdk_mcp.Co
 	}
 
 	engine := &localEngine{
-		store:       st,
-		watcher:     fsw,
-		cancel:      localCancel,
-		mcpConn:     localConn,
-		pipeClosers: []io.Closer{serverIn, serverOut, clientIn, clientOut},
+		store:        st,
+		stopPipeline: stopPipeline,
+		cancel:       localCancel,
+		mcpConn:      localConn,
+		pipeClosers:  []io.Closer{serverIn, serverOut, clientIn, clientOut},
 	}
 
 	return engine, localConn, nil
@@ -513,7 +525,7 @@ func (r *Runner) switchToProxy(ctx context.Context) error {
 	}
 	if r.switching {
 		r.mu.Unlock()
-		for i := 0; i < 50; i++ {
+		for range 50 {
 			time.Sleep(10 * time.Millisecond)
 			r.mu.RLock()
 			isProxy := r.isProxy
@@ -578,7 +590,7 @@ func (r *Runner) switchToStandalone(ctx context.Context) error {
 	}
 	if r.switching {
 		r.mu.Unlock()
-		for i := 0; i < 50; i++ {
+		for range 50 {
 			time.Sleep(10 * time.Millisecond)
 			r.mu.RLock()
 			isStandalone := !r.isProxy && r.localEngine != nil

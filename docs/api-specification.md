@@ -22,11 +22,13 @@ Returns runtime daemon status, uptime, project name, and version info.
   {
     "status": "ok",
     "project": "My Project",
+    "workspace": "/home/dev/my-project",
     "version": "v1.1.0",
     "commit": "abc1234",
     "uptime_seconds": 3600
   }
   ```
+- `workspace` is the absolute project root. `jokateko mcp` only proxies to a daemon whose `workspace` matches its own directory, so a daemon for another project on the same port is ignored.
 
 ### `GET /api/version`
 Returns detailed build and platform metadata.
