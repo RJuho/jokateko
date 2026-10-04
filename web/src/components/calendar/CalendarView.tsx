@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from 'lucide-preact'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { navigateTo, navigateToCalendar } from '../../router'
 import type { Milestone, Task } from '../../schemas/models'
@@ -423,20 +424,7 @@ export function CalendarView() {
 							aria-label={t('arial_prev_month')}
 							data-testid='calendar-prev-button'
 						>
-							<svg
-								class='size-4'
-								fill='none'
-								viewBox='0 0 24 24'
-								stroke='currentColor'
-								stroke-width='2'
-								aria-hidden='true'
-							>
-								<path
-									stroke-linecap='round'
-									stroke-linejoin='round'
-									d='M15 19l-7-7 7-7'
-								/>
-							</svg>
+							<ChevronLeft class='size-4' />
 						</button>
 						<button
 							type='button'
@@ -454,20 +442,7 @@ export function CalendarView() {
 							aria-label={t('arial_next_month')}
 							data-testid='calendar-next-button'
 						>
-							<svg
-								class='size-4'
-								fill='none'
-								viewBox='0 0 24 24'
-								stroke='currentColor'
-								stroke-width='2'
-								aria-hidden='true'
-							>
-								<path
-									stroke-linecap='round'
-									stroke-linejoin='round'
-									d='M9 5l7 7-7 7'
-								/>
-							</svg>
+							<ChevronRight class='size-4' />
 						</button>
 					</div>
 

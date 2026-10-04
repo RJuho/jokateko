@@ -20,8 +20,15 @@ func cmdBuild(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	dirFlag := fs.String("dir", ".", "Project root directory")
 	outFlag := fs.String("out", "", "Output file path (default: dist-kanban/index.html or config paths.export)")
+	mermaidFlag := fs.String("mermaidjs", string(exporter.MermaidCDN), "Mermaid diagram runtime: cdn (jsDelivr, same pinned version, SRI-verified), bundled (inlined, fully offline) or none")
 
 	if err := fs.Parse(args); err != nil {
+		return 1
+	}
+
+	mermaidMode, err := exporter.ParseMermaidMode(*mermaidFlag)
+	if err != nil {
+		fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 
@@ -86,12 +93,12 @@ func cmdBuild(args []string, stdout, stderr io.Writer) int {
 	}
 
 	// 4. Export snapshot
-	size, err := exporter.Export(ctx, cfg, st, outPath)
+	size, err := exporter.Export(ctx, cfg, st, outPath, mermaidMode)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: failed to export snapshot: %v\n", err)
 		return 1
 	}
 
-	fmt.Fprintf(stdout, "Exported self-contained Kanban snapshot to %s (%d bytes)\n", outPath, size)
+	fmt.Fprintf(stdout, "Exported self-contained Kanban snapshot to %s (%d bytes, mermaidjs=%s)\n", outPath, size, mermaidMode)
 	return 0
 }

@@ -38,13 +38,33 @@ async function buildCSS(): Promise<string> {
 	return stdout
 }
 
-interface BuildJSResult {
+interface MermaidRuntime {
+	version: string
+	integrity: string
 	js: string
-	bundledPackages: string[]
+}
+
+// Mermaid ships as its own runtime file instead of being bundled into the app:
+// the published, self-contained dist/mermaid.min.js from the lockfile-pinned
+// package. The same bytes are embedded in the binary (live mode), inlined or
+// referenced on jsDelivr by `jokateko build --mermaidjs`, all verified by one
+// SRI hash computed here.
+async function readMermaidRuntime(): Promise<MermaidRuntime> {
+	const pkgDir = resolve(webDir, 'node_modules/mermaid')
+	const { version } = await Bun.file(resolve(pkgDir, 'package.json')).json()
+	const js = await Bun.file(resolve(pkgDir, 'dist/mermaid.min.js')).text()
+	if (/<\/script/i.test(js)) {
+		throw new Error('mermaid.min.js contains "</script" and cannot be inlined')
+	}
+
+	const { createHash } = await import('node:crypto')
+	const integrity = `sha384-${createHash('sha384').update(js).digest('base64')}`
+
+	return { version, integrity, js }
 }
 
 // 2. Compile JavaScript (Preact, Signals, Valibot, Router, UI)
-async function buildJS(): Promise<BuildJSResult> {
+async function buildJS(mermaid: MermaidRuntime): Promise<string> {
 	const entrypoint = resolve(webDir, 'src/main.tsx')
 	const result = await Bun.build({
 		entrypoints: [entrypoint],
@@ -55,10 +75,11 @@ async function buildJS(): Promise<BuildJSResult> {
 		},
 		define: {
 			'process.env.NODE_ENV': JSON.stringify('production'),
+			__MERMAID_VERSION__: JSON.stringify(mermaid.version),
+			__MERMAID_INTEGRITY__: JSON.stringify(mermaid.integrity),
 		},
 		drop: ['debugger'],
 		target: 'browser',
-		metafile: true,
 	})
 
 	if (!result.success) {
@@ -70,30 +91,7 @@ async function buildJS(): Promise<BuildJSResult> {
 		throw new Error('Bun.build produced no output files')
 	}
 
-	const bundledPackages = new Set<string>()
-	if (result.metafile) {
-		for (const file of Object.keys(result.metafile.inputs)) {
-			const match = file.match(/node_modules\/((?:@[^/]+\/)?[^/]+)/)
-			if (match) {
-				const pkg = match[1]
-				if (
-					!pkg.startsWith('@types/')
-					&& pkg !== 'tailwindcss'
-					&& pkg !== 'bun-plugin-tailwind'
-					&& pkg !== 'daisyui'
-					&& !pkg.startsWith('@tailwindcss/')
-				) {
-					bundledPackages.add(pkg)
-				}
-			}
-		}
-	}
-
-	const js = await result.outputs[0].text()
-	return {
-		js,
-		bundledPackages: Array.from(bundledPackages).sort(),
-	}
+	return result.outputs[0].text()
 }
 
 // 3. Assemble Single-File index.html
@@ -102,9 +100,8 @@ async function main() {
 		throw new Error(`HTML template not found at: ${templatePath}`)
 	}
 
-	const [css, jsResult] = await Promise.all([buildCSS(), buildJS()])
-	const js = jsResult.js
-	const bundledPackages = jsResult.bundledPackages
+	const mermaid = await readMermaidRuntime()
+	const [css, js] = await Promise.all([buildCSS(), buildJS(mermaid)])
 
 	const { createHash } = await import('node:crypto')
 	const scriptSha256 = createHash('sha256').update(js).digest('base64')
@@ -158,12 +155,22 @@ async function main() {
 	const gzipped = gzipSync(Buffer.from(output, 'utf-8'), { level: 9 })
 	await Bun.write(distGzPath, gzipped)
 
+	// Mermaid runtime: gzip only (embedded in the binary) plus its version and SRI hash
+	await Bun.write(
+		resolve(distDir, 'mermaid.min.js.gz'),
+		gzipSync(Buffer.from(mermaid.js, 'utf-8'), { level: 9 }),
+	)
+	await Bun.write(
+		resolve(distDir, 'mermaid.json'),
+		JSON.stringify(
+			{ version: mermaid.version, integrity: mermaid.integrity },
+			null,
+			2,
+		),
+	)
+
 	await Bun.write(resolve(distDir, 'script.sha256'), scriptHash)
 	await Bun.write(resolve(distDir, 'style.sha256'), styleHash)
-	await Bun.write(
-		resolve(distDir, 'bundled-packages.json'),
-		JSON.stringify(bundledPackages, null, 2),
-	)
 	await Bun.write(
 		resolve(distDir, 'hashes.json'),
 		JSON.stringify(
@@ -179,7 +186,7 @@ async function main() {
 	)
 
 	console.log(
-		`   ✓ Exported ${bundledPackages.length} bundled packages -> 'web/dist/bundled-packages.json'`,
+		`   ✓ Mermaid ${mermaid.version} runtime (${(mermaid.js.length / 1024).toFixed(1)} KB) -> '${mermaid.integrity}'`,
 	)
 
 	const duration = (performance.now() - startTime).toFixed(0)

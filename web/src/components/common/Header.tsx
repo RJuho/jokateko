@@ -1,3 +1,4 @@
+import { Info, Menu, Search, X } from 'lucide-preact'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { navigateTo } from '../../router'
 import type {
@@ -275,23 +276,10 @@ export function Header() {
 						aria-label={t('arial_search')}
 					>
 						<label class='input input-sm w-full h-9 sm:h-9 md:h-10 text-xs sm:text-sm flex items-center'>
-							<svg
-								class='h-[1em] opacity-50 shrink-0'
-								xmlns='http://www.w3.org/2000/svg'
-								viewBox='0 0 24 24'
-								aria-hidden='true'
-							>
-								<g
-									stroke-linejoin='round'
-									stroke-linecap='round'
-									stroke-width='2.5'
-									fill='none'
-									stroke='currentColor'
-								>
-									<circle cx='11' cy='11' r='8' />
-									<path d='m21 21-4.3-4.3' />
-								</g>
-							</svg>
+							<Search
+								class='h-[1em] w-auto opacity-50 shrink-0'
+								strokeWidth={2.5}
+							/>
 							<input
 								ref={searchInputRef}
 								id='global-search'
@@ -436,20 +424,7 @@ export function Header() {
 							aria-label='About Jokateko and Open Source Licenses'
 							data-testid='about-modal-trigger'
 						>
-							<svg
-								class='size-4'
-								fill='none'
-								viewBox='0 0 24 24'
-								stroke='currentColor'
-								stroke-width='2'
-								aria-hidden='true'
-							>
-								<path
-									stroke-linecap='round'
-									stroke-linejoin='round'
-									d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
-								/>
-							</svg>
+							<Info class='size-4' />
 						</button>
 					</div>
 
@@ -469,25 +444,7 @@ export function Header() {
 						aria-expanded={isMobileMenuOpen}
 						data-testid='mobile-menu-toggle'
 					>
-						<svg
-							xmlns='http://www.w3.org/2000/svg'
-							class='size-5'
-							fill='none'
-							viewBox='0 0 24 24'
-							stroke='currentColor'
-							aria-hidden='true'
-						>
-							<path
-								stroke-linecap='round'
-								stroke-linejoin='round'
-								stroke-width='2'
-								d={
-									isMobileMenuOpen
-										? 'M6 18L18 6M6 6l12 12'
-										: 'M4 6h16M4 12h16M4 18h16'
-								}
-							/>
-						</svg>
+						{isMobileMenuOpen ? <X class='size-5' /> : <Menu class='size-5' />}
 					</button>
 				</div>
 
@@ -540,20 +497,7 @@ export function Header() {
 								data-testid='mobile-about-modal-trigger'
 								class='btn btn-sm btn-ghost justify-start gap-2 text-base-content/80'
 							>
-								<svg
-									class='size-4'
-									fill='none'
-									viewBox='0 0 24 24'
-									stroke='currentColor'
-									stroke-width='2'
-									aria-hidden='true'
-								>
-									<path
-										stroke-linecap='round'
-										stroke-linejoin='round'
-										d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
-									/>
-								</svg>
+								<Info class='size-4' />
 								<span>About & Licenses</span>
 							</button>
 						</nav>

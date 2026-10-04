@@ -1,3 +1,4 @@
+import { ArrowUpDown, Check, Plus } from 'lucide-preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { Column as ColumnType, Task } from '../../schemas/models'
 import {
@@ -171,21 +172,7 @@ export function Column({
 							aria-label={`Add new task to ${column.name}`}
 							data-testid={`add-task-${column.id}`}
 						>
-							<svg
-								class='size-3.5'
-								fill='none'
-								viewBox='0 0 24 24'
-								stroke='currentColor'
-								stroke-width='2.5'
-								aria-hidden='true'
-							>
-								<title>Add task</title>
-								<path
-									stroke-linecap='round'
-									stroke-linejoin='round'
-									d='M12 4v16m8-8H4'
-								/>
-							</svg>
+							<Plus class='size-3.5' strokeWidth={2.5} />
 						</button>
 					)}
 
@@ -214,21 +201,7 @@ export function Column({
 							}`}
 							data-testid={`column-sort-button-${column.id}`}
 						>
-							<svg
-								class='size-3.5'
-								fill='none'
-								viewBox='0 0 24 24'
-								stroke='currentColor'
-								stroke-width='2'
-								aria-hidden='true'
-							>
-								<title>Sort column</title>
-								<path
-									stroke-linecap='round'
-									stroke-linejoin='round'
-									d='M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12'
-								/>
-							</svg>
+							<ArrowUpDown class='size-3.5' />
 						</button>
 
 						{isSortOpen && (
@@ -256,20 +229,10 @@ export function Column({
 										>
 											<span>{opt.label}</span>
 											{currentSort === opt.id && (
-												<svg
+												<Check
 													class='size-3.5 text-primary'
-													fill='none'
-													viewBox='0 0 24 24'
-													stroke='currentColor'
-													stroke-width='2.5'
-													aria-hidden='true'
-												>
-													<path
-														stroke-linecap='round'
-														stroke-linejoin='round'
-														d='M5 13l4 4L19 7'
-													/>
-												</svg>
+													strokeWidth={2.5}
+												/>
 											)}
 										</button>
 									</li>

@@ -1,3 +1,4 @@
+import { Calendar } from 'lucide-preact'
 import { useState } from 'preact/hooks'
 import { navigateTo } from '../../router'
 import type { Milestone } from '../../schemas/models'
@@ -84,21 +85,7 @@ export function MilestoneCards() {
 									class='flex items-center gap-1 mt-1 text-[10px] text-base-content/60 font-medium'
 									data-testid={`milestone-timeframe-${m.id}`}
 								>
-									<svg
-										xmlns='http://www.w3.org/2000/svg'
-										class='size-3 text-primary/70 shrink-0'
-										fill='none'
-										viewBox='0 0 24 24'
-										stroke='currentColor'
-										aria-hidden='true'
-									>
-										<path
-											stroke-linecap='round'
-											stroke-linejoin='round'
-											stroke-width='2'
-											d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'
-										/>
-									</svg>
+									<Calendar class='size-3 text-primary/70 shrink-0' />
 									<span class='truncate'>
 										{m.target_timeframe || m.target_date}
 									</span>

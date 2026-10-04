@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -75,5 +78,25 @@ func TestExtractNpmURL(t *testing.T) {
 	u3 := extractNpmURL(nil, "https://valibot.dev")
 	if u3 != "https://valibot.dev" {
 		t.Errorf("expected https://valibot.dev, got %q", u3)
+	}
+}
+
+func TestMainNpmPackages(t *testing.T) {
+	dir := t.TempDir()
+	pkgJSON := `{
+	"dependencies": { "preact": "11.0.0", "mermaid": "^12", "lucide-preact": "^1" },
+	"devDependencies": { "lighthouse": "^13" }
+}`
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkgJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := mainNpmPackages(dir)
+	if err != nil {
+		t.Fatalf("mainNpmPackages: %v", err)
+	}
+	want := []string{"lucide-preact", "mermaid", "preact"}
+	if !slices.Equal(got, want) {
+		t.Errorf("mainNpmPackages = %v, want %v (dependencies only, sorted)", got, want)
 	}
 }

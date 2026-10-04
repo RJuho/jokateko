@@ -90,7 +90,7 @@ This is **bold** text and ` + "`code`" + `.`
 }
 
 func TestRenderHTMLTaskCheckboxes(t *testing.T) {
-	md := "- [ ] first\n- [x] second\n"
+	md := "- [ ] first\n- [x] second <b>&</b>\n"
 
 	html, err := parser.RenderHTML([]byte(md))
 	if err != nil {
@@ -98,9 +98,9 @@ func TestRenderHTMLTaskCheckboxes(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		`<input type="checkbox" name="criterion-1" `,
+		`<input type="checkbox" name="criterion-1" aria-label="first" `,
 		`data-checkbox-index="1"`,
-		`<input type="checkbox" checked name="criterion-2" `,
+		`<input type="checkbox" checked name="criterion-2" aria-label="second &amp;" `,
 		`data-checkbox-index="2"`,
 	} {
 		if !strings.Contains(html, want) {

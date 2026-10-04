@@ -37,6 +37,19 @@ const server = Bun.serve({
 			}
 		}
 
+		// Lazily loaded Mermaid runtime (the dev build has no version/SRI defines)
+		if (url.pathname === '/assets/mermaid-dev.min.js') {
+			return new Response(
+				Bun.file(
+					new URL(
+						'../node_modules/mermaid/dist/mermaid.min.js',
+						import.meta.url,
+					),
+				),
+				{ headers: { 'Content-Type': 'text/javascript; charset=utf-8' } },
+			)
+		}
+
 		// Fallback for client-side routing
 		return new Response(index as unknown as BlobPart, {
 			headers: { 'Content-Type': 'text/html; charset=utf-8' },

@@ -39,11 +39,14 @@ test.describe("About & Licenses Modal E2E", () => {
 		await expect(licensesTab).toBeVisible();
 		await licensesTab.click();
 
-		// 5. Verify dependency list rendered
+		// 5. Verify dependency list rendered: only main (direct) packages, not their transitive deps
 		const items = modal.locator('[data-testid="license-package-item"]');
 		await expect(items.first()).toBeVisible();
-		const count = await items.count();
-		expect(count).toBeGreaterThan(10);
+		for (const name of ["mermaid", "preact", "lucide-preact", "github.com/yuin/goldmark"]) {
+			await expect(items.filter({ hasText: name }).first()).toBeVisible();
+		}
+		await expect(items.filter({ hasText: "dompurify" })).toHaveCount(0);
+		await expect(items.filter({ hasText: "golang.org/x/sys" })).toHaveCount(0);
 
 		// 6. Test search filter
 		const searchInput = modal.locator('[data-testid="license-search-input"]');

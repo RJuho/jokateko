@@ -3,6 +3,7 @@ package parser
 import (
 	"bytes"
 	"fmt"
+	stdhtml "html"
 	"regexp"
 	"strings"
 
@@ -138,6 +139,8 @@ func RenderHTML(source []byte) (string, error) {
 	}
 
 	rawHTML := buf.String()
+	// Criteria come from the same parser in document order, so index N labels checkbox N.
+	_, _, criteria := ExtractAcceptanceCriteria(source)
 	cbIndex := 0
 	formattedHTML := checkboxRe.ReplaceAllStringFunc(rawHTML, func(match string) string {
 		cbIndex++
@@ -146,8 +149,13 @@ func RenderHTML(source []byte) (string, error) {
 		if checked {
 			checkedAttr = " checked"
 		}
-		// name keeps browsers' form-field audits happy (fields need an id or name).
-		return fmt.Sprintf(`<input type="checkbox"%s name="criterion-%d" class="checkbox checkbox-primary checkbox-xs mt-0.5 shrink-0 cursor-pointer" data-checkbox-index="%d" />`, checkedAttr, cbIndex, cbIndex)
+		label := fmt.Sprintf("Criterion %d", cbIndex)
+		if cbIndex <= len(criteria) && strings.TrimSpace(criteria[cbIndex-1].Text) != "" {
+			label = strings.TrimSpace(criteria[cbIndex-1].Text)
+		}
+		// name keeps browsers' form-field audits happy (fields need an id or name);
+		// aria-label gives the unwrapped checkbox an accessible name.
+		return fmt.Sprintf(`<input type="checkbox"%s name="criterion-%d" aria-label="%s" class="checkbox checkbox-primary checkbox-xs mt-0.5 shrink-0 cursor-pointer" data-checkbox-index="%d" />`, checkedAttr, cbIndex, stdhtml.EscapeString(label), cbIndex)
 	})
 
 	return formattedHTML, nil

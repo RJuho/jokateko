@@ -117,7 +117,43 @@ func main() {
 		len(report.Packages), len(goPkgs), len(npmPkgs), *outGo, *outWeb)
 }
 
+// directGoModules returns the module paths required directly (not // indirect) in go.mod.
+// Only these main dependencies are listed; their own dependencies are not.
+func directGoModules() (map[string]bool, error) {
+	cmd := exec.Command("go", "mod", "edit", "-json")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("go mod edit -json failed: %w (stderr: %s)", err, stderr.String())
+	}
+
+	var mod struct {
+		Require []struct {
+			Path     string
+			Indirect bool
+		}
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &mod); err != nil {
+		return nil, fmt.Errorf("parse go.mod JSON: %w", err)
+	}
+
+	direct := make(map[string]bool)
+	for _, r := range mod.Require {
+		if !r.Indirect {
+			direct[r.Path] = true
+		}
+	}
+	return direct, nil
+}
+
 func harvestGoLicenses() ([]PackageLicense, error) {
+	direct, err := directGoModules()
+	if err != nil {
+		return nil, err
+	}
+
+	// Intersect with modules actually linked into the binary (skips tooling-only requires)
 	cmd := exec.Command("go", "list", "-deps", "-f", "{{with .Module}}{{.Path}}|{{.Version}}|{{.Dir}}{{end}}", "./cmd/jokateko")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -140,7 +176,7 @@ func harvestGoLicenses() ([]PackageLicense, error) {
 			continue
 		}
 		modPath, version, dir := parts[0], parts[1], parts[2]
-		if modPath == "github.com/RJuho/jokateko" || dir == "" || seen[modPath] {
+		if !direct[modPath] || dir == "" || seen[modPath] {
 			continue
 		}
 		seen[modPath] = true
@@ -201,43 +237,11 @@ func isExcludedNpmPackage(name string) bool {
 	return false
 }
 
-func getBundledPackageNames(webDir string) ([]string, error) {
-	// 1. Check if web/dist/bundled-packages.json exists
-	bundledPath := filepath.Join(webDir, "dist", "bundled-packages.json")
-	if data, err := os.ReadFile(bundledPath); err == nil {
-		var pkgs []string
-		if err := json.Unmarshal(data, &pkgs); err == nil && len(pkgs) > 0 {
-			return pkgs, nil
-		}
-	}
-
-	// 2. If Bun is installed, dynamically inspect Bun bundler metafile
-	if _, err := exec.LookPath("bun"); err == nil {
-		script := `const res = await Bun.build({ entrypoints: ['src/main.tsx'], target: 'browser', metafile: true });
-const pkgs = new Set();
-if (res.metafile) {
-  for (const file of Object.keys(res.metafile.inputs)) {
-    const m = file.match(/node_modules\/((?:@[^/]+\/)?[^/]+)/);
-    if (m) pkgs.add(m[1]);
-  }
-}
-console.log(JSON.stringify(Array.from(pkgs)));`
-		cmd := exec.Command("bun", "-e", script)
-		cmd.Dir = webDir
-		var stdout, stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-		if err := cmd.Run(); err == nil {
-			var pkgs []string
-			if err := json.Unmarshal(stdout.Bytes(), &pkgs); err == nil && len(pkgs) > 0 {
-				return pkgs, nil
-			}
-		}
-	}
-
-	// 3. Fallback to web/package.json dependencies if bundle metadata or bun is unavailable
-	rootPkgFile := filepath.Join(webDir, "package.json")
-	rootData, err := os.ReadFile(rootPkgFile)
+// mainNpmPackages returns the runtime dependencies declared in web/package.json.
+// Only these main packages are listed; their own (transitive) dependencies are not.
+// Mermaid is a main package, so it is listed regardless of the export --mermaidjs mode.
+func mainNpmPackages(webDir string) ([]string, error) {
+	rootData, err := os.ReadFile(filepath.Join(webDir, "package.json"))
 	if err != nil {
 		return nil, fmt.Errorf("read root package.json: %w", err)
 	}
@@ -247,17 +251,18 @@ console.log(JSON.stringify(Array.from(pkgs)));`
 		return nil, fmt.Errorf("unmarshal root package.json: %w", err)
 	}
 
-	var fallbackPkgs []string
+	pkgs := make([]string, 0, len(rootPkg.Dependencies))
 	for dep := range rootPkg.Dependencies {
-		fallbackPkgs = append(fallbackPkgs, dep)
+		pkgs = append(pkgs, dep)
 	}
-	return fallbackPkgs, nil
+	slices.Sort(pkgs)
+	return pkgs, nil
 }
 
 func harvestNpmLicenses(webDir string) ([]PackageLicense, error) {
-	packageNames, err := getBundledPackageNames(webDir)
+	packageNames, err := mainNpmPackages(webDir)
 	if err != nil {
-		return nil, fmt.Errorf("resolve bundled packages: %w", err)
+		return nil, fmt.Errorf("resolve main packages: %w", err)
 	}
 
 	nodeModulesDir := filepath.Join(webDir, "node_modules")

@@ -1,3 +1,4 @@
+import { Ban, CircleCheck } from 'lucide-preact'
 import { useMemo, useState } from 'preact/hooks'
 import { navigateTo } from '../../router'
 import type { Task } from '../../schemas/models'
@@ -64,19 +65,9 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 								', ',
 							)}`}
 						>
-							<svg
-								xmlns='http://www.w3.org/2000/svg'
-								class='size-3'
-								fill='none'
-								viewBox='0 0 24 24'
-								stroke='currentColor'
-								stroke-width='2'
-								aria-hidden='true'
-							>
+							<Ban class='size-3'>
 								<title>Blocked</title>
-								<circle cx='12' cy='12' r='9' />
-								<path stroke-linecap='round' d='M5.636 5.636l12.728 12.728' />
-							</svg>
+							</Ban>
 						</span>
 					)}
 
@@ -129,22 +120,9 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 						{/* Checklist Progress */}
 						{criteriaProgress && (
 							<div class='flex items-center gap-1 text-[11px] text-base-content/60 font-medium'>
-								<svg
-									xmlns='http://www.w3.org/2000/svg'
-									class='size-3.5 text-primary'
-									fill='none'
-									viewBox='0 0 24 24'
-									stroke='currentColor'
-									aria-hidden='true'
-								>
+								<CircleCheck class='size-3.5 text-primary'>
 									<title>Checklist progress</title>
-									<path
-										stroke-linecap='round'
-										stroke-linejoin='round'
-										stroke-width='2'
-										d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
-									/>
-								</svg>
+								</CircleCheck>
 								<span>{criteriaProgress}</span>
 							</div>
 						)}

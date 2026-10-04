@@ -13,8 +13,12 @@ This document outlines the command-line interface for the application. The tool 
 **Description:** Performs a strict dry-run validation of the entire project state. It reads all Markdown files (Tasks, Milestones, Strategies, Glossary) and the TOML configuration file, checking for broken YAML frontmatter, missing dependencies, invalid tags, and schema violations. Exits with code `0` if successful, or `1` with detailed error logs if formatting issues are found.
 
 ### `build`
-**Usage:** `jokateko build`
-**Description:** Generates a 100% self-contained, single-file HTML export of the current project state (CSS, JS, and all Tasks, Milestones, Strategies, and Glossary inlined into one `.html` file). This is ideal for publishing an offline snapshot to static hosting or emailing/sharing directly as a standalone file. *(Note: This does not compile the Go binary itself; it exports the user's project data and UI into a single offline HTML file).*
+**Usage:** `jokateko build [-dir <path>] [-out <file>] [--mermaidjs=cdn|bundled|none]`
+**Description:** Generates a single-file HTML export of the current project state (CSS, JS, and all Tasks, Milestones, Strategies, and Glossary inlined into one `.html` file). This is ideal for publishing a snapshot to static hosting or emailing/sharing directly as a standalone file. *(Note: This does not compile the Go binary itself; it exports the user's project data and UI into a single HTML file).*
+- `--mermaidjs` selects how Mermaid diagrams are rendered in the export:
+  - `cdn` *(default)*: loads the exact Mermaid version pinned in `web/bun.lock` from jsDelivr when a diagram is shown, verified with Subresource Integrity (SRI). The file stays small (~0.5 MB), but diagrams need network access.
+  - `bundled`: inlines the Mermaid runtime (~5.5 MB) as an inert block, executed only when a diagram is shown. The export is 100% self-contained and works fully offline.
+  - `none`: no Mermaid runtime; diagrams are shown as their source code blocks.
 
 ### `version`
 **Usage:** `jokateko version`

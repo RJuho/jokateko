@@ -68,7 +68,7 @@ Available Commands:
   serve       Start daemon, file watcher, local Web UI, and MCP server (default)
   parse       Dry-run validate configuration, markdown files, and task dependency DAG (alias: lint)
   init        Scaffold a new .jokateko/ directory and default configuration
-  build       Export self-contained static HTML offline snapshot
+  build       Export a single-file static HTML snapshot (--mermaidjs=cdn|bundled|none)
   mcp         Run MCP stdio server or proxy to active serve daemon
   version     Print binary version, commit, date, and architecture
   about       Display project information, build metadata, and MIT license

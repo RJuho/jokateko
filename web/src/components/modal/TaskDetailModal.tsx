@@ -1,3 +1,4 @@
+import { Maximize2, Minimize2, X } from 'lucide-preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { useMermaidDiagrams } from '../../hooks/useMermaidDiagrams'
 import { navigateTo, navigateToCalendar } from '../../router'
@@ -421,35 +422,9 @@ function TaskDetailDialog({ task }: { task: Task }) {
 							data-testid='task-modal-maximize-btn'
 						>
 							{isMaximized ? (
-								<svg
-									class='size-4'
-									fill='none'
-									viewBox='0 0 24 24'
-									stroke='currentColor'
-									stroke-width='2'
-									aria-hidden='true'
-								>
-									<path
-										stroke-linecap='round'
-										stroke-linejoin='round'
-										d='M9 9L4 4m0 0h5m-5 0v5m11 0V4m0 0h-5m5 0l-5 5m-6 6l-5 5m0 0h5m-5 0v-5m16 0v5m0 0h-5m5 0l-5-5'
-									/>
-								</svg>
+								<Minimize2 class='size-4' />
 							) : (
-								<svg
-									class='size-4'
-									fill='none'
-									viewBox='0 0 24 24'
-									stroke='currentColor'
-									stroke-width='2'
-									aria-hidden='true'
-								>
-									<path
-										stroke-linecap='round'
-										stroke-linejoin='round'
-										d='M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0 0l-5-5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'
-									/>
-								</svg>
+								<Maximize2 class='size-4' />
 							)}
 						</button>
 						<button
@@ -459,7 +434,7 @@ function TaskDetailDialog({ task }: { task: Task }) {
 							aria-label='Close task details'
 							data-testid='modal-close-button'
 						>
-							✕
+							<X class='size-4' />
 						</button>
 					</div>
 				</div>

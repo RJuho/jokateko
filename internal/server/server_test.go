@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha512"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -20,6 +22,7 @@ import (
 	"github.com/RJuho/jokateko/internal/server"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/internal/writer"
+	"github.com/RJuho/jokateko/web"
 )
 
 func setupTestServer(t *testing.T) (*server.Server, string, *store.Store, *server.SSEHub) {
@@ -178,6 +181,69 @@ func TestStaticUI(t *testing.T) {
 
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("expected 404 for /api/nonexistent, got %d", rec.Code)
+	}
+}
+
+func TestMermaidAssetAndRobots(t *testing.T) {
+	srv, _, _, _ := setupTestServer(t)
+
+	mermaid, err := web.GetMermaidRuntime()
+	if err != nil {
+		t.Fatalf("embedded mermaid runtime: %v", err)
+	}
+	wantJS, err := web.GetMermaidJS()
+	if err != nil {
+		t.Fatalf("embedded mermaid js: %v", err)
+	}
+
+	// 1. Versioned asset served uncompressed, cacheable, byte-identical to the embedded runtime
+	req := httptest.NewRequest(http.MethodGet, mermaid.AssetPath(), nil)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for %s, got %d", mermaid.AssetPath(), rec.Code)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "javascript") {
+		t.Errorf("expected javascript content-type, got %q", ct)
+	}
+	if cc := rec.Header().Get("Cache-Control"); !strings.Contains(cc, "immutable") {
+		t.Errorf("expected immutable Cache-Control, got %q", cc)
+	}
+	if !bytes.Equal(rec.Body.Bytes(), wantJS) {
+		t.Errorf("served mermaid runtime differs from embedded runtime")
+	}
+
+	// 2. SRI hash in the manifest matches the bytes (what the browser verifies)
+	sum := sha512.Sum384(wantJS)
+	if got := "sha384-" + base64.StdEncoding.EncodeToString(sum[:]); got != mermaid.Integrity {
+		t.Errorf("integrity mismatch: manifest %q, computed %q", mermaid.Integrity, got)
+	}
+
+	// 3. Gzip variant
+	reqGz := httptest.NewRequest(http.MethodGet, mermaid.AssetPath(), nil)
+	reqGz.Header.Set("Accept-Encoding", "gzip")
+	recGz := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(recGz, reqGz)
+	if recGz.Header().Get("Content-Encoding") != "gzip" {
+		t.Errorf("expected Content-Encoding: gzip, got %q", recGz.Header().Get("Content-Encoding"))
+	}
+
+	// 4. CSP allows the runtime by its SRI hash
+	csp := rec.Header().Get("Content-Security-Policy")
+	if !strings.Contains(csp, "'"+mermaid.Integrity+"'") {
+		t.Errorf("expected CSP script-src to contain mermaid integrity hash, got %q", csp)
+	}
+
+	// 5. robots.txt is plain text, not the SPA fallback
+	req = httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/plain") {
+		t.Errorf("expected text/plain robots.txt, got %q", ct)
+	}
+	if !strings.HasPrefix(rec.Body.String(), "User-agent:") {
+		t.Errorf("unexpected robots.txt body: %q", rec.Body.String())
 	}
 }
 

@@ -140,7 +140,7 @@ test.describe("Inlined Mermaid Diagram Rendering E2E", () => {
 
 		const lightbox = page.locator('[data-testid="mermaid-lightbox-dialog"]');
 		await expect(lightbox).toBeVisible();
-		await expect(lightbox.locator("svg")).toBeVisible();
+		await expect(lightbox.locator(".mermaid-inner svg")).toBeVisible();
 
 		const closeLightbox = page.locator('[data-testid="mermaid-lightbox-close"]');
 		await closeLightbox.click();
@@ -163,6 +163,94 @@ test.describe("Inlined Mermaid Diagram Rendering E2E", () => {
 
 		await maximizeBtn.click();
 		await expect(modalBox).toHaveClass(/max-w-2xl/);
+	});
+
+	test("pans by mouse drag and zooms with Ctrl+wheel, keyboard and buttons", async ({
+		page,
+	}) => {
+		await page.goto(`${server.url}/#task/260904-mermaid-valid-diagram`);
+		const diagram = page.locator('[data-testid="task-detail-modal"] [data-testid="mermaid-diagram"]');
+		const viewport = diagram.locator(".mermaid-viewport");
+		const svg = diagram.locator(".mermaid-inner svg");
+		const readout = diagram.locator('[data-testid="mermaid-zoom-reset"]');
+		await expect(svg).toBeVisible();
+
+		const metrics = () =>
+			viewport.evaluate((vp) => {
+				const svgRect = vp.querySelector(".mermaid-inner svg").getBoundingClientRect();
+				const vpRect = vp.getBoundingClientRect();
+				return {
+					scrollLeft: vp.scrollLeft,
+					scrollTop: vp.scrollTop,
+					overflowX: vp.scrollWidth - vp.clientWidth,
+					overflowY: vp.scrollHeight - vp.clientHeight,
+					svgWidth: svgRect.width,
+					// with scroll at 0, the diagram's left/top edge must be visible (not cut off)
+					leftGap: svgRect.left - vpRect.left + vp.scrollLeft,
+					topGap: svgRect.top - vpRect.top + vp.scrollTop,
+				};
+			});
+
+		// 1. Zooming resizes the diagram so the scroll area grows (not a CSS transform)
+		const fitWidth = (await metrics()).svgWidth;
+		for (let i = 0; i < 5; i++) await diagram.locator('[data-testid="mermaid-zoom-in"]').click();
+		await expect(readout).toHaveText("305%");
+		const zoomed = await metrics();
+		expect(zoomed.svgWidth).toBeGreaterThan(fitWidth * 2.9);
+		expect(zoomed.overflowX + zoomed.overflowY).toBeGreaterThan(0);
+
+		// 2. Every edge stays reachable: scrolled to the origin, nothing is cut off on the left/top
+		await viewport.evaluate((vp) => vp.scrollTo(0, 0));
+		const origin = await metrics();
+		expect(origin.leftGap).toBeGreaterThanOrEqual(0);
+		expect(origin.topGap).toBeGreaterThanOrEqual(0);
+
+		// 3. Mouse drag pans the diagram
+		const box = await viewport.boundingBox();
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(box.x + box.width / 2 - 80, box.y + box.height / 2 - 60, { steps: 5 });
+		await page.mouse.up();
+		const dragged = await metrics();
+		expect(dragged.scrollLeft + dragged.scrollTop).toBeGreaterThan(0);
+
+		// 4. Keyboard: 0 resets, + zooms in, - zooms out (viewport is focusable)
+		await viewport.focus();
+		await page.keyboard.press("0");
+		await expect(readout).toHaveText("100%");
+		await page.keyboard.press("+");
+		await expect(readout).toHaveText("125%");
+		await page.keyboard.press("-");
+		await expect(readout).toHaveText("100%");
+
+		// 5. Ctrl + wheel zooms around the cursor; plain wheel does not zoom
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+		await page.mouse.wheel(0, 100);
+		await expect(readout).toHaveText("100%");
+		// the plain wheel may have scrolled the modal (native scroll chaining): re-locate the viewport
+		await viewport.scrollIntoViewIfNeeded();
+		const box2 = await viewport.boundingBox();
+		await page.mouse.move(box2.x + box2.width / 2, box2.y + box2.height / 2);
+		await page.keyboard.down("Control");
+		await page.mouse.wheel(0, -300);
+		await page.keyboard.up("Control");
+		await expect(readout).not.toHaveText("100%");
+		expect((await metrics()).svgWidth).toBeGreaterThan(fitWidth * 1.1);
+
+		// 6. Fullscreen lightbox fits the whole diagram and has its own zoom controls
+		await diagram.locator('[data-testid="mermaid-expand-btn"]').click();
+		const lightbox = page.locator('[data-testid="mermaid-lightbox-dialog"]');
+		const lbViewport = lightbox.locator(".mermaid-viewport");
+		await expect(lightbox.locator(".mermaid-inner svg")).toBeVisible();
+		await expect(lightbox.locator('[data-testid="mermaid-zoom-reset"]')).toHaveText("100%");
+		const fits = await lbViewport.evaluate(
+			(vp) => vp.scrollWidth <= vp.clientWidth + 1 && vp.scrollHeight <= vp.clientHeight + 1,
+		);
+		expect(fits).toBe(true);
+		await lightbox.locator('[data-testid="mermaid-zoom-in"]').click();
+		await expect(lightbox.locator('[data-testid="mermaid-zoom-reset"]')).toHaveText("125%");
+		await page.keyboard.press("Escape");
+		await expect(lightbox).not.toBeVisible();
 	});
 
 	test("re-renders diagram seamlessly when theme is toggled", async ({

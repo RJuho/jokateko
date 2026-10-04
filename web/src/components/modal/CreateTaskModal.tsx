@@ -1,3 +1,4 @@
+import { X } from 'lucide-preact'
 import { useLayoutEffect, useState } from 'preact/hooks'
 import type { Priority, Task } from '../../schemas/models'
 import {
@@ -172,7 +173,7 @@ function CreateTaskDialog() {
 						class='btn btn-sm btn-ghost btn-circle'
 						aria-label='Close create modal'
 					>
-						✕
+						<X class='size-4' />
 					</button>
 				</div>
 

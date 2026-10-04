@@ -1,3 +1,4 @@
+import { User, X } from 'lucide-preact'
 import { useLayoutEffect } from 'preact/hooks'
 import type { Column } from '../../schemas/models'
 import { activeColumnDetailId, config } from '../../state/store'
@@ -82,7 +83,7 @@ function ColumnDetailDialog({ column }: { column: Column }) {
 						aria-label='Close modal'
 						data-testid='column-modal-close-btn'
 					>
-						✕
+						<X class='size-4' />
 					</button>
 				</div>
 
@@ -97,20 +98,7 @@ function ColumnDetailDialog({ column }: { column: Column }) {
 							data-testid='column-modal-handled-by'
 						>
 							<div class='size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5'>
-								<svg
-									class='size-4'
-									fill='none'
-									viewBox='0 0 24 24'
-									stroke='currentColor'
-									stroke-width='2'
-									aria-hidden='true'
-								>
-									<path
-										stroke-linecap='round'
-										stroke-linejoin='round'
-										d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'
-									/>
-								</svg>
+								<User class='size-4' />
 							</div>
 							<div class='flex-1 min-w-0'>
 								<div class='flex items-center gap-2'>

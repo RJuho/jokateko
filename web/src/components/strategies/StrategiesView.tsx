@@ -1,3 +1,4 @@
+import { Check, Link } from 'lucide-preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useMermaidDiagrams } from '../../hooks/useMermaidDiagrams'
 import { navigateTo } from '../../router'
@@ -177,7 +178,7 @@ export function StrategiesView() {
 	}
 
 	return (
-		<div class='flex flex-col gap-5 max-w-5xl mx-auto py-2 px-1 sm:px-2'>
+		<main class='flex flex-col gap-5 max-w-5xl mx-auto py-2 px-1 sm:px-2'>
 			{/* Page Header */}
 			<div class='flex flex-col gap-1 border-b border-base-200/80 pb-4'>
 				<h1 class='text-2xl font-black tracking-tight text-base-content'>
@@ -298,58 +299,34 @@ export function StrategiesView() {
 										aria-label={`Copy link to strategy ${s.id}`}
 									>
 										{copiedLink === s.id ? (
-											<svg
-												class='size-3.5 text-success'
-												fill='none'
-												viewBox='0 0 24 24'
-												stroke='currentColor'
-												stroke-width='2'
-												aria-hidden='true'
-											>
-												<title>Copied</title>
-												<path
-													stroke-linecap='round'
-													stroke-linejoin='round'
-													d='M5 13l4 4L19 7'
-												/>
-											</svg>
+											<Check class='size-3.5 text-success' />
 										) : (
-											<svg
-												class='size-3.5'
-												fill='none'
-												viewBox='0 0 24 24'
-												stroke='currentColor'
-												stroke-width='2'
-												aria-hidden='true'
-											>
-												<title>Copy link</title>
-												<path
-													stroke-linecap='round'
-													stroke-linejoin='round'
-													d='M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1'
-												/>
-											</svg>
+											<Link class='size-3.5' />
 										)}
 									</button>
 								</div>
 							</div>
 
-							{/* Clickable Area: Title, Tags, Summary */}
-							<button
-								type='button'
-								onClick={() => handleCardClick(s.id)}
-								class='w-full text-left flex flex-col gap-2 cursor-pointer focus:outline-hidden group'
-								aria-expanded={isOpened}
-								aria-label={`Strategy: ${s.title}`}
-							>
-								{/* Title */}
-								<h3 class='text-base/snug font-bold text-base-content transition-colors group-hover:text-primary'>
-									{s.title}
-								</h3>
+							{/* Clickable Area: Title, Tags, Summary. The toggle button's ::after overlay
+							    stretches over the whole area, while the tag filter buttons are raised
+							    above it: one toggle target without nesting buttons (invalid HTML). */}
+							<div class='relative w-full text-left flex flex-col gap-2 group'>
+								{/* Title (h2: card headings directly follow the page h1) */}
+								<button
+									type='button'
+									onClick={() => handleCardClick(s.id)}
+									class='text-left cursor-pointer focus:outline-hidden after:absolute after:inset-0'
+									aria-expanded={isOpened}
+									aria-label={`Strategy: ${s.title}`}
+								>
+									<h2 class='text-base/snug font-bold text-base-content transition-colors group-hover:text-primary'>
+										{s.title}
+									</h2>
+								</button>
 
 								{/* Tags under Tier badge and title, like on board page, no "Tags:" label */}
 								{s.tags && s.tags.length > 0 && (
-									<div class='flex flex-wrap items-center gap-1'>
+									<div class='relative z-10 flex flex-wrap items-center gap-1 self-start'>
 										{s.tags.map((tag) => (
 											<TagBadge
 												key={tag}
@@ -367,7 +344,7 @@ export function StrategiesView() {
 										{s.summary}
 									</p>
 								)}
-							</button>
+							</div>
 
 							{/* Expandable Body: Opens below summary with line divider */}
 							{isOpened
@@ -398,6 +375,6 @@ export function StrategiesView() {
 					</div>
 				)}
 			</div>
-		</div>
+		</main>
 	)
 }

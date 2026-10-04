@@ -82,6 +82,21 @@ flowchart TD
      - Valibot validates the embedded JSON snapshot on startup.
      - Preact boots in **Static Mode** with all search, filtering, and modal preview features enabled.
 
+### 2.2 Mermaid Runtime (Lazy, Pinned, SRI-Verified)
+
+Mermaid and its dependencies make up ~95% of the UI's JavaScript (~5.5 MB vs ~0.3 MB for the app). To keep startup fast, Mermaid is **not** part of the inlined app bundle. All modes use the same published, self-contained `mermaid/dist/mermaid.min.js` from the `bun.lock`-pinned package. `bundle.ts` computes its SHA-384 SRI hash at build time and writes `web/dist/mermaid.min.js.gz` and `web/dist/mermaid.json` (`{ version, integrity }`), both embedded in the binary. `web/src/utils/mermaidLoader.ts` loads the runtime only when the first diagram is rendered:
+
+| Mode | Selected by | Source | Verification |
+|---|---|---|---|
+| `serve` (live) | default | `GET /assets/mermaid-<version>.min.js` (embedded, gzip, immutable cache) | SRI `integrity` attribute; the hash is also added to CSP `script-src` |
+| `build --mermaidjs=cdn` (default) | `<meta name="jokateko-mermaid" content="cdn">` | `https://cdn.jsdelivr.net/npm/mermaid@<version>/dist/mermaid.min.js` | SRI + `crossorigin="anonymous"` (jsDelivr serves the npm file byte-for-byte) |
+| `build --mermaidjs=bundled` | `<meta … content="bundled">` | inert `<script type="text/plain" id="jokateko-mermaid-src">` block, executed on first use | embedded bytes |
+| `build --mermaidjs=none` | `<meta … content="none">` | none: Mermaid code blocks stay as code | n/a |
+
+If the runtime cannot be loaded (offline CDN, SRI mismatch), the raw code blocks are kept. Upgrading Mermaid is an explicit `bun update mermaid`; the version, CDN URL and hash follow automatically from the lockfile.
+
+**Licenses:** `cmd/genlicenses` lists only our main packages: the `dependencies` in `web/package.json` and the direct (non-`// indirect`) `go.mod` requires linked into the binary, not their transitive dependencies. Mermaid is a main package, so its license is shown in every `--mermaidjs` mode, including `none`.
+
 ---
 
 ## 3. UI Component Architecture
@@ -290,6 +305,7 @@ Bun executes `web/scripts/bundle.ts` to assemble the entire frontend into a sing
 2. Invokes `Bun.build({ entrypoints: ['src/index.tsx'], minify: true })` to compile Preact and Valibot into a single JS string.
 3. Reads `src/index.html`, replaces `<link rel="stylesheet">` with `<style>{css}</style>`, and replaces `<script src="...">` with `<script>{js}</script>`.
 4. Writes `web/dist/index.html` containing the reserved `/* JOKATEKO_PAYLOAD_PLACEHOLDER */`.
+5. Writes the separately loaded Mermaid runtime (`mermaid.min.js.gz`) and its `mermaid.json` manifest (version + SRI hash), see §2.2.
 
 ---
 

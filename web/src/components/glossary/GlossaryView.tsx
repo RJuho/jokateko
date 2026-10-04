@@ -1,3 +1,4 @@
+import { Check, Link } from 'lucide-preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useMermaidDiagrams } from '../../hooks/useMermaidDiagrams'
 import { navigateTo } from '../../router'
@@ -82,7 +83,7 @@ export function GlossaryView() {
 	}
 
 	return (
-		<div class='flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-5'>
+		<main class='flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-5'>
 			{/* Top Bar */}
 			<div class='border-b border-base-200 pb-4'>
 				<h2 class='text-xl sm:text-2xl font-bold tracking-tight text-base-content'>
@@ -138,37 +139,9 @@ export function GlossaryView() {
 										aria-label={`Copy link to glossary term ${term.title}`}
 									>
 										{copiedLink === term.id ? (
-											<svg
-												class='size-3.5 text-success'
-												fill='none'
-												viewBox='0 0 24 24'
-												stroke='currentColor'
-												stroke-width='2'
-												aria-hidden='true'
-											>
-												<title>Copied</title>
-												<path
-													stroke-linecap='round'
-													stroke-linejoin='round'
-													d='M5 13l4 4L19 7'
-												/>
-											</svg>
+											<Check class='size-3.5 text-success' />
 										) : (
-											<svg
-												class='size-3.5'
-												fill='none'
-												viewBox='0 0 24 24'
-												stroke='currentColor'
-												stroke-width='2'
-												aria-hidden='true'
-											>
-												<title>Copy link</title>
-												<path
-													stroke-linecap='round'
-													stroke-linejoin='round'
-													d='M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1'
-												/>
-											</svg>
+											<Link class='size-3.5' />
 										)}
 									</button>
 								</div>
@@ -242,6 +215,6 @@ export function GlossaryView() {
 					</div>
 				)}
 			</div>
-		</div>
+		</main>
 	)
 }

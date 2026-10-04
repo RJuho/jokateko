@@ -1,3 +1,4 @@
+import { Calendar } from 'lucide-preact'
 import type { ComponentChildren } from 'preact'
 import type { Priority } from '../../schemas/models'
 import { configuredPriorities } from '../../state/store'
@@ -172,22 +173,9 @@ export function TargetDateBadge({
 			title={`Target: ${targetAt}${titleSuffix}`}
 			data-testid='target-date-badge'
 		>
-			<svg
-				xmlns='http://www.w3.org/2000/svg'
-				class='size-3'
-				fill='none'
-				viewBox='0 0 24 24'
-				stroke='currentColor'
-				aria-hidden='true'
-			>
+			<Calendar class='size-3'>
 				<title>Target date</title>
-				<path
-					stroke-linecap='round'
-					stroke-linejoin='round'
-					stroke-width='2'
-					d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'
-				/>
-			</svg>
+			</Calendar>
 			<span>{formatted}</span>
 		</span>
 	)

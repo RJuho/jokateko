@@ -128,6 +128,14 @@ func New(cfg *config.Config, workspaceDir string, st *store.Store, wr *writer.Wr
 	mux.HandleFunc("GET /api/tags", s.handleGetTags)
 	mux.HandleFunc("GET /api/search", s.handleSearch)
 
+	// Static assets: lazily loaded Mermaid runtime and robots.txt
+	if mermaid, err := web.GetMermaidRuntime(); err == nil {
+		mux.HandleFunc("GET "+mermaid.AssetPath(), s.handleMermaidJS)
+	} else {
+		log.Printf("[WARN] Mermaid runtime unavailable, diagrams will not render: %v", err)
+	}
+	mux.HandleFunc("GET /robots.txt", s.handleRobots)
+
 	// Embedded Web UI Handler
 	mux.HandleFunc("GET /", s.handleStaticUI)
 
@@ -253,6 +261,14 @@ func (s *Server) buildCSP() string {
 	scriptSrc := append([]string(nil), csp.ScriptSrc...)
 	if scriptHash != "" && !slices.Contains(scriptSrc, scriptHash) {
 		scriptSrc = append(scriptSrc, scriptHash)
+	}
+	// The lazily loaded Mermaid runtime carries an SRI integrity attribute; listing
+	// its hash lets CSP3 browsers allow exactly that file even without 'self'.
+	if mermaid, err := web.GetMermaidRuntime(); err == nil {
+		mermaidHash := "'" + mermaid.Integrity + "'"
+		if !slices.Contains(scriptSrc, mermaidHash) {
+			scriptSrc = append(scriptSrc, mermaidHash)
+		}
 	}
 
 	styleSrc := append([]string(nil), csp.StyleSrc...)

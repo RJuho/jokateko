@@ -142,6 +142,27 @@ func TestCLI_Build(t *testing.T) {
 	if _, err := os.Stat(outFile); os.IsNotExist(err) {
 		t.Fatalf("expected output file to exist at %s", outFile)
 	}
+	if !strings.Contains(stdout.String(), "mermaidjs=cdn") {
+		t.Errorf("expected default mermaidjs=cdn in stdout, got:\n%s", stdout.String())
+	}
+
+	// --mermaidjs accepts bundled and rejects unknown modes
+	stdout.Reset()
+	stderr.Reset()
+	if code := run([]string{"build", "-dir", tempDir, "-out", outFile, "--mermaidjs=bundled"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("build --mermaidjs=bundled failed: %s", stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "mermaidjs=bundled") {
+		t.Errorf("expected mermaidjs=bundled in stdout, got:\n%s", stdout.String())
+	}
+
+	stderr.Reset()
+	if code := run([]string{"build", "-dir", tempDir, "-out", outFile, "--mermaidjs=inline"}, &stdout, &stderr); code == 0 {
+		t.Fatal("expected build to fail for invalid --mermaidjs value")
+	}
+	if !strings.Contains(stderr.String(), "invalid mermaidjs mode") {
+		t.Errorf("expected invalid mode error, got: %s", stderr.String())
+	}
 }
 
 func TestCLI_Serve(t *testing.T) {

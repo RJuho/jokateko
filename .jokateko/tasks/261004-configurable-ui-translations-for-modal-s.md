@@ -2,10 +2,10 @@
 title = 'Configurable UI translations for modal strings'
 status = 'backlog'
 priority = 'low'
-tags = ['frontend', 'backend', 'i18n']
+tags = ['backend', 'frontend', 'i18n']
 summary = 'Move the hard-coded English strings in the Web UI modals (task detail, edit, create, column detail, About) to t() keys, and make every UI translation key configurable from config.toml.'
 created_at = '2026-10-04T17:50:44Z'
-changed_at = '2026-10-04T17:50:44Z'
+changed_at = '2026-10-04T19:29:00Z'
 +++
 
 ## Context
