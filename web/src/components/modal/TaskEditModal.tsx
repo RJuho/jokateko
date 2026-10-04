@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useLayoutEffect, useState } from 'preact/hooks'
 import type { Priority, Task } from '../../schemas/models'
 import {
 	activeTaskDetailId,
@@ -10,6 +10,7 @@ import {
 	tasks,
 	upsertTask,
 } from '../../state/store'
+import { countCriteria } from '../../utils/criteria'
 
 function formatForDatetimeLocal(val?: string): string {
 	if (!val) return ''
@@ -26,6 +27,14 @@ function formatForDatetimeLocal(val?: string): string {
 export function TaskEditModal() {
 	const taskId = activeTaskEditId.value
 	const task = tasks.value.find((t) => t.id === taskId)
+	if (!taskId || !task) {
+		return null
+	}
+	// Keyed by id: form state is initialized fresh for every edited task
+	return <TaskEditDialog key={task.id} task={task} />
+}
+
+function TaskEditDialog({ task }: { task: Task }) {
 	const cols = config.value.board.columns
 	const milestoneList = milestones.value
 	const priorityList = configuredPriorities.value
@@ -33,7 +42,7 @@ export function TaskEditModal() {
 		activeTaskEditId.value = null
 	}
 
-	useEffect(() => {
+	useLayoutEffect(() => {
 		function handleKeyDown(e: KeyboardEvent) {
 			if (e.key === 'Escape') {
 				closeModal()
@@ -42,10 +51,6 @@ export function TaskEditModal() {
 		window.addEventListener('keydown', handleKeyDown)
 		return () => window.removeEventListener('keydown', handleKeyDown)
 	}, [])
-
-	if (!taskId || !task) {
-		return null
-	}
 
 	const editableStates = config.value.board?.editable_states || ['backlog']
 	const isBodyEditable = editableStates.includes(task.status)
@@ -66,9 +71,6 @@ export function TaskEditModal() {
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault()
-		if (!task) {
-			return
-		}
 		if (!title.trim()) {
 			setError('Title is required')
 			return
@@ -104,12 +106,6 @@ export function TaskEditModal() {
 		}
 
 		if (mode.value !== 'live') {
-			const total = body
-				.split('\n')
-				.filter((l) => /^\s*-\s*\[[ xX]\]/.test(l)).length
-			const completed = body
-				.split('\n')
-				.filter((l) => /^\s*-\s*\[[xX]\]/.test(l)).length
 			const updatedTask: Task = {
 				...task,
 				title: title.trim(),
@@ -122,8 +118,9 @@ export function TaskEditModal() {
 				tags: parsedTags,
 				dependencies: parsedDeps,
 				body,
-				total_criteria: total,
-				completed_criteria: completed,
+				// Server-rendered HTML is stale after a local edit
+				body_html: body === task.body ? task.body_html : undefined,
+				...countCriteria(body),
 			}
 			upsertTask(updatedTask)
 			closeModal()

@@ -1,11 +1,13 @@
-import { config, openAboutModal } from '../../state/store'
+import {
+	config,
+	displayVersion as formatVersion,
+	openAboutModal,
+} from '../../state/store'
 import { t } from '../../utils/i18n'
 
 export function Footer() {
 	const build = config.value.build
-	const version =
-		build?.version && build.version !== 'dev' ? build.version : '0.1.0'
-	const displayVersion = version.startsWith('v') ? version : `v${version}`
+	const displayVersion = formatVersion(build)
 
 	return (
 		<footer

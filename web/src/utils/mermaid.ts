@@ -1,39 +1,11 @@
 import mermaid from 'mermaid'
-
-const darkThemes = new Set([
-	'sunset',
-	'dark',
-	'synthwave',
-	'halloween',
-	'forest',
-	'aqua',
-	'black',
-	'luxury',
-	'dracula',
-	'business',
-	'night',
-	'coffee',
-	'dim',
-	'abyss',
-])
-
-export function isDarkTheme(): boolean {
-	if (typeof document === 'undefined') return false
-	const currentTheme = document.documentElement.getAttribute('data-theme') || ''
-	if (currentTheme) {
-		return darkThemes.has(currentTheme)
-	}
-	return (
-		typeof window !== 'undefined'
-		&& (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
-	)
-}
+import { isDarkTheme } from '../state/theme'
 
 let mermaidInitialized = false
 let currentTheme: 'dark' | 'default' | null = null
 
 export function configureMermaid(forceTheme?: 'dark' | 'default') {
-	const theme = forceTheme || (isDarkTheme() ? 'dark' : 'default')
+	const theme = forceTheme || (isDarkTheme.peek() ? 'dark' : 'default')
 	if (mermaidInitialized && currentTheme === theme) {
 		return
 	}
@@ -75,11 +47,16 @@ export function openDiagramLightbox(svgHtml: string) {
 
 	const close = () => {
 		dialog.remove()
-		document.removeEventListener('keydown', onKey)
+		window.removeEventListener('keydown', onKey, true)
 	}
 
+	// Capture phase + stopPropagation: Escape closes only the lightbox,
+	// not the task modal underneath (which listens on window, bubble phase).
 	const onKey = (e: KeyboardEvent) => {
-		if (e.key === 'Escape') close()
+		if (e.key === 'Escape') {
+			e.stopPropagation()
+			close()
+		}
 	}
 
 	dialog
@@ -88,7 +65,7 @@ export function openDiagramLightbox(svgHtml: string) {
 	dialog.addEventListener('click', (e) => {
 		if (e.target === dialog) close()
 	})
-	document.addEventListener('keydown', onKey)
+	window.addEventListener('keydown', onKey, true)
 	document.body.appendChild(dialog)
 }
 
@@ -213,8 +190,6 @@ export async function renderMermaidDiagrams(
 
 		const diagramId = `mermaid-svg-${Date.now()}-${++diagramSeq}`
 		try {
-			// Validate syntax with parse first
-			await mermaid.parse(rawCode)
 			const { svg } = await mermaid.render(diagramId, rawCode)
 
 			const wrapper = createDiagramElement(svg, rawCode)
@@ -255,7 +230,6 @@ export async function reRenderMermaidDiagrams(
 
 		const diagramId = `mermaid-svg-${Date.now()}-${++diagramSeq}`
 		try {
-			await mermaid.parse(rawCode)
 			const { svg } = await mermaid.render(diagramId, rawCode)
 			const inner = el.querySelector<HTMLElement>('.mermaid-inner')
 			if (inner) {

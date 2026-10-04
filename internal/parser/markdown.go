@@ -146,7 +146,8 @@ func RenderHTML(source []byte) (string, error) {
 		if checked {
 			checkedAttr = " checked"
 		}
-		return fmt.Sprintf(`<input type="checkbox"%s class="checkbox checkbox-primary checkbox-xs mt-0.5 shrink-0 cursor-pointer" data-checkbox-index="%d" />`, checkedAttr, cbIndex)
+		// name keeps browsers' form-field audits happy (fields need an id or name).
+		return fmt.Sprintf(`<input type="checkbox"%s name="criterion-%d" class="checkbox checkbox-primary checkbox-xs mt-0.5 shrink-0 cursor-pointer" data-checkbox-index="%d" />`, checkedAttr, cbIndex, cbIndex)
 	})
 
 	return formattedHTML, nil

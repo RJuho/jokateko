@@ -1,3 +1,4 @@
+import { effect } from '@preact/signals'
 import {
 	activeGlossaryId,
 	activeStrategyId,
@@ -316,8 +317,6 @@ export function syncFromHash() {
 	if (activeGlossaryId.value !== (route.glossaryId || null)) {
 		activeGlossaryId.value = route.glossaryId || null
 	}
-
-	updateDocumentTitle()
 }
 
 /**
@@ -383,6 +382,9 @@ export function initRouter() {
 	// Initial sync from current URL
 	syncFromHash()
 
+	// Keep document.title in sync with every signal it reads (route, entities, config)
+	const stopTitleEffect = effect(updateDocumentTitle)
+
 	const handleLocationChange = () => {
 		syncFromHash()
 	}
@@ -391,6 +393,7 @@ export function initRouter() {
 	window.addEventListener('hashchange', handleLocationChange)
 
 	return () => {
+		stopTitleEffect()
 		window.removeEventListener('popstate', handleLocationChange)
 		window.removeEventListener('hashchange', handleLocationChange)
 	}

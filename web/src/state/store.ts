@@ -12,17 +12,23 @@ import {
 	type Task,
 	type TierConfig,
 } from '../schemas/models'
+import { matchesQuery, normalizeQuery } from '../utils/search'
 import { compareTasks, type SortMode } from '../utils/sort'
+import { DONE_STATUS } from '../utils/status'
 import type { AppMode } from './bootstrap'
 import { saveStateToStorage } from './storage'
 
-export type Tab =
-	| 'board'
-	| 'milestones'
-	| 'strategies'
-	| 'glossary'
-	| 'calendar'
+export type Tab = 'board' | 'strategies' | 'glossary' | 'calendar'
 export type { SortMode }
+
+/** Version shown when the build carries no release version (dev builds). */
+export const FALLBACK_VERSION = '0.1.0'
+
+export function displayVersion(build: SnapshotConfig['build']): string {
+	const version =
+		build?.version && build.version !== 'dev' ? build.version : FALLBACK_VERSION
+	return version.startsWith('v') ? version : `v${version}`
+}
 
 export interface FilterState {
 	searchQuery: string
@@ -77,7 +83,7 @@ const initialConfig: SnapshotConfig = {
 			{ id: 'ready', name: 'Ready', color: '#38bdf8' },
 			{ id: 'in_progress', name: 'In Progress', color: '#fbbf24' },
 			{ id: 'in_review', name: 'In Review', color: '#c084fc' },
-			{ id: 'done', name: 'Done', color: '#34d399' },
+			{ id: DONE_STATUS, name: 'Done', color: '#34d399' },
 		],
 		editable_states: ['backlog'],
 		creatable_states: ['backlog'],
@@ -180,23 +186,12 @@ export const filteredTasks = computed(() => {
 		selectedStates,
 	} = filters.value
 
-	const normalizedQuery = searchQuery.trim().toLowerCase()
+	const normalizedQuery = normalizeQuery(searchQuery)
 
 	return currentTasks.filter((task) => {
 		// 1. Text search across title, id, summary, body, and tags
-		if (normalizedQuery !== '') {
-			const inTitle = task.title.toLowerCase().includes(normalizedQuery)
-			const inId = task.id.toLowerCase().includes(normalizedQuery)
-			const inSummary = (task.summary || '')
-				.toLowerCase()
-				.includes(normalizedQuery)
-			const inBody = (task.body || '').toLowerCase().includes(normalizedQuery)
-			const inTags =
-				task.tags?.some((t) => t.toLowerCase().includes(normalizedQuery))
-				?? false
-			if (!inTitle && !inId && !inSummary && !inBody && !inTags) {
-				return false
-			}
+		if (!matchesQuery(task, normalizedQuery)) {
+			return false
 		}
 
 		// 2. Tag filter
@@ -305,7 +300,14 @@ export function getCurrentSnapshot(): Snapshot {
 	}
 }
 
+/**
+ * Saves state to localStorage. Only client mode boots from localStorage;
+ * live mode is server-backed and static mode is a read-only snapshot.
+ */
 export function persistCurrentState(): void {
+	if (mode.peek() !== 'client') {
+		return
+	}
 	try {
 		saveStateToStorage(getCurrentSnapshot())
 	} catch (err) {

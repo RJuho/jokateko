@@ -10,6 +10,7 @@ import {
 	filters,
 	isCreateTaskModalOpen,
 	milestones,
+	mode,
 } from '../../state/store'
 import {
 	type CalendarDayInfo,
@@ -25,6 +26,7 @@ import {
 	getWeekCalendar,
 } from '../../utils/date'
 import { t } from '../../utils/i18n'
+import { isDoneStatus } from '../../utils/status'
 import { FilterBar } from '../common/FilterBar'
 
 const monthShortKeys = [
@@ -131,7 +133,7 @@ export function CalendarView() {
 		> = {}
 
 		for (const task of taskList) {
-			const isDone = task.status === 'done'
+			const isDone = isDoneStatus(task.status)
 			let dateKey: string | null = null
 			let isTargeted = false
 
@@ -364,8 +366,20 @@ export function CalendarView() {
 		}
 	}
 
+	// Same rule as the board column "+": creating needs the live daemon and a
+	// creatable default state. Static exports and client mode have no backend.
+	const boardCfg = config.value.board
+	const creatableStates = boardCfg.creatable_states ?? ['backlog']
+	const canCreateTask =
+		mode.value === 'live'
+		&& (creatableStates.length === 0
+			|| creatableStates.includes(boardCfg.default_create_state || 'backlog'))
+
 	function handleAddTaskForDate(e: MouseEvent, dateKey: string) {
 		e.stopPropagation()
+		if (!canCreateTask) {
+			return
+		}
 		createTaskInitialTargetDate.value = `${dateKey}T09:00`
 		isCreateTaskModalOpen.value = true
 	}
@@ -728,8 +742,8 @@ export function CalendarView() {
 																		? 'bg-primary text-primary-content font-bold'
 																		: 'text-base-content/80 hover:bg-base-200'
 																}`}
-																title={t('add_task_date')}
-																aria-label={`${t('add_task_date')} ${day.dateKey}`}
+																title={t('view_week_tasks')}
+																aria-label={`${t('view_week_tasks')} ${day.dateKey}`}
 															>
 																{day.dayOfMonth}
 															</button>
@@ -746,22 +760,24 @@ export function CalendarView() {
 																	{scheduled.length}
 																</span>
 															)}
-															<button
-																type='button'
-																onClick={(e) =>
-																	handleAddTaskForDate(e, day.dateKey)
-																}
-																class={`btn btn-ghost btn-xs btn-circle size-6 sm:size-5 text-base-content/60 hover:text-primary transition-opacity cursor-pointer ${
-																	isWeekView
-																		? 'opacity-100 md:opacity-0 md:group-hover:opacity-100'
-																		: 'opacity-0 group-hover:opacity-100'
-																}`}
-																title={t('add_task_date')}
-																aria-label={`${t('add_task_date')} ${day.dateKey}`}
-																data-testid={`calendar-add-task-${day.dateKey}`}
-															>
-																+
-															</button>
+															{canCreateTask && (
+																<button
+																	type='button'
+																	onClick={(e) =>
+																		handleAddTaskForDate(e, day.dateKey)
+																	}
+																	class={`btn btn-ghost btn-xs btn-circle size-6 sm:size-5 text-base-content/60 hover:text-primary transition-opacity cursor-pointer ${
+																		isWeekView
+																			? 'opacity-100 md:opacity-0 md:group-hover:opacity-100'
+																			: 'opacity-0 group-hover:opacity-100'
+																	}`}
+																	title={t('add_task_date')}
+																	aria-label={`${t('add_task_date')} ${day.dateKey}`}
+																	data-testid={`calendar-add-task-${day.dateKey}`}
+																>
+																	+
+																</button>
+															)}
 														</div>
 													</div>
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { useMermaidDiagrams } from '../../hooks/useMermaidDiagrams'
 import { navigateTo } from '../../router'
 import {
 	activeStrategyId,
@@ -6,12 +7,10 @@ import {
 	filters,
 	strategies,
 } from '../../state/store'
+import { copyToClipboard } from '../../utils/clipboard'
 import { getContrastTextColor } from '../../utils/colors'
 import { t } from '../../utils/i18n'
-import {
-	renderMermaidDiagrams,
-	reRenderMermaidDiagrams,
-} from '../../utils/mermaid'
+import { matchesQuery, normalizeQuery } from '../../utils/search'
 import { TagBadge } from '../common/Badge'
 
 export function StrategiesView() {
@@ -27,33 +26,14 @@ export function StrategiesView() {
 
 	const listRef = useRef<HTMLDivElement>(null)
 
-	const searchQuery = filters.value.searchQuery.trim().toLowerCase()
+	const searchQuery = normalizeQuery(filters.value.searchQuery)
 
 	// Render Mermaid diagrams in open strategy bodies and update on theme change
-	useEffect(() => {
-		const el = listRef.current
-		if (!el) return
-
-		renderMermaidDiagrams(el)
-
-		const observer = new MutationObserver((mutations) => {
-			for (const mutation of mutations) {
-				if (
-					mutation.type === 'attributes'
-					&& mutation.attributeName === 'data-theme'
-				) {
-					reRenderMermaidDiagrams(el)
-				}
-			}
-		})
-
-		observer.observe(document.documentElement, {
-			attributes: true,
-			attributeFilter: ['data-theme'],
-		})
-
-		return () => observer.disconnect()
-	}, [openedStrategyIds, activeStrategyId.value, allStrategies])
+	useMermaidDiagrams(listRef, [
+		openedStrategyIds,
+		activeStrategyId.value,
+		allStrategies,
+	])
 
 	// If initial or current URL anchor has a strategy, ensure it is open and scroll into it
 	useEffect(() => {
@@ -114,25 +94,7 @@ export function StrategiesView() {
 			return false
 		}
 		// Search query
-		if (searchQuery !== '') {
-			const matchesTitle = s.title.toLowerCase().includes(searchQuery)
-			const matchesSummary = s.summary?.toLowerCase().includes(searchQuery)
-			const matchesId = s.id.toLowerCase().includes(searchQuery)
-			const matchesTags = s.tags?.some((t) =>
-				t.toLowerCase().includes(searchQuery),
-			)
-			const matchesBody = s.body?.toLowerCase().includes(searchQuery)
-			if (
-				!matchesTitle
-				&& !matchesSummary
-				&& !matchesId
-				&& !matchesTags
-				&& !matchesBody
-			) {
-				return false
-			}
-		}
-		return true
+		return matchesQuery(s, searchQuery)
 	})
 
 	const tiers: Array<{
@@ -191,20 +153,22 @@ export function StrategiesView() {
 		}
 	}
 
-	function handleCopyId(e: MouseEvent, id: string) {
+	async function handleCopyId(e: MouseEvent, id: string) {
 		e.stopPropagation()
-		navigator.clipboard.writeText(id)
-		setCopiedId(id)
-		setTimeout(() => setCopiedId(null), 1500)
+		if (await copyToClipboard(id)) {
+			setCopiedId(id)
+			setTimeout(() => setCopiedId(null), 1500)
+		}
 	}
 
-	function handleCopyLink(e: MouseEvent, id: string) {
+	async function handleCopyLink(e: MouseEvent, id: string) {
 		e.stopPropagation()
 		if (typeof window !== 'undefined') {
 			const url = `${window.location.origin}${window.location.pathname}#strategy/${id}`
-			navigator.clipboard.writeText(url)
-			setCopiedLink(id)
-			setTimeout(() => setCopiedLink(null), 1500)
+			if (await copyToClipboard(url)) {
+				setCopiedLink(id)
+				setTimeout(() => setCopiedLink(null), 1500)
+			}
 		}
 	}
 

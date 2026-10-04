@@ -146,6 +146,13 @@ test.describe("Inlined Mermaid Diagram Rendering E2E", () => {
 		await closeLightbox.click();
 		await expect(lightbox).not.toBeVisible();
 
+		// 6b. Escape closes only the lightbox, task modal stays open underneath
+		await expandBtn.click();
+		await expect(lightbox).toBeVisible();
+		await page.keyboard.press("Escape");
+		await expect(lightbox).not.toBeVisible();
+		await expect(modal).toBeVisible();
+
 		// 7. Verify Task Detail Modal Maximize / Restore button
 		const maximizeBtn = modal.locator('[data-testid="task-modal-maximize-btn"]');
 		await expect(maximizeBtn).toBeVisible();

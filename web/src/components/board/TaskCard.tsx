@@ -2,6 +2,8 @@ import { useMemo, useState } from 'preact/hooks'
 import { navigateTo } from '../../router'
 import type { Task } from '../../schemas/models'
 import { mode, tasks } from '../../state/store'
+import { copyToClipboard } from '../../utils/clipboard'
+import { isDoneStatus } from '../../utils/status'
 import { PriorityBadge, TagBadge, TargetDateBadge } from '../common/Badge'
 
 interface TaskCardProps {
@@ -13,11 +15,12 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 	const isLive = mode.value === 'live'
 	const [idCopied, setIdCopied] = useState(false)
 
-	function handleCopyId(e: MouseEvent) {
+	async function handleCopyId(e: MouseEvent) {
 		e.stopPropagation()
-		navigator.clipboard.writeText(task.id)
-		setIdCopied(true)
-		setTimeout(() => setIdCopied(false), 1500)
+		if (await copyToClipboard(task.id)) {
+			setIdCopied(true)
+			setTimeout(() => setIdCopied(false), 1500)
+		}
 	}
 
 	// Calculate if task has unfinished dependencies
@@ -27,7 +30,7 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 		}
 		return task.dependencies.some((depId) => {
 			const dep = tasks.value.find((t) => t.id === depId)
-			return dep?.status !== 'done'
+			return !isDoneStatus(dep?.status)
 		})
 	}, [task.dependencies, tasks.value])
 

@@ -151,4 +151,12 @@ test.describe('Static Export & Offline Execution E2E', () => {
 		await expect(glossProse).toBeVisible()
 		await expect(glossProse.locator('p')).not.toHaveCount(0)
 	})
+
+	test('hides calendar add-task buttons in static export (no backend)', async ({
+		page,
+	}) => {
+		await page.goto(`file://${exportPath}#calendar`)
+		await expect(page.locator('[data-testid^="calendar-week-row-"]').first()).toBeVisible()
+		await expect(page.locator('[data-testid^="calendar-add-task-"]')).toHaveCount(0)
+	})
 })

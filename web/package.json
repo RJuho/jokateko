@@ -13,20 +13,20 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@preact/signals": "^2.11.1",
+		"@preact/signals": "^2.11.3",
 		"@tailwindcss/typography": "^0.5.20",
-		"bun-plugin-tailwind": "latest",
-		"daisyui": "^5",
-		"mermaid": "^11.17.2",
-		"preact": "latest",
+		"bun-plugin-tailwind": "^0.1.2",
+		"daisyui": "^5.7.47",
+		"mermaid": "^12.1.0",
+		"preact": "11.0.0",
 		"tailwindcss": "^4",
-		"valibot": "latest"
+		"valibot": "1.5.0"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.5.11",
-		"@playwright/test": "^1.62.1",
-		"@types/bun": "^1.4.0",
-		"@types/node": "latest",
-		"typescript": "latest"
+		"@biomejs/biome": "^2.5.15",
+		"@playwright/test": "^1.63.0",
+		"@types/bun": "^1.4.2",
+		"@types/node": "26.6.4",
+		"typescript": "^7.0.2"
 	}
 }

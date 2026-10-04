@@ -1,17 +1,25 @@
-import { useEffect } from 'preact/hooks'
+import { useLayoutEffect } from 'preact/hooks'
+import type { Column } from '../../schemas/models'
 import { activeColumnDetailId, config } from '../../state/store'
 
 export function ColumnDetailModal() {
 	const columnId = activeColumnDetailId.value
+	const column = config.value.board.columns.find((c) => c.id === columnId)
+	if (!columnId || !column) {
+		return null
+	}
+	return <ColumnDetailDialog key={column.id} column={column} />
+}
+
+function ColumnDetailDialog({ column }: { column: Column }) {
 	const boardCfg = config.value.board
-	const column = boardCfg.columns.find((c) => c.id === columnId)
 	const mcpInstructions = config.value.mcp?.instructions
 
 	function closeModal() {
 		activeColumnDetailId.value = null
 	}
 
-	useEffect(() => {
+	useLayoutEffect(() => {
 		function handleKeyDown(e: KeyboardEvent) {
 			if (e.key === 'Escape') {
 				closeModal()
@@ -20,10 +28,6 @@ export function ColumnDetailModal() {
 		window.addEventListener('keydown', handleKeyDown)
 		return () => window.removeEventListener('keydown', handleKeyDown)
 	}, [])
-
-	if (!columnId || !column) {
-		return null
-	}
 
 	const creatableStates = boardCfg.creatable_states ?? ['backlog']
 	const isCreatable =

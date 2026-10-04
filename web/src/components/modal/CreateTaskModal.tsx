@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useLayoutEffect, useState } from 'preact/hooks'
 import type { Priority, Task } from '../../schemas/models'
 import {
 	activeTaskDetailId,
@@ -11,9 +11,14 @@ import {
 	mode,
 	upsertTask,
 } from '../../state/store'
+import { countCriteria } from '../../utils/criteria'
 
 export function CreateTaskModal() {
-	const isOpen = isCreateTaskModalOpen.value
+	// The dialog unmounts while closed, so every open starts with a fresh form
+	return isCreateTaskModalOpen.value ? <CreateTaskDialog /> : null
+}
+
+function CreateTaskDialog() {
 	const cols = config.value.board.columns
 	const milestoneList = milestones.value
 	const priorityList = configuredPriorities.value
@@ -24,7 +29,7 @@ export function CreateTaskModal() {
 		isCreateTaskModalOpen.value = false
 	}
 
-	useEffect(() => {
+	useLayoutEffect(() => {
 		function handleKeyDown(e: KeyboardEvent) {
 			if (e.key === 'Escape') {
 				closeModal()
@@ -33,10 +38,6 @@ export function CreateTaskModal() {
 		window.addEventListener('keydown', handleKeyDown)
 		return () => window.removeEventListener('keydown', handleKeyDown)
 	}, [])
-
-	if (!isOpen) {
-		return null
-	}
 
 	const [title, setTitle] = useState('')
 	const [summary, setSummary] = useState('')
@@ -94,12 +95,6 @@ export function CreateTaskModal() {
 		}
 
 		if (mode.value !== 'live') {
-			const total = body
-				.split('\n')
-				.filter((l) => /^\s*-\s*\[[ xX]\]/.test(l)).length
-			const completed = body
-				.split('\n')
-				.filter((l) => /^\s*-\s*\[[xX]\]/.test(l)).length
 			const now = new Date().toISOString()
 			const createdTask: Task = {
 				id: `task-${Date.now().toString(36)}`,
@@ -112,8 +107,7 @@ export function CreateTaskModal() {
 				tags: parsedTags,
 				dependencies: parsedDeps,
 				body,
-				total_criteria: total,
-				completed_criteria: completed,
+				...countCriteria(body),
 				created_at: now,
 				changed_at: now,
 			}

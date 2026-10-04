@@ -89,6 +89,26 @@ This is **bold** text and ` + "`code`" + `.`
 	}
 }
 
+func TestRenderHTMLTaskCheckboxes(t *testing.T) {
+	md := "- [ ] first\n- [x] second\n"
+
+	html, err := parser.RenderHTML([]byte(md))
+	if err != nil {
+		t.Fatalf("expected successful HTML render, got: %v", err)
+	}
+
+	for _, want := range []string{
+		`<input type="checkbox" name="criterion-1" `,
+		`data-checkbox-index="1"`,
+		`<input type="checkbox" checked name="criterion-2" `,
+		`data-checkbox-index="2"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("missing %q in rendered HTML: %s", want, html)
+		}
+	}
+}
+
 func TestParseTaskWithCriteria(t *testing.T) {
 	doc := `+++
 title = "Implement Database"

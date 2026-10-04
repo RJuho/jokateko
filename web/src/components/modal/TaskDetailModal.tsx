@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
+import { useMermaidDiagrams } from '../../hooks/useMermaidDiagrams'
 import { navigateTo, navigateToCalendar } from '../../router'
 import type { Task } from '../../schemas/models'
 import {
@@ -12,10 +13,9 @@ import {
 	tasks,
 	upsertTask,
 } from '../../state/store'
-import {
-	renderMermaidDiagrams,
-	reRenderMermaidDiagrams,
-} from '../../utils/mermaid'
+import { copyToClipboard } from '../../utils/clipboard'
+import { countCriteria, setCriterionChecked } from '../../utils/criteria'
+import { isDoneStatus } from '../../utils/status'
 import { PriorityBadge, TagBadge, TargetDateBadge } from '../common/Badge'
 
 function formatDateTime(isoStr?: string) {
@@ -35,9 +35,25 @@ function formatDateTime(isoStr?: string) {
 	}
 }
 
+/**
+ * Locally edited body: server-rendered body_html no longer matches, so drop it
+ * and let the view fall back to plain text until the server re-renders.
+ */
+function withLocalBody(task: Task, body: string): Task {
+	return { ...task, body, body_html: undefined, ...countCriteria(body) }
+}
+
 export function TaskDetailModal() {
 	const taskId = activeTaskDetailId.value
 	const task = tasks.value.find((t) => t.id === taskId)
+	if (!taskId || !task) {
+		return null
+	}
+	// Keyed by id: switching tasks remounts and resets all local dialog state
+	return <TaskDetailDialog key={task.id} task={task} />
+}
+
+function TaskDetailDialog({ task }: { task: Task }) {
 	const isLive = mode.value === 'live'
 	const cols = config.value.board.columns
 	const [isDeleting, setIsDeleting] = useState(false)
@@ -59,7 +75,8 @@ export function TaskDetailModal() {
 	}
 
 	// Exit modal when pressing ESC
-	useEffect(() => {
+	// Layout effect: listener must exist as soon as the dialog is in the DOM
+	useLayoutEffect(() => {
 		function handleKeyDown(e: KeyboardEvent) {
 			if (e.key === 'Escape') {
 				closeModal()
@@ -68,10 +85,6 @@ export function TaskDetailModal() {
 		window.addEventListener('keydown', handleKeyDown)
 		return () => window.removeEventListener('keydown', handleKeyDown)
 	}, [])
-
-	if (!taskId || !task) {
-		return null
-	}
 
 	const currentColumn = cols.find((c) => c.id === task.status)
 	const editableStates = config.value.board?.editable_states || ['backlog']
@@ -88,32 +101,19 @@ export function TaskDetailModal() {
 	const [isMaximized, setIsMaximized] = useState(false)
 
 	useEffect(() => {
-		setEditedBody(task?.body || '')
+		setEditedBody(task.body || '')
 		setIsEditingBody(false)
 		setSaveBodyError(null)
 		setNoteInput('')
 		setAddNoteError(null)
-	}, [task?.id, task?.status])
+	}, [task.status])
 
 	async function handleSaveBody() {
-		if (!task) return
 		setIsSavingBody(true)
 		setSaveBodyError(null)
 
-		const total = editedBody
-			.split('\n')
-			.filter((l) => /^\s*[-*]\s+\[[ xX]\]/.test(l)).length
-		const completed = editedBody
-			.split('\n')
-			.filter((l) => /^\s*[-*]\s+\[[xX]\]/.test(l)).length
-
-		const updatedTask: Task = {
-			...task,
-			body: editedBody,
-			total_criteria: total,
-			completed_criteria: completed,
-		}
-		upsertTask(updatedTask)
+		const previousTask = task
+		upsertTask(withLocalBody(task, editedBody))
 
 		if (isLive) {
 			try {
@@ -130,6 +130,7 @@ export function TaskDetailModal() {
 				upsertTask(serverTask)
 				setIsEditingBody(false)
 			} catch (err) {
+				upsertTask(previousTask)
 				setSaveBodyError(err instanceof Error ? err.message : String(err))
 			} finally {
 				setIsSavingBody(false)
@@ -141,7 +142,7 @@ export function TaskDetailModal() {
 	}
 
 	async function handleAddNote() {
-		if (!task || !noteInput.trim()) return
+		if (!noteInput.trim()) return
 		setIsAddingNote(true)
 		setAddNoteError(null)
 
@@ -179,40 +180,26 @@ export function TaskDetailModal() {
 			} else {
 				newBody = `${newBody.trimEnd()}\n\n## Notes\n\n${noteBlock}`
 			}
-			const total = newBody
-				.split('\n')
-				.filter((l) => /^\s*[-*]\s+\[[ xX]\]/.test(l)).length
-			const completed = newBody
-				.split('\n')
-				.filter((l) => /^\s*[-*]\s+\[[xX]\]/.test(l)).length
-			upsertTask({
-				...task,
-				body: newBody,
-				total_criteria: total,
-				completed_criteria: completed,
-			})
+			upsertTask(withLocalBody(task, newBody))
 			setNoteInput('')
 			setIsAddingNote(false)
 		}
 	}
 
 	function openEditModal() {
-		activeTaskEditId.value = task?.id ?? null
+		activeTaskEditId.value = task.id
 		activeTaskDetailId.value = null
 	}
 
-	function handleCopyId() {
-		if (!task) return
-		navigator.clipboard.writeText(task.id)
-		setIdCopied(true)
-		setTimeout(() => setIdCopied(false), 1500)
+	async function handleCopyId() {
+		if (await copyToClipboard(task.id)) {
+			setIdCopied(true)
+			setTimeout(() => setIdCopied(false), 1500)
+		}
 	}
 
 	async function handleDelete() {
-		if (
-			!task
-			|| !confirm(`Are you sure you want to delete task "${task.title}"?`)
-		) {
+		if (!confirm(`Are you sure you want to delete task "${task.title}"?`)) {
 			return
 		}
 		setIsDeleting(true)
@@ -243,36 +230,16 @@ export function TaskDetailModal() {
 	}
 
 	async function toggleCheckbox(checkboxIndex: number, newChecked: boolean) {
-		if (!task) return
+		const newBody = setCriterionChecked(
+			task.body || '',
+			checkboxIndex,
+			newChecked,
+		)
+		if (newBody === null) return
 
-		let count = 0
-		const lines = (task.body || '').split('\n')
-		let lineFound = false
-		for (let i = 0; i < lines.length; i++) {
-			if (/^\s*[-*]\s+\[[ xX]\]/.test(lines[i])) {
-				count++
-				if (count === checkboxIndex) {
-					lines[i] = newChecked
-						? lines[i].replace(/\[[ ]\]/, '[x]')
-						: lines[i].replace(/\[[xX]\]/, '[ ]')
-					lineFound = true
-					break
-				}
-			}
-		}
-		if (!lineFound) return
-
-		const newBody = lines.join('\n')
-		const total = lines.filter((l) => /^\s*[-*]\s+\[[ xX]\]/.test(l)).length
-		const completed = lines.filter((l) => /^\s*[-*]\s+\[[xX]\]/.test(l)).length
-
-		const updatedTask: Task = {
-			...task,
-			body: newBody,
-			total_criteria: total,
-			completed_criteria: completed,
-		}
-		upsertTask(updatedTask)
+		// Optimistic: keep body_html so the clicked checkbox stays rendered in place
+		const previousTask = task
+		upsertTask({ ...task, body: newBody, ...countCriteria(newBody) })
 
 		if (isLive) {
 			try {
@@ -281,12 +248,14 @@ export function TaskDetailModal() {
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ body: newBody }),
 				})
-				if (res.ok) {
-					const serverTask = await res.json()
-					upsertTask(serverTask)
+				if (!res.ok) {
+					throw new Error(`HTTP ${res.status}`)
 				}
+				const serverTask = await res.json()
+				upsertTask(serverTask)
 			} catch (err) {
 				console.warn('Failed to toggle checkbox on server:', err)
+				upsertTask(previousTask)
 			}
 		}
 	}
@@ -318,33 +287,10 @@ export function TaskDetailModal() {
 
 		el.addEventListener('click', handleClick)
 		return () => el.removeEventListener('click', handleClick)
-	}, [isLive, task?.id, task?.body])
+	}, [isLive, task.id, task.body])
 
 	// Render Mermaid diagrams within task body and re-render on theme change
-	useEffect(() => {
-		const el = bodyRef.current
-		if (!el) return
-
-		renderMermaidDiagrams(el)
-
-		const observer = new MutationObserver((mutations) => {
-			for (const mutation of mutations) {
-				if (
-					mutation.type === 'attributes'
-					&& mutation.attributeName === 'data-theme'
-				) {
-					reRenderMermaidDiagrams(el)
-				}
-			}
-		})
-
-		observer.observe(document.documentElement, {
-			attributes: true,
-			attributeFilter: ['data-theme'],
-		})
-
-		return () => observer.disconnect()
-	}, [task?.id, task?.body_html, isEditingBody])
+	useMermaidDiagrams(bodyRef, [task.body_html, isEditingBody])
 
 	return (
 		/* Backdrop: Click outside exits modal */
@@ -595,6 +541,8 @@ export function TaskDetailModal() {
 							</div>
 						)}
 						<textarea
+							id='task-body-editor'
+							name='body'
 							value={editedBody}
 							onInput={(e) =>
 								setEditedBody((e.target as HTMLTextAreaElement).value)
@@ -668,6 +616,8 @@ export function TaskDetailModal() {
 							</div>
 						)}
 						<textarea
+							id='task-note-input'
+							name='note'
 							value={noteInput}
 							onInput={(e) =>
 								setNoteInput((e.target as HTMLTextAreaElement).value)
@@ -701,7 +651,7 @@ export function TaskDetailModal() {
 						<ul class='space-y-1.5'>
 							{task.dependencies.map((depId) => {
 								const dep = tasks.value.find((t) => t.id === depId)
-								const isDone = dep?.status === 'done'
+								const isDone = isDoneStatus(dep?.status)
 								return (
 									<li
 										key={depId}

@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { useMermaidDiagrams } from '../../hooks/useMermaidDiagrams'
 import { navigateTo } from '../../router'
 import { activeGlossaryId, filters, glossary } from '../../state/store'
+import { copyToClipboard } from '../../utils/clipboard'
 import { t } from '../../utils/i18n'
-import {
-	renderMermaidDiagrams,
-	reRenderMermaidDiagrams,
-} from '../../utils/mermaid'
+import { matchesQuery, normalizeQuery } from '../../utils/search'
 import { TagBadge } from '../common/Badge'
 
 export function GlossaryView() {
@@ -16,33 +15,10 @@ export function GlossaryView() {
 
 	const gridRef = useRef<HTMLDivElement>(null)
 
-	const searchQuery = filters.value.searchQuery.trim().toLowerCase()
+	const searchQuery = normalizeQuery(filters.value.searchQuery)
 
 	// Render Mermaid diagrams in open glossary bodies and update on theme change
-	useEffect(() => {
-		const el = gridRef.current
-		if (!el) return
-
-		renderMermaidDiagrams(el)
-
-		const observer = new MutationObserver((mutations) => {
-			for (const mutation of mutations) {
-				if (
-					mutation.type === 'attributes'
-					&& mutation.attributeName === 'data-theme'
-				) {
-					reRenderMermaidDiagrams(el)
-				}
-			}
-		})
-
-		observer.observe(document.documentElement, {
-			attributes: true,
-			attributeFilter: ['data-theme'],
-		})
-
-		return () => observer.disconnect()
-	}, [openedTermIds, activeGlossaryId.value, allTerms])
+	useMermaidDiagrams(gridRef, [openedTermIds, activeGlossaryId.value, allTerms])
 
 	// If initial or current URL anchor has a term, open its body and scroll into view
 	useEffect(() => {
@@ -66,18 +42,9 @@ export function GlossaryView() {
 		setOpenedTermIds(new Set())
 	}, [searchQuery])
 
-	const visibleTerms = allTerms.filter((term) => {
-		if (searchQuery === '') {
-			return true
-		}
-		const inTitle = term.title.toLowerCase().includes(searchQuery)
-		const inId = term.id.toLowerCase().includes(searchQuery)
-		const inSummary = term.summary.toLowerCase().includes(searchQuery)
-		const inBody = (term.body || '').toLowerCase().includes(searchQuery)
-		const inTags =
-			term.tags?.some((t) => t.toLowerCase().includes(searchQuery)) ?? false
-		return inTitle || inId || inSummary || inBody || inTags
-	})
+	const visibleTerms = allTerms.filter((term) =>
+		matchesQuery(term, searchQuery),
+	)
 
 	function handleCardClick(id: string) {
 		setOpenedTermIds((prev) => {
@@ -92,20 +59,22 @@ export function GlossaryView() {
 		navigateTo(`glossary/${id}`)
 	}
 
-	function handleCopyId(e: MouseEvent, id: string) {
+	async function handleCopyId(e: MouseEvent, id: string) {
 		e.stopPropagation()
-		navigator.clipboard.writeText(id)
-		setCopiedId(id)
-		setTimeout(() => setCopiedId(null), 1500)
+		if (await copyToClipboard(id)) {
+			setCopiedId(id)
+			setTimeout(() => setCopiedId(null), 1500)
+		}
 	}
 
-	function handleCopyLink(e: MouseEvent, id: string) {
+	async function handleCopyLink(e: MouseEvent, id: string) {
 		e.stopPropagation()
 		if (typeof window !== 'undefined') {
 			const url = `${window.location.origin}${window.location.pathname}#glossary/${id}`
-			navigator.clipboard.writeText(url)
-			setCopiedLink(id)
-			setTimeout(() => setCopiedLink(null), 1500)
+			if (await copyToClipboard(url)) {
+				setCopiedLink(id)
+				setTimeout(() => setCopiedLink(null), 1500)
+			}
 		}
 	}
 

@@ -2,6 +2,7 @@ import type { ComponentChildren } from 'preact'
 import type { Priority } from '../../schemas/models'
 import { configuredPriorities } from '../../state/store'
 import { getContrastTextColor } from '../../utils/colors'
+import { isDoneStatus } from '../../utils/status'
 
 interface PriorityBadgeProps {
 	priority: Priority
@@ -141,7 +142,7 @@ export function TargetDateBadge({
 			date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
 	})
 
-	const isDone = status === 'done'
+	const isDone = isDoneStatus(status)
 	let badgeClass = 'badge-ghost text-base-content/70'
 	let titleSuffix = ''
 

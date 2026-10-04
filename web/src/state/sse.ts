@@ -27,6 +27,9 @@ let eventSource: EventSource | null = null
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let reconnectDelay = 1000
 let isExplicitlyClosed = false
+// True once a connection was lost; the next successful open must re-sync
+// state because events emitted while disconnected were never received.
+let needsResync = false
 
 export function startSSE(endpoint = '/api/events'): void {
 	if (eventSource) {
@@ -47,6 +50,11 @@ export function startSSE(endpoint = '/api/events'): void {
 	eventSource.onopen = () => {
 		connectionStatus.value = 'connected'
 		reconnectDelay = 1000
+		if (needsResync) {
+			needsResync = false
+			fetchLiveBoard()
+			fetchLiveEntities()
+		}
 	}
 
 	eventSource.onerror = () => {
@@ -54,6 +62,7 @@ export function startSSE(endpoint = '/api/events'): void {
 			return
 		}
 		connectionStatus.value = 'disconnected'
+		needsResync = true
 		stopSSE(false)
 		scheduleReconnect(endpoint)
 	}

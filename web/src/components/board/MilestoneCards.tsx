@@ -3,6 +3,7 @@ import { navigateTo } from '../../router'
 import type { Milestone } from '../../schemas/models'
 import { filters, milestones, tasks } from '../../state/store'
 import { t } from '../../utils/i18n'
+import { isDoneStatus } from '../../utils/status'
 
 export function MilestoneCards() {
 	const milestoneList = milestones.value
@@ -17,7 +18,7 @@ export function MilestoneCards() {
 	function isCompleted(m: Milestone): boolean {
 		if (m.status === 'closed') return true
 		const mTasks = allTasks.filter((t) => t.milestone === m.id)
-		return mTasks.length > 0 && mTasks.every((t) => t.status === 'done')
+		return mTasks.length > 0 && mTasks.every((t) => isDoneStatus(t.status))
 	}
 
 	const openMilestones = milestoneList.filter((m) => !isCompleted(m))
@@ -42,7 +43,7 @@ export function MilestoneCards() {
 				{visibleMilestones.map((m) => {
 					const isSelected = currentMilestone === m.id
 					const mTasks = allTasks.filter((t) => t.milestone === m.id)
-					const doneTasks = mTasks.filter((t) => t.status === 'done')
+					const doneTasks = mTasks.filter((t) => isDoneStatus(t.status))
 					const completed = isCompleted(m)
 
 					return (

@@ -3,9 +3,11 @@ import staticLicensesData from '../../data/licenses.json'
 import {
 	aboutModalInitialTab,
 	config,
+	displayVersion as formatVersion,
 	isAboutModalOpen,
 	mode,
 } from '../../state/store'
+import { copyToClipboard } from '../../utils/clipboard'
 
 export function normalizeExternalURL(raw?: string): string {
 	if (!raw) return ''
@@ -69,9 +71,7 @@ export function AboutModal() {
 	const isOpen = isAboutModalOpen.value
 	const isLive = mode.value === 'live'
 	const build = config.value.build
-	const version =
-		build?.version && build.version !== 'dev' ? build.version : '1.0.0'
-	const displayVersion = version.startsWith('v') ? version : `v${version}`
+	const displayVersion = formatVersion(build)
 
 	const [activeTab, setActiveTab] = useState<'about' | 'licenses'>(
 		aboutModalInitialTab.value || 'about',
@@ -147,10 +147,11 @@ export function AboutModal() {
 	const goCount = report.packages.filter((p) => p.ecosystem === 'go').length
 	const npmCount = report.packages.filter((p) => p.ecosystem === 'npm').length
 
-	function copyLicenseText(text: string) {
-		navigator.clipboard.writeText(text)
-		setCopiedText(true)
-		setTimeout(() => setCopiedText(false), 2000)
+	async function copyLicenseText(text: string) {
+		if (await copyToClipboard(text)) {
+			setCopiedText(true)
+			setTimeout(() => setCopiedText(false), 2000)
+		}
 	}
 
 	if (!isOpen) return null
@@ -338,6 +339,8 @@ export function AboutModal() {
 								{/* Search Input */}
 								<div class='relative flex-1'>
 									<input
+										id='license-search'
+										name='license-search'
 										type='search'
 										class='input input-sm w-full bg-base-200/60 focus:bg-base-100 text-xs'
 										placeholder='Search package name, license type...'

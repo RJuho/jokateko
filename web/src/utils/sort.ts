@@ -1,4 +1,5 @@
 import type { Column, Priority } from '../schemas/models'
+import { DONE_STATUS, isDoneStatus } from './status'
 
 export type SortMode =
 	| 'default'
@@ -50,7 +51,7 @@ export function compareTasks(
 
 		// For 'done' state, default sorting is Recently changed (changed_at desc),
 		// since priority does not matter anymore when task is done.
-		if (col.id === 'done' || a.status === 'done') {
+		if (col.id === DONE_STATUS || isDoneStatus(a.status)) {
 			if (customSortBy && customSortBy !== 'default') {
 				const res = compareField(a, b, customSortBy, customSortDir)
 				if (res !== 0) {
