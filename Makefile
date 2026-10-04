@@ -35,6 +35,7 @@ install-ai-tools:
 	@mkdir -p /home/bun/.local/bin
 	curl -fsSL https://antigravity.google/cli/install.sh | bash
 	curl -fsSL https://claude.ai/install.sh | bash
+	bunx skills update
 
 # Generate type-safe queries using sqlc, TypeScript models, and open-source licenses
 generate:
