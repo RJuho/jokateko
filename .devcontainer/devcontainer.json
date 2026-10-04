@@ -16,10 +16,6 @@
 		"4321": {
 			"label": "Web dev server",
 			"onAutoForward": "notify"
-		},
-		"8080": {
-			"label": "Caw Server",
-			"onAutoForward": "notify"
 		}
 	},
 	"customizations": {

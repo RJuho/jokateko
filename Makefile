@@ -29,12 +29,12 @@ all: test build
 install-tools:
 	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 
-# Install latest AI agent tooling (gopls Go MCP server, Caw CLI, and Google Antigravity CLI)
+# Install latest AI agent tooling (gopls Go MCP server, Claude Code CLI, and Google Antigravity CLI)
 install-ai-tools:
 	go install golang.org/x/tools/gopls@latest
 	@mkdir -p /home/bun/.local/bin
-	curl -L https://github.com/04mg/caw/releases/latest/download/caw-linux-amd64 -o /home/bun/.local/bin/caw && chmod +x /home/bun/.local/bin/caw
 	curl -fsSL https://antigravity.google/cli/install.sh | bash
+	curl -fsSL https://claude.ai/install.sh | bash
 
 # Generate type-safe queries using sqlc, TypeScript models, and open-source licenses
 generate:
