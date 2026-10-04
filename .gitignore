@@ -51,3 +51,5 @@ test-results/
 .jokateko/cache/
 .agents/cache/
 
+# SKILLS
+.agents/skills/
