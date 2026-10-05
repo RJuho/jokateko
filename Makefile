@@ -94,7 +94,7 @@ install: build
 
 # Run code diagnostics and vet
 lint:
-	@test -z "$$(gofmt -l cmd internal web test)" || { echo "gofmt needed:"; gofmt -l cmd internal web test; exit 1; }
+	@test -z "$$(gofmt -l cmd internal web tests)" || { echo "gofmt needed:"; gofmt -l cmd internal web tests; exit 1; }
 	CGO_ENABLED=0 go vet ./...
 
 # Clean built artifacts
