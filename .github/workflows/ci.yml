@@ -16,6 +16,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Read-only token. Pull requests from forks get the same (GitHub never grants them write access);
+# the devcontainer image must be a public package so their runs can pull it.
 permissions:
   contents: read
   packages: read
@@ -32,7 +34,7 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -42,26 +44,34 @@ jobs:
       - name: Run Go Unit Tests
         run: make test
 
+      # Compare against the PR base, or against the commit before this push (all commits of a
+      # multi-commit push). Run E2E when the range is unknown (new branch, force push, manual run).
       - name: Check for Web or E2E Changes
         id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            DIFF=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
-          else
-            DIFF=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "web/")
+          if [ "$EVENT" = "pull_request" ]; then BASE="$PR_BASE"; else BASE="$PUSH_BEFORE"; fi
+          if [ "$EVENT" = "workflow_dispatch" ] || [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+            || ! DIFF=$(git diff --name-only "$BASE" HEAD 2>/dev/null); then
+            echo "Change range unknown -> E2E testing will run."
+            echo "has_web_changes=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          echo "Detected changed files:"
+          echo "Changed files since $BASE:"
           echo "$DIFF"
-          if echo "$DIFF" | grep -qE '^(web/|tests/(e2e|lighthouse)/|playwright\.config\.ts)'; then
-            echo "has_web_changes=true" >> $GITHUB_OUTPUT
+          if echo "$DIFF" | grep -qE '^(web/|tests/(e2e|lighthouse)/|playwright\.config\.ts|Makefile|\.github/workflows/)'; then
+            echo "has_web_changes=true" >> "$GITHUB_OUTPUT"
             echo "Web or E2E changes detected -> E2E testing will run."
           else
-            echo "has_web_changes=false" >> $GITHUB_OUTPUT
+            echo "has_web_changes=false" >> "$GITHUB_OUTPUT"
             echo "No Web or E2E changes detected -> Skipping E2E testing."
           fi
 
       - name: Run Playwright E2E Tests
-        if: steps.changes.outputs.has_web_changes == 'true' || github.event_name == 'workflow_dispatch'
+        if: steps.changes.outputs.has_web_changes == 'true'
         run: make e2e-test
 
       - name: Build Binary & Validate Project

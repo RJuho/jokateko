@@ -51,4 +51,4 @@ Welcome, and held to the same review bar as any other change. The agent works th
 
 1. Make sure `main` is green and every task in the release milestone is done.
 2. Tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
-3. The release workflow cross-compiles the binaries, publishes them with `checksums.txt` and generated release notes, and pushes the Docker images to `ghcr.io/rjuho`.
+3. The release workflow cross-compiles the binaries, publishes them with `checksums.txt` and generated release notes, and pushes the Docker images to `ghcr.io/rjuho`. A tag with a suffix (`v0.1.0-rc1`) becomes a GitHub pre-release and doesn't move the `latest` image tag.

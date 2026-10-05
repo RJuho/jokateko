@@ -1,5 +1,8 @@
 name: Release
 
+# A tag vX.Y.Z publishes a stable release (binaries, images tagged X.Y.Z and latest).
+# A tag with a suffix, e.g. v0.1.0-rc1, publishes a GitHub pre-release and images tagged
+# 0.1.0-rc1 only; `latest` is left untouched.
 on:
   push:
     tags:
@@ -7,18 +10,24 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version tag (e.g. v0.1.0)'
+        description: 'Release version tag (e.g. v0.1.0, or v0.1.0-rc1 for a pre-release)'
         required: true
         default: 'v0.1.0'
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
+
+env:
+  VERSION: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}
+  PRERELEASE: ${{ contains(github.ref_type == 'tag' && github.ref_name || inputs.version, '-') }}
 
 jobs:
   binaries:
     name: Cross-Compile Static Binaries
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub release
+      packages: read  # pull the devcontainer image
     container:
       image: ghcr.io/rjuho/jokateko-devcontainer:latest
       options: --user root
@@ -27,19 +36,19 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Build and Cross-Compile Static Binaries
-        run: |
-          VERSION=${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}
-          make cross-compile VERSION=$VERSION
+        run: make cross-compile VERSION=$VERSION
 
       - name: Create GitHub Release and Upload Assets
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}
+          tag_name: ${{ env.VERSION }}
+          prerelease: ${{ env.PRERELEASE == 'true' }}
+          make_latest: ${{ env.PRERELEASE == 'true' && 'false' || 'true' }}
           files: |
             bin/jokateko-linux-amd64
             bin/jokateko-linux-arm64
@@ -52,18 +61,23 @@ jobs:
   devcontainer:
     name: Build & Publish Devcontainer Image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push ghcr.io/rjuho/jokateko-devcontainer
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -71,16 +85,17 @@ jobs:
 
       - name: Extract Devcontainer metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/rjuho/jokateko-devcontainer
+          flavor: latest=false
           tags: |
-            type=semver,pattern={{version}}
-            type=raw,value=latest
-            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=semver,pattern={{version}},value=${{ env.VERSION }}
+            type=raw,value=latest,enable=${{ env.PRERELEASE != 'true' }}
 
       - name: Build and push devcontainer image
-        uses: docker/build-push-action@v7
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: .devcontainer/Dockerfile
@@ -93,18 +108,21 @@ jobs:
     name: Build & Publish Scratch Docker Image
     runs-on: ubuntu-latest
     needs: [binaries, devcontainer]
+    permissions:
+      contents: read
+      packages: write # push ghcr.io/rjuho/jokateko
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -112,21 +130,22 @@ jobs:
 
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/rjuho/jokateko
+          flavor: latest=false
           tags: |
-            type=semver,pattern={{version}}
-            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
-            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=semver,pattern={{version}},value=${{ env.VERSION }}
+            type=raw,value=latest,enable=${{ env.PRERELEASE != 'true' }}
 
+      # Build from the exact devcontainer image this run just pushed (by digest), not a moving tag.
       - name: Build and push multi-arch scratch image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: ./Dockerfile
           build-args: |
-            DEVCONTAINER_IMAGE=ghcr.io/rjuho/jokateko-devcontainer:latest
+            DEVCONTAINER_IMAGE=ghcr.io/rjuho/jokateko-devcontainer@${{ needs.devcontainer.outputs.digest }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
