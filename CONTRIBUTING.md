@@ -50,5 +50,8 @@ Welcome, and held to the same review bar as any other change. The agent works th
 ## Releases (maintainers)
 
 1. Make sure `main` is green and every task in the release milestone is done.
-2. Tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
-3. The release workflow cross-compiles the binaries, publishes them with `checksums.txt` and generated release notes, and pushes the Docker images to `ghcr.io/rjuho`. A tag with a suffix (`v0.1.0-rc1`) becomes a GitHub pre-release and doesn't move the `latest` image tag.
+2. In [CHANGELOG.md](CHANGELOG.md), move the `[Unreleased]` entries under a new `## [X.Y.Z] - YYYY-MM-DD` heading, update the compare links at the bottom, and commit.
+3. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+4. The release workflow cross-compiles the binaries, publishes them with `checksums.txt`, and pushes the Docker images to `ghcr.io/rjuho`. A tag with a suffix (`v0.1.0-rc1`) becomes a GitHub pre-release and doesn't move the `latest` image tag.
+
+The release page links to the CHANGELOG for the curated highlights, followed by GitHub's generated list of merged pull requests and contributors. Pre-releases don't need their own CHANGELOG section.

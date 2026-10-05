@@ -1,0 +1,45 @@
+# Dependabot only proposes updates to dependencies that already exist; every PR is reviewed
+# against the dependency policy (see CONTRIBUTING.md). Minor and patch updates are grouped
+# into one weekly PR per ecosystem; major updates arrive as separate PRs.
+#
+# Not covered here:
+# - Bun: Dependabot does version updates only, no security updates. Run `bun audit` in web/.
+# - Go toolchain (`ARG GO_VERSION` in .devcontainer/Dockerfile, `go` line in go.mod): update by hand.
+# - Root Dockerfile: builds from our own devcontainer image, pinned by digest in the release workflow.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      go-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: bun
+    directory: /web
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      web-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      actions-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directory: /.devcontainer
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      devcontainer-minor-patch:
+        update-types: [minor, patch]
