@@ -8,6 +8,8 @@ dist-kanban
 .gopath
 playwright-report
 test-results
+lighthouse-report
+coverage.out
 web/playwright-report
 web/test-results
 .playwright-cli

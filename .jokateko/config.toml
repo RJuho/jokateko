@@ -5,6 +5,9 @@ name = "Jokateko"
 description = "Local, Markdown-driven Kanban and task management"
 
 [server]
+# 0.0.0.0 is needed so the host machine can reach `jokateko serve` running inside the
+# devcontainer (forwarded port 8080). Jokateko has no authentication: outside a
+# trusted container, keep the default "127.0.0.1".
 host = "0.0.0.0"
 port = 8080
 open_browser = false

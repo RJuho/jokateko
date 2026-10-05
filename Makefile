@@ -1,4 +1,4 @@
-.PHONY: all build install test cover clean clean-cache generate install-tools install-ai-tools ui-build lint e2e-test lighthouse-test cross-compile docker-build devcontainer-build fuzz-markdown fuzz-api fuzz-mcp fuzz-all chaos-test
+.PHONY: all build install test cover clean clean-cache generate install-tools install-ai-tools skills skills-update ui-build lint e2e-test lighthouse-test cross-compile docker-build devcontainer-build fuzz-markdown fuzz-api fuzz-mcp fuzz-all chaos-test
 
 # Binary name, output directory and install location
 BINARY_NAME := jokateko
@@ -35,13 +35,25 @@ all: test build
 install-tools:
 	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 
-# Install latest AI agent tooling (gopls Go MCP server, Claude Code CLI, and Google Antigravity CLI)
+# Pinned version of the agent-skills CLI (https://github.com/vercel-labs/skills)
+SKILLS_CLI := skills@1.7.0
+
+# Restore the project's agent skills into .agents/skills/ (gitignored) from skills-lock.json,
+# so the .claude/skills/* symlinks resolve. Run once after cloning.
+skills:
+	bunx $(SKILLS_CLI) experimental_install
+
+# Maintainers only: update all agent skills to their latest versions and rewrite skills-lock.json
+skills-update:
+	bunx $(SKILLS_CLI) update -p -y
+
+# Optional, not needed to build or test: installs third-party AI agent CLIs (gopls MCP server,
+# Claude Code, Google Antigravity) at their latest versions by piping each vendor's install script to bash
 install-ai-tools:
 	go install golang.org/x/tools/gopls@latest
 	@mkdir -p $(INSTALL_DIR)
 	curl -fsSL https://antigravity.google/cli/install.sh | bash
 	curl -fsSL https://claude.ai/install.sh | bash
-	bunx skills update -p -y
 
 # Generate type-safe queries using sqlc, TypeScript models, and open-source licenses
 generate:

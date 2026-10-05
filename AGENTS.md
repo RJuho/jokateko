@@ -9,12 +9,12 @@ More resources:
 - [Valibot documentation](https://valibot.dev/llms.txt)
 - [daisyUI documentation](https://daisyui.com/llms.txt)
 
-Remember to check SKILLS and inspect the active MCP server to see what tools are available and review their schemas.
+Remember to check SKILLS (restore them with `make skills` after cloning) and inspect the active MCP server to see what tools are available and review their schemas.
 
 ## Workflow
 *   Follow given task, document key details to Jokateko Tasks, or if suitable Strategies or Glossary. Check Jokateko MCP tools for Tasks, Strategies and Glossary.
-*   Do not make 'got commit' by yourself, everything must be validated by human.
-*   When you are done, leave task to 'In Preview' state to wait for human check. Also build and install Jokateko to '/home/bun/.local/bin/' with `make install`.
+*   Do not make a git commit by yourself, everything must be validated by human.
+*   When you are done, leave the task in the 'In Review' (`in_review`) column to wait for human check. Also build and install Jokateko with `make install` (installs to `INSTALL_DIR`, default `~/.local/bin`), so the MCP server picks up your changes.
 
 ## 1. Project Overview
 This project is a local, Markdown-driven Kanban and task management tool designed for both human developers and AI agents. It operates on a "Tasks-as-Code" and "Spec-First" methodology, where the repository files are the absolute source of truth. The architecture relies on a local backend that handles safe file writing and provides structured Model Context Protocol (MCP) interfaces to AI agents.
@@ -31,7 +31,7 @@ Agents MUST NOT introduce any new libraries, frameworks, or dependencies without
 
 ## 3. Build Process and Platform Support
 The software is distributed as an auditable, zero-dependency single executable across macOS, Linux, and Windows. 
-1.  **Web UI (Bun):** The frontend (HTML + inlined CSS + inlined JS) is compiled into a single self-contained `dist/index.html` file using Bun.
+1.  **Web UI (Bun):** The frontend (HTML + inlined CSS + inlined JS) is compiled into a single self-contained `web/dist/index.html` file using Bun.
 2.  **Go Binary:** The Go compiler utilizes the `//go:embed` feature to bake the compiled web UI directly into the final backend executable.
 
 ## 4. Testing and Deterministic Validation
@@ -46,7 +46,7 @@ AI agents MUST NOT perform raw file edits, creations, or deletions directly insi
 **Tool Discovery:** Always check with the active MCP server (or MCP environment tools list) to discover what tools are available and inspect their latest parameter schemas.
 
 All operations on tasks, milestones, strategies, and glossary terms MUST be executed exclusively through the provided Jokateko Model Context Protocol (MCP) tools:
-*   **Tasks:** `create_task`, `get_task`, `list_tasks`, `update_task_content`, `update_task_status`, `update_task_item`, `add_task_note`, `complete_task`, `delete_task`
+*   **Tasks:** `create_task`, `get_task`, `list_tasks`, `update_task_content`, `update_task_status`, `list_task_items`, `update_task_item`, `add_task_note`, `set_task_target`, `complete_task`, `delete_task`
 *   **Dependencies:** `add_task_dependency`, `remove_task_dependency`
 *   **Milestones:** `create_milestone`, `get_milestone`, `list_milestones`, `update_milestone`, `delete_milestone`
 *   **Strategies:** `create_strategy`, `get_strategy`, `list_strategies`, `update_strategy`, `delete_strategy`

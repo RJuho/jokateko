@@ -7,9 +7,10 @@
 		]
 	},
 	"remoteUser": "bun",
-	"forwardPorts": [3000, 4321, 8080],
+	"postCreateCommand": "make skills",
+	"forwardPorts": [8080, 4321],
 	"portsAttributes": {
-		"3000": {
+		"8080": {
 			"label": "Jokateko Web",
 			"onAutoForward": "notify"
 		},
