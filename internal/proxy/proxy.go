@@ -73,8 +73,9 @@ type Runner struct {
 	localEngine   *localEngine
 	switching     bool
 
-	cachedInitMsg   jsonrpc.Message
-	cachedInitNotif jsonrpc.Message
+	cachedInitMsg   *jsonrpc.Request
+	cachedInitNotif *jsonrpc.Request
+	replaySeq       atomic.Int64
 
 	localStarts      atomic.Int64
 	localCloses      atomic.Int64
@@ -464,6 +465,21 @@ func (r *Runner) startLocalEngine(ctx context.Context) (*localEngine, sdk_mcp.Co
 	return engine, localConn, nil
 }
 
+// replayTimeout bounds how long a handshake replay waits for the backend's
+// initialize response.
+const replayTimeout = 5 * time.Second
+
+// replayIDPrefix marks request IDs the proxy issues itself. Clients use
+// numbers or their own string prefixes, so these never clash with an
+// in-flight client request.
+const replayIDPrefix = "jokateko-proxy-replay-"
+
+// replayHandshake brings a fresh stateful backend to the state the client's
+// session is in by replaying the cached legacy initialize handshake. The
+// initialize request is sent under a proxy-private ID and its response is
+// consumed here, never forwarded to the client. SEP-2575 clients (which open
+// with server/discover) cache nothing, so this is a no-op for them: every
+// request they send carries its own protocol _meta.
 func (r *Runner) replayHandshake(ctx context.Context, conn sdk_mcp.Connection) error {
 	r.mu.RLock()
 	initMsg := r.cachedInitMsg
@@ -474,15 +490,36 @@ func (r *Runner) replayHandshake(ctx context.Context, conn sdk_mcp.Connection) e
 		return nil
 	}
 
-	if err := conn.Write(ctx, initMsg); err != nil {
+	id, err := jsonrpc.MakeID(replayIDPrefix + strconv.FormatInt(r.replaySeq.Add(1), 10))
+	if err != nil {
+		return fmt.Errorf("replay initialize failed: %w", err)
+	}
+	replay := *initMsg
+	replay.ID = id
+
+	ctx, cancel := context.WithTimeout(ctx, replayTimeout)
+	defer cancel()
+
+	if err := conn.Write(ctx, &replay); err != nil {
 		return fmt.Errorf("replay initialize failed: %w", err)
 	}
 
-	resp, err := conn.Read(ctx)
-	if err != nil {
-		return fmt.Errorf("read replay initialize response failed: %w", err)
+	// Skip anything the backend sends before the matching response, such as
+	// log notifications; none of it belongs to the client.
+	for {
+		msg, err := conn.Read(ctx)
+		if err != nil {
+			return fmt.Errorf("read replay initialize response failed: %w", err)
+		}
+		resp, ok := msg.(*jsonrpc.Response)
+		if !ok || resp.ID != id {
+			continue
+		}
+		if resp.Error != nil {
+			return fmt.Errorf("replay initialize rejected: %w", resp.Error)
+		}
+		break
 	}
-	_ = resp
 
 	if initNotif != nil {
 		if err := conn.Write(ctx, initNotif); err != nil {
@@ -493,27 +530,28 @@ func (r *Runner) replayHandshake(ctx context.Context, conn sdk_mcp.Connection) e
 	return nil
 }
 
-type rpcMethodDetector struct {
-	Method string `json:"method"`
-}
-
+// inspectClientMessage caches the legacy initialize handshake for replay.
+// server/discover is deliberately not cached: a fresh backend does not need
+// it, because SEP-2575 clients repeat their protocol version and capabilities
+// in the _meta of every request.
 func (r *Runner) inspectClientMessage(msg jsonrpc.Message) {
-	data, err := json.Marshal(msg)
-	if err != nil {
-		return
-	}
-	var d rpcMethodDetector
-	if err := json.Unmarshal(data, &d); err != nil {
+	req, ok := msg.(*jsonrpc.Request)
+	if !ok {
 		return
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if d.Method == "initialize" {
-		r.cachedInitMsg = msg
-	} else if d.Method == "notifications/initialized" {
-		r.cachedInitNotif = msg
+	switch req.Method {
+	case "initialize":
+		if !req.IsCall() {
+			return
+		}
+		r.mu.Lock()
+		r.cachedInitMsg = req
+		r.mu.Unlock()
+	case "notifications/initialized":
+		r.mu.Lock()
+		r.cachedInitNotif = req
+		r.mu.Unlock()
 	}
 }
 
@@ -546,13 +584,10 @@ func (r *Runner) switchToProxy(ctx context.Context) error {
 		r.mu.Unlock()
 	}()
 
+	// No handshake replay: the daemon serves stateless Streamable HTTP, which
+	// gives every request a fresh, already-initialized session.
 	daemonConn, err := r.connectDaemon(ctx)
 	if err != nil {
-		return err
-	}
-
-	if err := r.replayHandshake(ctx, daemonConn); err != nil {
-		_ = daemonConn.Close()
 		return err
 	}
 

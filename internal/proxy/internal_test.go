@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -16,17 +17,39 @@ import (
 )
 
 // fakeConn is a scripted sdk_mcp.Connection used to drive replayHandshake.
+// Read first drains prelude, then answers the last written request.
 type fakeConn struct {
 	mu        sync.Mutex
 	writes    []jsonrpc.Message
 	failWrite map[int]error // 0-based write index -> error
 	readErr   error
+	prelude   []jsonrpc.Message // returned by Read before the reply
+	replyErr  error             // error carried by the reply
+	noReply   bool              // block until ctx is done instead of replying
 	closed    bool
 }
 
-func (c *fakeConn) Read(context.Context) (jsonrpc.Message, error) {
+func (c *fakeConn) Read(ctx context.Context) (jsonrpc.Message, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.readErr != nil {
 		return nil, c.readErr
+	}
+	if len(c.prelude) > 0 {
+		m := c.prelude[0]
+		c.prelude = c.prelude[1:]
+		return m, nil
+	}
+	if c.noReply {
+		c.mu.Unlock()
+		<-ctx.Done()
+		c.mu.Lock()
+		return nil, ctx.Err()
+	}
+	for _, w := range slices.Backward(c.writes) {
+		if req, ok := w.(*jsonrpc.Request); ok && req.IsCall() {
+			return &jsonrpc.Response{ID: req.ID, Result: []byte(`{}`), Error: c.replyErr}, nil
+		}
 	}
 	return &jsonrpc.Response{}, nil
 }
@@ -59,14 +82,24 @@ func mustDecode(t *testing.T, raw string) jsonrpc.Message {
 	return m
 }
 
+func mustDecodeRequest(t *testing.T, raw string) *jsonrpc.Request {
+	t.Helper()
+	req, ok := mustDecode(t, raw).(*jsonrpc.Request)
+	if !ok {
+		t.Fatalf("%s is not a request", raw)
+	}
+	return req
+}
+
 func TestReplayHandshake(t *testing.T) {
-	initMsg := mustDecode(t, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`)
-	notif := mustDecode(t, `{"jsonrpc":"2.0","method":"notifications/initialized"}`)
+	initMsg := mustDecodeRequest(t, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`)
+	notif := mustDecodeRequest(t, `{"jsonrpc":"2.0","method":"notifications/initialized"}`)
 	boom := errors.New("boom")
+	clientID, _ := jsonrpc.MakeID(float64(1))
 
 	tests := []struct {
 		name       string
-		init, note jsonrpc.Message
+		init, note *jsonrpc.Request
 		conn       *fakeConn
 		wantErr    string
 		wantWrites int
@@ -74,14 +107,31 @@ func TestReplayHandshake(t *testing.T) {
 		{name: "nothing cached", conn: &fakeConn{}},
 		{name: "initialize write fails", init: initMsg, note: notif, conn: &fakeConn{failWrite: map[int]error{0: boom}}, wantErr: "replay initialize failed"},
 		{name: "initialize response read fails", init: initMsg, note: notif, conn: &fakeConn{readErr: io.EOF}, wantErr: "read replay initialize response failed", wantWrites: 1},
+		{name: "initialize rejected", init: initMsg, note: notif, conn: &fakeConn{replyErr: boom}, wantErr: "replay initialize rejected", wantWrites: 1},
+		{name: "no response times out", init: initMsg, note: notif, conn: &fakeConn{noReply: true}, wantErr: "read replay initialize response failed", wantWrites: 1},
 		{name: "partial replay: notification write fails", init: initMsg, note: notif, conn: &fakeConn{failWrite: map[int]error{1: boom}}, wantErr: "replay initialized notification failed", wantWrites: 1},
 		{name: "initialize only", init: initMsg, conn: &fakeConn{}, wantWrites: 1},
 		{name: "full replay", init: initMsg, note: notif, conn: &fakeConn{}, wantWrites: 2},
+		{
+			name: "skips unrelated messages before the response",
+			init: initMsg, note: notif,
+			conn: &fakeConn{prelude: []jsonrpc.Message{
+				mustDecode(t, `{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"x"}}`),
+				&jsonrpc.Response{ID: clientID, Result: []byte(`{}`)},
+			}},
+			wantWrites: 2,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			r := &Runner{cachedInitMsg: tc.init, cachedInitNotif: tc.note}
-			err := r.replayHandshake(t.Context(), tc.conn)
+			ctx := t.Context()
+			if tc.conn.noReply {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, 50*time.Millisecond)
+				defer cancel()
+			}
+			err := r.replayHandshake(ctx, tc.conn)
 			if tc.wantErr == "" && err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -89,15 +139,55 @@ func TestReplayHandshake(t *testing.T) {
 				t.Fatalf("err = %v, want %q", err, tc.wantErr)
 			}
 			if len(tc.conn.writes) != tc.wantWrites {
-				t.Errorf("writes = %d, want %d", len(tc.conn.writes), tc.wantWrites)
+				t.Fatalf("writes = %d, want %d", len(tc.conn.writes), tc.wantWrites)
+			}
+			if tc.wantWrites == 0 {
+				return
+			}
+			// The replayed initialize uses a proxy-private ID, never the client's.
+			sent := tc.conn.writes[0].(*jsonrpc.Request)
+			if id, _ := sent.ID.Raw().(string); !strings.HasPrefix(id, replayIDPrefix) {
+				t.Errorf("replay ID = %v, want %q prefix", sent.ID.Raw(), replayIDPrefix)
+			}
+			if sent.Method != "initialize" || string(sent.Params) != string(initMsg.Params) {
+				t.Errorf("replayed %s %s, want the cached initialize", sent.Method, sent.Params)
+			}
+			if initMsg.ID != clientID {
+				t.Error("replay must not mutate the cached client request")
+			}
+			if tc.wantWrites == 2 && tc.conn.writes[1] != notif {
+				t.Error("second write must be the cached initialized notification")
 			}
 		})
 	}
 }
 
+func TestReplayHandshakeIDsAreUnique(t *testing.T) {
+	r := &Runner{cachedInitMsg: mustDecodeRequest(t, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`)}
+	conn := &fakeConn{}
+	for range 2 {
+		if err := r.replayHandshake(t.Context(), conn); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a, b := conn.writes[0].(*jsonrpc.Request).ID, conn.writes[1].(*jsonrpc.Request).ID
+	if a == b {
+		t.Errorf("replays reused ID %v", a.Raw())
+	}
+}
+
 func TestInspectClientMessage(t *testing.T) {
 	r := &Runner{}
-	r.inspectClientMessage(mustDecode(t, `{"jsonrpc":"2.0","id":7,"method":"tools/list"}`))
+	for _, raw := range []string{
+		`{"jsonrpc":"2.0","id":7,"method":"tools/list"}`,
+		// SEP-2575 clients need no replay; see replayHandshake.
+		`{"jsonrpc":"2.0","id":"server-discover-probe-1","method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}`,
+		`{"jsonrpc":"2.0","id":1,"result":{}}`,
+		// An initialize notification is malformed and must not be replayed.
+		`{"jsonrpc":"2.0","method":"initialize","params":{}}`,
+	} {
+		r.inspectClientMessage(mustDecode(t, raw))
+	}
 	if r.cachedInitMsg != nil || r.cachedInitNotif != nil {
 		t.Fatal("non-handshake message must not be cached")
 	}
@@ -111,7 +201,7 @@ func TestInspectClientMessage(t *testing.T) {
 func TestSwitchToStandaloneReplayFailureClosesEngine(t *testing.T) {
 	dir := t.TempDir()
 	r := NewRunner(config.Default(dir), dir, strings.NewReader(""), io.Discard, io.Discard)
-	r.cachedInitMsg = mustDecode(t, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`)
+	r.cachedInitMsg = mustDecodeRequest(t, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`)
 
 	// A cancelled context makes the replay against the fresh local engine fail.
 	ctx, cancel := context.WithCancel(t.Context())

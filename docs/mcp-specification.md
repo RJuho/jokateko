@@ -64,6 +64,32 @@ sequenceDiagram
     CLI-->>Agent: JSON-RPC MCP Response
 ```
 
+### 2.3 Handshake Replay on Failover
+The agent keeps one stdio session for its whole lifetime, but `jokateko mcp` can swap the backend underneath it. It falls back to standalone when the daemon dies, and switches to proxy mode when a daemon for the same workspace appears; the poll runs every 5 s. A new backend has never seen the agent's handshake, so the proxy may need to replay it.
+
+**What clients send** (as of go-sdk v1.8.0):
+
+| Client | Handshake | Per-request `_meta` |
+|---|---|---|
+| Claude Code 2.1.289 | `server/discover` (SEP-2575, protocol `2026-07-28`), then `subscriptions/listen` | yes: protocol version, client info and capabilities on every request |
+| go-sdk v1.8 `Client` | `server/discover`; falls back to `initialize` only if the server rejects it | yes |
+| Older clients | `initialize` + `notifications/initialized` | no |
+
+**What each backend needs:**
+
+| Backend | SEP-2575 client | Legacy `initialize` client |
+|---|---|---|
+| Daemon: stateless Streamable HTTP | no replay; every request carries its own `_meta` | no replay; the stateless handler gives each request a fresh, pre-initialized session |
+| Standalone: stateful in-process server | no replay; the server takes session state from each request's `_meta` | **replay required**; otherwise calls fail with `method "tools/call" is invalid during session initialization` |
+
+**Behaviour:**
+- The proxy caches only the legacy `initialize` request and `notifications/initialized`. It does not cache `server/discover`.
+- A replay happens only when switching to standalone mode. Switching to the daemon never replays.
+- The replayed `initialize` is sent under a proxy-private ID (`jokateko-proxy-replay-<n>`), so it cannot clash with an in-flight client request. The cached client message itself is left unchanged.
+- The proxy reads backend output until the response with that ID arrives, waiting at most 5 s. That response and anything read before it are consumed and never forwarded to the agent. After that, the cached `notifications/initialized` is sent, keeping the original order.
+
+**Known limitation:** a `subscriptions/listen` stream opened on the old backend is not carried over to the new one, so list-changed notifications stop after a switch. Jokateko's tools, prompts and resources are fixed for the lifetime of a server, so it never sends these notifications and nothing is lost in practice.
+
 ---
 
 ## 3. MCP Tools Catalog
