@@ -124,6 +124,8 @@ This document details both the **Source Repository Layout** (where Jokateko itse
 │   ├── bun.lockb                       # Bun lockfile
 │   └── tailwind.config.js              # Tailwind CSS configuration
 ├── tests/
+│   ├── chaos/                          # Go multi-channel chaos test (make chaos-test)
+│   │   └── chaos_test.go
 │   └── e2e/                            # Playwright E2E test suite
 │       ├── board.spec.ts
 │       ├── task-mutation.spec.ts

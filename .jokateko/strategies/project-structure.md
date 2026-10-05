@@ -37,7 +37,7 @@ flowchart TB
         direction TB
         e2e["tests/e2e/ · Playwright"]
         lh["tests/lighthouse/ · Lighthouse"]
-        chaos["test/chaos/ · Go chaos test"]
+        chaos["tests/chaos/ · Go chaos test"]
     end
 
     subgraph META ["Project & infra"]

@@ -145,4 +145,4 @@ fuzz-all: fuzz-markdown fuzz-api fuzz-mcp
 # Run Multichannel Integration Chaos Test
 chaos-test:
 	@echo "Running Multichannel Chaos Test (10s)..."
-	CGO_ENABLED=0 go test -v ./test/chaos -count=1
+	CGO_ENABLED=0 go test -v ./tests/chaos -count=1

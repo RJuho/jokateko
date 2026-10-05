@@ -52,7 +52,7 @@ jobs:
           fi
           echo "Detected changed files:"
           echo "$DIFF"
-          if echo "$DIFF" | grep -qE '^(web/|tests/|playwright\.config\.ts)'; then
+          if echo "$DIFF" | grep -qE '^(web/|tests/(e2e|lighthouse)/|playwright\.config\.ts)'; then
             echo "has_web_changes=true" >> $GITHUB_OUTPUT
             echo "Web or E2E changes detected -> E2E testing will run."
           else
