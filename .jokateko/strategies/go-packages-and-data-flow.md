@@ -18,7 +18,7 @@ Module `github.com/RJuho/jokateko`, Go 1.27+, `CGO_ENABLED=0`. All library code 
 | `cmd/genlicenses` | Generates `internal/version/licenses.json` and `web/src/data/licenses.json` | |
 | `internal/config` | Embedded `default.toml`, overlay merge with the project `config.toml`, `init` template, `CFG-*`/`TAG-*` validation, resolved paths (`config.Dirs`) | |
 | `internal/model` | Domain types (Task, Milestone, Strategy, GlossaryTerm, BoardState, Snapshot, search, sort), frontmatter structs, milestone progress and auto-archive | do I/O |
-| `internal/parser` | Split and decode `+++` TOML frontmatter, goldmark Markdown, checklist parsing, `## Completion Summary` and `## Notes` editing | |
+| `internal/parser` | Split and decode `+++` TOML frontmatter, goldmark Markdown (safe mode: raw HTML escaped, dangerous URLs dropped), checklist parsing, `## Completion Summary` and `## Notes` editing | emit raw HTML from bodies |
 | `internal/store` | In-memory SQLite (`modernc.org/sqlite`), DDL in `schema.sql`, sqlc queries, FTS5 search, board aggregation | be the source of truth |
 | `internal/watcher` | `fsnotify` on the four entity dirs, 50 ms debounce, editor-artifact filter, ingest pipeline (parse → upsert/delete → callback) | write files |
 | `internal/writer` | Atomic writes: temp file `.<name>.*.tmp` in the same dir → `fsync` → `chmod` → `rename`, plus a suppression cache so self-writes are not re-ingested | |
@@ -27,7 +27,8 @@ Module `github.com/RJuho/jokateko`, Go 1.27+, `CGO_ENABLED=0`. All library code 
 | `internal/server` | `net/http` mux: REST, SSE hub, `/api/mcp` Streamable HTTP, embedded UI and Mermaid assets, security middleware | write files directly |
 | `internal/mcp` | MCP server (official go-sdk): tools, resources, prompt, server instructions. Adds MCP-only guards before calling the service: tag vocabulary, archived-milestone (`reopen_milestone`), no `done` via `update_task_status`, `allow_mutations` | write files directly |
 | `internal/proxy` | `jokateko mcp`: stdio ↔ daemon bridge with live failover to an in-process standalone server | |
-| `internal/exporter` | `jokateko build`: snapshot JSON + Mermaid mode injected into the embedded `index.html` | |
+| `internal/csp` | The Content-Security-Policy string (`csp.Build`) from `[server.security.csp]` plus the inline script/style hashes, shared by the server header and the export meta tag | |
+| `internal/exporter` | `jokateko build`: snapshot JSON, Mermaid mode and the CSP `<meta http-equiv>` injected into the embedded `index.html` | |
 | `internal/version` | Link-time version/commit/date, license data | |
 | `web` (`embed.go`) | `//go:embed` of `web/dist` | |
 

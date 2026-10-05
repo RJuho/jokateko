@@ -5,11 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/RJuho/jokateko/internal/config"
+	"github.com/RJuho/jokateko/internal/csp"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/web"
 )
@@ -78,6 +80,50 @@ func InjectMermaid(templateHTML []byte, mode MermaidMode, runtimeJS []byte) ([]b
 	return out.Bytes(), nil
 }
 
+// mermaidScriptSrc returns the extra script-src sources the chosen Mermaid mode needs.
+// The bundled block runs as an inline script whose text is the npm file itself, so its
+// sha384 equals the SRI integrity; the CDN file is allowed by exact URL plus that hash.
+func mermaidScriptSrc(mode MermaidMode) ([]string, error) {
+	if mode == MermaidNone {
+		return nil, nil
+	}
+	runtime, err := web.GetMermaidRuntime()
+	if err != nil {
+		return nil, err
+	}
+	hash := "'" + runtime.Integrity + "'"
+	if mode == MermaidCDN {
+		return []string{runtime.CDNURL(), hash}, nil
+	}
+	return []string{hash}, nil
+}
+
+// InjectCSP inserts policy as <meta http-equiv="Content-Security-Policy"> right after
+// the charset declaration, ahead of the inline <style> and <script> it must cover.
+// An empty policy leaves the template unchanged.
+func InjectCSP(templateHTML []byte, policy string) ([]byte, error) {
+	if policy == "" {
+		return templateHTML, nil
+	}
+	insertAt := -1
+	if start := bytes.Index(templateHTML, []byte("<meta charset")); start != -1 {
+		if end := bytes.IndexByte(templateHTML[start:], '>'); end != -1 {
+			insertAt = start + end + 1
+		}
+	} else if start := bytes.Index(templateHTML, []byte("<head>")); start != -1 {
+		insertAt = start + len("<head>")
+	}
+	if insertAt == -1 {
+		return nil, errors.New("template HTML does not contain <head>")
+	}
+	meta := fmt.Sprintf("\n  <meta http-equiv=\"Content-Security-Policy\" content=\"%s\" />", html.EscapeString(policy))
+
+	out := make([]byte, 0, len(templateHTML)+len(meta))
+	out = append(out, templateHTML[:insertAt]...)
+	out = append(out, meta...)
+	return append(out, templateHTML[insertAt:]...), nil
+}
+
 // InjectSnapshot replaces the placeholder in the template HTML with the serialized snapshot JSON.
 func InjectSnapshot(templateHTML []byte, snapshotJSON []byte) ([]byte, error) {
 	placeholderBytes := []byte(PayloadPlaceholder)
@@ -110,6 +156,15 @@ func Export(ctx context.Context, cfg *config.Config, st *store.Store, outPath st
 	templateBytes, err = InjectMermaid(templateBytes, mermaidMode, runtimeJS)
 	if err != nil {
 		return 0, fmt.Errorf("failed to inject mermaid runtime: %w", err)
+	}
+	// Exports are shared by email or hosting, so they carry the same policy `serve` sends.
+	mermaidSrc, err := mermaidScriptSrc(mermaidMode)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read embedded mermaid runtime info: %w", err)
+	}
+	templateBytes, err = InjectCSP(templateBytes, csp.Build(cfg.Server.Security.CSP, mermaidSrc...))
+	if err != nil {
+		return 0, fmt.Errorf("failed to inject content security policy: %w", err)
 	}
 
 	snap, err := BuildSnapshot(ctx, cfg, st)

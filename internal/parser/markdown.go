@@ -12,19 +12,85 @@ import (
 	gast "github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	extast "github.com/yuin/goldmark/extension/ast"
-	"github.com/yuin/goldmark/renderer/html"
+	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 )
 
+// defaultMarkdown renders in goldmark's safe mode: dangerous link URLs (javascript:,
+// vbscript:, file:, non-image data:) are dropped, and rawHTMLEscaper turns raw HTML
+// into visible text, so bodies from untrusted repositories never inject live markup.
 var defaultMarkdown = goldmark.New(
 	goldmark.WithExtensions(
 		extension.GFM,
 		extension.TaskList,
 	),
 	goldmark.WithRendererOptions(
-		html.WithUnsafe(),
+		// A lower priority registers last and overrides the default HTML renderer (1000).
+		renderer.WithNodeRenderers(util.Prioritized(rawHTMLEscaper{}, 100)),
 	),
 )
+
+// rawHTMLEscaper renders raw HTML as escaped text instead of goldmark's
+// "<!-- raw HTML omitted -->", so text such as Vec<T> written without backticks
+// stays readable. Pure HTML comments are dropped, as authors meant them to be hidden.
+type rawHTMLEscaper struct{}
+
+func (rawHTMLEscaper) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
+	reg.Register(gast.KindRawHTML, renderRawHTML)
+	reg.Register(gast.KindHTMLBlock, renderHTMLBlock)
+}
+
+func renderRawHTML(w util.BufWriter, source []byte, node gast.Node, entering bool) (gast.WalkStatus, error) {
+	if !entering {
+		return gast.WalkSkipChildren, nil
+	}
+	var raw strings.Builder
+	segs := node.(*gast.RawHTML).Segments
+	for i := range segs.Len() {
+		seg := segs.At(i)
+		raw.Write(seg.Value(source))
+	}
+	if !isHTMLComment(raw.String()) {
+		_, _ = w.WriteString(stdhtml.EscapeString(raw.String()))
+	}
+	return gast.WalkSkipChildren, nil
+}
+
+// renderHTMLBlock shows an HTML block as an escaped paragraph.
+func renderHTMLBlock(w util.BufWriter, source []byte, node gast.Node, entering bool) (gast.WalkStatus, error) {
+	if !entering {
+		return gast.WalkSkipChildren, nil
+	}
+	n := node.(*gast.HTMLBlock)
+	var raw strings.Builder
+	for i := range n.Lines().Len() {
+		line := n.Lines().At(i)
+		raw.Write(line.Value(source))
+	}
+	if n.HasClosure() {
+		raw.Write(n.ClosureLine.Value(source))
+	}
+	block := strings.TrimSpace(raw.String())
+	if block == "" || isHTMLComment(block) {
+		return gast.WalkSkipChildren, nil
+	}
+	_, _ = w.WriteString("<p>")
+	_, _ = w.WriteString(stdhtml.EscapeString(block))
+	_, _ = w.WriteString("</p>\n")
+	return gast.WalkSkipChildren, nil
+}
+
+// isHTMLComment reports whether s is exactly one HTML comment, with nothing after it.
+func isHTMLComment(s string) bool {
+	s = strings.TrimSpace(s)
+	inner, ok := strings.CutPrefix(s, "<!--")
+	if !ok {
+		return false
+	}
+	end := strings.Index(inner, "-->")
+	return end >= 0 && end+len("-->") == len(inner)
+}
 
 var checkboxRe = regexp.MustCompile(`<input\s+([^>]*?)type="checkbox"([^>]*?)/?>`)
 

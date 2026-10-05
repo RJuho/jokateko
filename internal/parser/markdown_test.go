@@ -109,6 +109,99 @@ func TestRenderHTMLTaskCheckboxes(t *testing.T) {
 	}
 }
 
+// Bodies come from any repository a user clones, so raw HTML and script URLs
+// must never reach body_html as live markup.
+func TestRenderHTMLNeutralizesRawHTML(t *testing.T) {
+	tests := []struct {
+		name    string
+		md      string
+		want    []string
+		notWant []string
+	}{
+		{
+			name:    "html block with event handler",
+			md:      "<img src=\"x\" onerror=\"document.title='PWNED'\">\n\nafter",
+			want:    []string{`<p>&lt;img src=&#34;x&#34; onerror=&#34;document.title=&#39;PWNED&#39;&#34;&gt;</p>`, "<p>after</p>"},
+			notWant: []string{"<img"},
+		},
+		{
+			name:    "inline script and generics",
+			md:      "Use Vec<T> and <script>alert(1)</script> here",
+			want:    []string{"Vec&lt;T&gt;", "&lt;script&gt;alert(1)&lt;/script&gt;"},
+			notWant: []string{"<script", "<T>"},
+		},
+		{
+			name:    "script block",
+			md:      "<script>\nalert(1)\n</script>",
+			want:    []string{"&lt;script&gt;"},
+			notWant: []string{"<script"},
+		},
+		{
+			name:    "javascript link",
+			md:      "[click](javascript:alert(1))",
+			want:    []string{`<a href="">click</a>`},
+			notWant: []string{"javascript:"},
+		},
+		{
+			name:    "comment hides payload behind it",
+			md:      "<!-- note --><img src=x onerror=alert(1)>",
+			want:    []string{"&lt;img src=x onerror=alert(1)&gt;"},
+			notWant: []string{"<img"},
+		},
+		{
+			name:    "pure comments stay hidden",
+			md:      "<!-- block note -->\n\ntext <!-- inline note --> end",
+			want:    []string{"<p>text  end</p>"},
+			notWant: []string{"note"},
+		},
+		{
+			name:    "raw checkbox cannot shift criterion indexes",
+			md:      "- [ ] a <input type=\"checkbox\" checked>\n- [x] b\n",
+			want:    []string{`data-checkbox-index="2"`, "&lt;input"},
+			notWant: []string{`data-checkbox-index="3"`},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			html, err := parser.RenderHTML([]byte(tc.md))
+			if err != nil {
+				t.Fatalf("RenderHTML: %v", err)
+			}
+			for _, w := range tc.want {
+				if !strings.Contains(html, w) {
+					t.Errorf("missing %q in rendered HTML: %s", w, html)
+				}
+			}
+			for _, nw := range tc.notWant {
+				if strings.Contains(html, nw) {
+					t.Errorf("unexpected %q in rendered HTML: %s", nw, html)
+				}
+			}
+		})
+	}
+}
+
+func TestRenderHTMLKeepsSafeMarkdown(t *testing.T) {
+	md := "| a | b |\n|---|---|\n| 1 | `<b>` |\n\n" +
+		"```mermaid\ngraph TD\n  A[\"x<br/>y\"] --> B\n```\n\n" +
+		"![logo](data:image/png;base64,AA) <https://example.com>\n"
+
+	html, err := parser.RenderHTML([]byte(md))
+	if err != nil {
+		t.Fatalf("RenderHTML: %v", err)
+	}
+	for _, want := range []string{
+		"<table>", "<td><code>&lt;b&gt;</code></td>",
+		`<pre><code class="language-mermaid">graph TD`, "x&lt;br/&gt;y",
+		`<img src="data:image/png;base64,AA" alt="logo">`,
+		`<a href="https://example.com">https://example.com</a>`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("missing %q in rendered HTML: %s", want, html)
+		}
+	}
+}
+
 func TestParseTaskWithCriteria(t *testing.T) {
 	doc := `+++
 title = "Implement Database"

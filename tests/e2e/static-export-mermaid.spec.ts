@@ -24,8 +24,15 @@ function runBinary(args) {
 	})
 }
 
-// Opens the exported task modal and records every non-file:// request.
+// Opens the exported task modal and records every non-file:// request
+// and every Content-Security-Policy violation (read with cspViolations).
 async function openTask(page, exportPath) {
+	await page.addInitScript(() => {
+		globalThis.__cspViolations = []
+		document.addEventListener('securitypolicyviolation', (e) => {
+			globalThis.__cspViolations.push(`${e.violatedDirective} ${e.blockedURI}`)
+		})
+	})
 	const requests = []
 	page.on('request', (req) => {
 		if (!req.url().startsWith('file://') && !req.url().startsWith('data:')) {
@@ -35,6 +42,12 @@ async function openTask(page, exportPath) {
 	await page.goto(`file://${exportPath}#task/${TASK_ID}`)
 	await expect(page.locator('[data-testid="task-detail-modal"]')).toBeVisible()
 	return requests
+}
+
+// The export's own CSP must be present and must not block anything the UI needs.
+async function expectCleanCSP(page) {
+	await expect(page.locator('meta[http-equiv="Content-Security-Policy"]')).toHaveCount(1)
+	expect(await page.evaluate(() => globalThis.__cspViolations)).toEqual([])
 }
 
 test.describe('Static Export Mermaid modes (--mermaidjs)', () => {
@@ -79,6 +92,7 @@ graph TD
 		const requests = await openTask(page, exports.bundled)
 		await expect(page.locator('[data-testid="mermaid-diagram"] .mermaid-inner svg')).toBeVisible()
 		expect(requests).toEqual([])
+		await expectCleanCSP(page)
 	})
 
 	test('cdn: loads the pinned version from jsDelivr with SRI', async ({ page }) => {
@@ -102,6 +116,7 @@ graph TD
 			'integrity',
 			mermaidRuntime.integrity,
 		)
+		await expectCleanCSP(page)
 	})
 
 	test('cdn: tampered runtime is blocked by SRI and the raw block is kept', async ({ page }) => {
@@ -124,5 +139,6 @@ graph TD
 		await expect(page.locator('pre > code.language-mermaid')).toBeVisible()
 		await expect(page.locator('[data-testid="mermaid-diagram"]')).toHaveCount(0)
 		expect(requests).toEqual([])
+		await expectCleanCSP(page)
 	})
 })

@@ -1,4 +1,4 @@
-package server
+package csp
 
 import (
 	"crypto/sha256"

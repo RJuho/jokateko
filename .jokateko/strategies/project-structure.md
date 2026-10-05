@@ -22,7 +22,7 @@ flowchart TB
         core["internal/ model · parser · validator<br/>domain types, Markdown + TOML, DAG checks"]
         data["internal/ store · watcher · writer<br/>in-memory SQLite (sqlc), fsnotify, atomic writes"]
         api["internal/ service · server · mcp · proxy<br/>shared mutations, REST + SSE, MCP tools, stdio proxy"]
-        misc["internal/ config · exporter · version<br/>TOML config, static export, licenses"]
+        misc["internal/ config · csp · exporter · version<br/>TOML config, Content-Security-Policy, static export, licenses"]
     end
 
     subgraph WEB ["web/ · Bun + Preact UI"]

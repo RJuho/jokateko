@@ -22,6 +22,7 @@ First public release.
 ### Security
 
 - Binds to `127.0.0.1` by default; Cross-Origin protection, DNS-rebinding `Host` check, JSON-only API writes and a hash-based Content Security Policy. See [SECURITY.md](SECURITY.md).
+- Raw HTML in Markdown bodies is shown as escaped text and script URLs in links are dropped. Static exports carry the same Content Security Policy as `serve`.
 
 [Unreleased]: https://github.com/RJuho/jokateko/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/RJuho/jokateko/releases/tag/v0.1.0

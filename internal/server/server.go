@@ -1,10 +1,7 @@
 package server
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,14 +11,13 @@ import (
 	"net/http"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/RJuho/jokateko/internal/config"
+	"github.com/RJuho/jokateko/internal/csp"
 	"github.com/RJuho/jokateko/internal/model"
 	"github.com/RJuho/jokateko/internal/service"
 	"github.com/RJuho/jokateko/internal/store"
-	"github.com/RJuho/jokateko/internal/version"
 	"github.com/RJuho/jokateko/web"
 )
 
@@ -268,94 +264,15 @@ func writeServiceError(w http.ResponseWriter, err error) {
 	writeError(w, status, err.Error())
 }
 
-func extractTagSHA256(html []byte, tag string) string {
-	openTag := []byte("<" + tag + ">")
-	closeTag := []byte("</" + tag + ">")
-
-	start := bytes.Index(html, openTag)
-	if start == -1 {
-		return ""
-	}
-	start += len(openTag)
-	end := bytes.Index(html[start:], closeTag)
-	if end == -1 {
-		return ""
-	}
-	body := html[start : start+end]
-	sum := sha256.Sum256(body)
-	return fmt.Sprintf("'sha256-%s'", base64.StdEncoding.EncodeToString(sum[:]))
-}
-
-// getWebAssetHashes returns the CSP source expressions for the inline script and style.
-var getWebAssetHashes = sync.OnceValues(func() (string, string) {
-	scriptH := version.ScriptHash
-	styleH := version.StyleHash
-
-	if scriptH == "" || styleH == "" {
-		htmlBytes, err := web.GetHTML()
-		if err == nil {
-			if scriptH == "" {
-				scriptH = extractTagSHA256(htmlBytes, "script")
-			}
-			if styleH == "" {
-				styleH = extractTagSHA256(htmlBytes, "style")
-			}
-		}
-	}
-
-	if scriptH != "" && !strings.HasPrefix(scriptH, "'") {
-		scriptH = fmt.Sprintf("'%s'", scriptH)
-	}
-	if styleH != "" && !strings.HasPrefix(styleH, "'") {
-		styleH = fmt.Sprintf("'%s'", styleH)
-	}
-
-	return scriptH, styleH
-})
-
+// buildCSP renders the response policy. The lazily loaded Mermaid runtime carries an
+// SRI integrity attribute; listing its hash lets CSP3 browsers allow exactly that file
+// even without 'self'.
 func (s *Server) buildCSP() string {
-	csp := s.cfg.Server.Security.CSP
-	if !csp.Enabled {
-		return ""
-	}
-
-	scriptHash, styleHash := getWebAssetHashes()
-
-	scriptSrc := append([]string(nil), csp.ScriptSrc...)
-	if scriptHash != "" && !slices.Contains(scriptSrc, scriptHash) {
-		scriptSrc = append(scriptSrc, scriptHash)
-	}
-	// The lazily loaded Mermaid runtime carries an SRI integrity attribute; listing
-	// its hash lets CSP3 browsers allow exactly that file even without 'self'.
+	var extra []string
 	if mermaid, err := web.GetMermaidRuntime(); err == nil {
-		mermaidHash := "'" + mermaid.Integrity + "'"
-		if !slices.Contains(scriptSrc, mermaidHash) {
-			scriptSrc = append(scriptSrc, mermaidHash)
-		}
+		extra = append(extra, "'"+mermaid.Integrity+"'")
 	}
-
-	styleSrc := append([]string(nil), csp.StyleSrc...)
-	if styleHash != "" && !slices.Contains(styleSrc, styleHash) {
-		styleSrc = append(styleSrc, styleHash)
-	}
-
-	var parts []string
-	addDirective := func(name string, values []string) {
-		if len(values) > 0 {
-			parts = append(parts, fmt.Sprintf("%s %s", name, strings.Join(values, " ")))
-		}
-	}
-
-	addDirective("default-src", csp.DefaultSrc)
-	addDirective("script-src", scriptSrc)
-	addDirective("style-src", styleSrc)
-	addDirective("style-src-elem", csp.StyleSrcElem)
-	addDirective("style-src-attr", csp.StyleSrcAttr)
-	addDirective("img-src", csp.ImgSrc)
-	addDirective("connect-src", csp.ConnectSrc)
-	addDirective("font-src", csp.FontSrc)
-
-	return strings.Join(parts, "; ")
+	return csp.Build(s.cfg.Server.Security.CSP, extra...)
 }
 
 func (s *Server) handleStaticUI(w http.ResponseWriter, r *http.Request) {

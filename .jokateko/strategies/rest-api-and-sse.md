@@ -14,6 +14,7 @@ Served by `internal/server` on `[server] host:port` (default `127.0.0.1:8080`) w
 - Errors: `{"error": "<message>"}`. `400` invalid input, `404` not found, `409` conflict (duplicate ID, cycle, locked body, delete blocked), `403` rejected Host or cross-origin request, `415` non-JSON body, `500` unexpected.
 - Create → `201` with the entity. Update → `200` with the entity. Delete → `200` `{"status":"deleted","id":"…"}`.
 - Bodies are capped at 1 MiB.
+- `body_html` in every entity is rendered by `internal/parser` in goldmark safe mode: raw HTML becomes escaped text (pure HTML comments are dropped) and dangerous link URLs are emptied, so the UI may insert it with `dangerouslySetInnerHTML`. Never re-enable `html.WithUnsafe()`.
 
 ## Endpoints
 
@@ -46,7 +47,7 @@ There is no REST update for milestones, strategies or glossary terms. Those upda
 
 Every request passes through, in order:
 
-1. Panic recovery, then the headers `Content-Security-Policy` (from `[server.security.csp]` plus the runtime hashes of the inline script and style and the Mermaid SRI hash), `X-Content-Type-Options: nosniff` and `X-Frame-Options: DENY`.
+1. Panic recovery, then the headers `Content-Security-Policy`, `X-Content-Type-Options: nosniff` and `X-Frame-Options: DENY`. The policy is built by `internal/csp` (`csp.Build`) from `[server.security.csp]` plus the hashes of the inline script and style and the Mermaid SRI hash. `jokateko build` uses the same builder for the `<meta http-equiv>` policy in static exports (see *Web UI architecture*).
 2. **Host check (DNS rebinding):** on a loopback connection, `Host` must be `localhost`, `*.localhost`, a loopback IP, or exactly `[server] host`. Otherwise `403`. Connections to a non-loopback address (for example when bound to `0.0.0.0` and reached over the LAN) are **not** restricted by this check.
 3. CORS: if `cors_enabled`, matching origins from `cors_allowed_origins` are reflected (an empty list or `"*"` allows any origin). `OPTIONS` → `204`.
 4. For `POST`/`PUT` under `/api/` except `/api/mcp`: a declared non-JSON `Content-Type` → `415`, which blocks form and `text/plain` CSRF. A 1 MiB body cap is applied.
