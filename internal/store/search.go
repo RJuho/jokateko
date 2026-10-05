@@ -16,9 +16,13 @@ func formatFTS5Query(raw string) string {
 		return ""
 	}
 
-	// If the caller already provided an exact quoted phrase, preserve it.
-	if strings.HasPrefix(raw, "\"") && strings.HasSuffix(raw, "\"") {
-		return raw
+	// If the caller already provided an exact quoted phrase, preserve it. Only a
+	// single well-formed phrase qualifies: a lone '"' or embedded quotes would
+	// reach FTS5 as an unterminated string, so those fall through to sanitizing.
+	if len(raw) >= 2 && strings.HasPrefix(raw, "\"") && strings.HasSuffix(raw, "\"") {
+		if inner := raw[1 : len(raw)-1]; strings.TrimSpace(inner) != "" && !strings.Contains(inner, "\"") {
+			return raw
+		}
 	}
 
 	words := strings.Fields(raw)

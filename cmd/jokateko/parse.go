@@ -23,6 +23,10 @@ func cmdParse(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "failed to resolve directory %q: %v\n", *dirFlag, err)
 		return 1
 	}
+	if err := requireDir(targetDir); err != nil {
+		fmt.Fprintf(stderr, "error: %v\n", err)
+		return 1
+	}
 
 	res, err := validator.ValidateWorkspace(targetDir)
 	if err != nil {

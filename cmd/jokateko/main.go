@@ -3,8 +3,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/signal"
 	"syscall"
@@ -53,6 +55,23 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "unknown command: %q\nRun 'jokateko help' for usage.\n", cmd)
 		return 1
 	}
+}
+
+// requireDir fails when a -dir workspace argument does not name an existing
+// directory, so a mistyped path is reported instead of silently treated as an
+// empty project.
+func requireDir(dir string) error {
+	info, err := os.Stat(dir)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("workspace directory %q does not exist", dir)
+		}
+		return fmt.Errorf("cannot access workspace directory %q: %w", dir, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("workspace path %q is not a directory", dir)
+	}
+	return nil
 }
 
 func printUsage(out io.Writer) {

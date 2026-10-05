@@ -105,6 +105,15 @@ func (r *ValidationResult) FormatReport() string {
 	return sb.String()
 }
 
+// configRuleID extracts the 7-character rule ID from a config error message of
+// the form "CFG-005: ...", falling back to CFG-001 for unprefixed messages.
+func configRuleID(msg string) string {
+	if len(msg) > 7 && msg[7] == ':' {
+		return msg[:7]
+	}
+	return "CFG-001"
+}
+
 // ValidateWorkspace scans the workspace directory, parses configuration and markdown files,
 // checks references, evaluates DAG cycle detection, and aggregates all diagnostics.
 func ValidateWorkspace(workspaceDir string) (*ValidationResult, error) {
@@ -146,12 +155,8 @@ func ValidateWorkspace(workspaceDir string) (*ValidationResult, error) {
 			if u, ok := err.(unwrapMulti); ok {
 				for _, singleErr := range u.Unwrap() {
 					msg := singleErr.Error()
-					ruleID := "CFG-001"
-					if len(msg) >= 7 && msg[7] == ':' {
-						ruleID = msg[:7]
-					}
 					res.Diagnostics = append(res.Diagnostics, Diagnostic{
-						RuleID:   ruleID,
+						RuleID:   configRuleID(msg),
 						Severity: SeverityError,
 						File:     cfgPath,
 						Message:  msg,

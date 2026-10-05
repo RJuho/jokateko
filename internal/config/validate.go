@@ -205,7 +205,8 @@ func validatePathWithinRoot(root, target string) error {
 		return err
 	}
 
-	if strings.HasPrefix(rel, "..") || strings.HasPrefix(rel, "/..") {
+	// Match ".." as a whole path element only: "..cache" is a legitimate in-root name.
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
 		return fmt.Errorf("path escapes workspace root %q", root)
 	}
 

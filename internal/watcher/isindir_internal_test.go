@@ -22,6 +22,8 @@ func TestIsInDir(t *testing.T) {
 		{"prefix collision tasks-old", tasks, filepath.Join(root, "tasks-old", "a.md"), false},
 		{"parent dir", tasks, filepath.Join(root, "a.md"), false},
 		{"sibling via dotdot", tasks, filepath.Join(tasks, "..", "milestones", "a.md"), false},
+		{"dotdot-prefixed file name inside dir", tasks, filepath.Join(tasks, "..foo.md"), true},
+		{"dir itself", tasks, tasks, true},
 		{"empty dir never matches", "", filepath.Join(tasks, "a.md"), false},
 		{"dot dir never matches", ".", "a.md", false},
 		{"relative path against absolute dir", tasks, "a.md", false},

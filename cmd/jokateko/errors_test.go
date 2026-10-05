@@ -66,8 +66,20 @@ func TestCLI_ParseErrors(t *testing.T) {
 			setup: func(t *testing.T) []string {
 				return []string{"-dir", filepath.Join(t.TempDir(), "does-not-exist")}
 			},
-			wantCode:   0,
-			wantStdout: "[OK] Validation successful",
+			wantCode:   1,
+			wantStderr: "does not exist",
+		},
+		{
+			name: "workspace path is a regular file",
+			setup: func(t *testing.T) []string {
+				f := filepath.Join(t.TempDir(), "file")
+				if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				return []string{"-dir", f}
+			},
+			wantCode:   1,
+			wantStderr: "is not a directory",
 		},
 	}
 
@@ -131,12 +143,18 @@ func TestCLI_BuildPathsAndErrors(t *testing.T) {
 			wantCode: 0,
 		},
 		{
-			name: "missing workspace directory still exports an empty board",
+			name: "missing workspace directory fails without creating it",
 			setup: func(t *testing.T) ([]string, string) {
 				dir := filepath.Join(t.TempDir(), "does-not-exist")
-				return []string{"-dir", dir}, filepath.Join(dir, "dist-kanban", "index.html")
+				t.Cleanup(func() {
+					if _, err := os.Stat(dir); err == nil {
+						t.Errorf("build created missing workspace %q", dir)
+					}
+				})
+				return []string{"-dir", dir}, ""
 			},
-			wantCode: 0,
+			wantCode:   1,
+			wantStderr: "does not exist",
 		},
 		{
 			name: "output path below a regular file fails to export",

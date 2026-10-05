@@ -59,7 +59,8 @@ func (p *Pipeline) isInDir(dir, path string) bool {
 	if err != nil {
 		return false
 	}
-	return !strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel)
+	// Match ".." as a whole path element only: "..foo.md" is inside dir.
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
 
 // HandleEvent processes a single debounced filesystem event.

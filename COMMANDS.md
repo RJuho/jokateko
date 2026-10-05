@@ -9,12 +9,12 @@ This document outlines the command-line interface for the application. The tool 
 **Description:** Starts the core application daemon. This initializes the in-memory SQLite database, starts the `fsnotify` file watcher, launches the local Web UI server (e.g., on port 8080), and opens the standard Model Context Protocol (MCP) server for AI agents to connect to. 
 
 ### `parse` (or `lint`)
-**Usage:** `jokateko parse`
-**Description:** Performs a strict dry-run validation of the entire project state. It reads all Markdown files (Tasks, Milestones, Strategies, Glossary) and the TOML configuration file, checking for broken YAML frontmatter, missing dependencies, invalid tags, and schema violations. Exits with code `0` if successful, or `1` with detailed error logs if formatting issues are found.
+**Usage:** `jokateko parse [-dir <path>]`
+**Description:** Performs a strict dry-run validation of the entire project state. It reads all Markdown files (Tasks, Milestones, Strategies, Glossary) and the TOML configuration file, checking for broken YAML frontmatter, missing dependencies, invalid tags, and schema violations. Exits with code `0` if successful, or `1` with detailed error logs if formatting issues are found. A `-dir` that does not exist or is not a directory is also an error (exit `1`).
 
 ### `build`
 **Usage:** `jokateko build [-dir <path>] [-out <file>] [--mermaidjs=cdn|bundled|none]`
-**Description:** Generates a single-file HTML export of the current project state (CSS, JS, and all Tasks, Milestones, Strategies, and Glossary inlined into one `.html` file). This is ideal for publishing a snapshot to static hosting or emailing/sharing directly as a standalone file. *(Note: This does not compile the Go binary itself; it exports the user's project data and UI into a single HTML file).*
+**Description:** Generates a single-file HTML export of the current project state (CSS, JS, and all Tasks, Milestones, Strategies, and Glossary inlined into one `.html` file). This is ideal for publishing a snapshot to static hosting or emailing/sharing directly as a standalone file. The `-dir` workspace must be an existing directory; a missing path fails with exit `1` instead of exporting an empty board. *(Note: This does not compile the Go binary itself; it exports the user's project data and UI into a single HTML file).*
 - `--mermaidjs` selects how Mermaid diagrams are rendered in the export:
   - `cdn` *(default)*: loads the exact Mermaid version pinned in `web/bun.lock` from jsDelivr when a diagram is shown, verified with Subresource Integrity (SRI). The file stays small (~0.5 MB), but diagrams need network access.
   - `bundled`: inlines the Mermaid runtime (~5.5 MB) as an inert block, executed only when a diagram is shown. The export is 100% self-contained and works fully offline.

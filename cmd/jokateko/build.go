@@ -37,6 +37,10 @@ func cmdBuild(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "error: invalid workspace directory: %v\n", err)
 		return 1
 	}
+	if err := requireDir(workspaceDir); err != nil {
+		fmt.Fprintf(stderr, "error: %v\n", err)
+		return 1
+	}
 
 	cfg, err := config.Load(workspaceDir)
 	if err != nil {

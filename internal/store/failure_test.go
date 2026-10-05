@@ -402,6 +402,10 @@ func TestFormatFTS5Query(t *testing.T) {
 		{"word consisting only of operators dropped", `foo () ^* bar`, `"foo"* OR "bar"*`},
 		{"only operators", `() ^ *`, ""},
 		{"unbalanced quote stripped", `"foo bar`, `"foo"* OR "bar"*`},
+		{"lone quote", `"`, ""},
+		{"empty phrase", `""`, ""},
+		{"blank phrase", `"  "`, ""},
+		{"embedded quote is not a phrase", `"a "b"`, `"a"* OR "b"*`},
 		{"boolean keywords are quoted", "AND OR NOT", `"AND"* OR "OR"* OR "NOT"*`},
 		{"dash kept inside quotes", "go-sdk", `"go-sdk"*`},
 		{"unicode", "ääkköset", `"ääkköset"*`},
@@ -504,14 +508,10 @@ func TestSearchFiltersAndDefaults(t *testing.T) {
 	}
 }
 
-func TestSearchUnbalancedQuotePassthrough(t *testing.T) {
-	t.Skip("known bug: formatFTS5Query passes any input that starts and ends with '\"' through verbatim, " +
-		"so a lone '\"' or '\"a \"b\"' reaches FTS5 unescaped and SearchAll fails with 'unterminated string'; " +
-		"see task 261005-go-test-coverage-t2-store-server-validat notes")
-
+func TestSearchMalformedQuotes(t *testing.T) {
 	st := newTestStore(t)
 	seedAll(t, st)
-	for _, q := range []string{`"`, `"a "b"`} {
+	for _, q := range []string{`"`, `""`, `" "`, `"a "b"`, `"Task"x"`} {
 		if _, err := st.SearchAll(t.Context(), q, "", 0); err != nil {
 			t.Errorf("SearchAll(%q): %v", q, err)
 		}

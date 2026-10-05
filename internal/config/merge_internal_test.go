@@ -354,11 +354,15 @@ func TestValidatePathWithinRoot(t *testing.T) {
 	})
 
 	t.Run("dot-dot prefixed directory name inside root", func(t *testing.T) {
-		// BUG: validatePathWithinRoot uses strings.HasPrefix(rel, "..") so a legitimate
-		// in-root directory such as "..cache" is reported as escaping the root.
-		t.Skip("known bug: in-root paths whose first element starts with '..' (e.g. '..cache') are rejected; see task note")
-		if err := validatePathWithinRoot(root, "..cache"); err != nil {
-			t.Errorf("unexpected error: %v", err)
+		for _, p := range []string{"..cache", "..cache/tasks", "sub/..hidden"} {
+			if err := validatePathWithinRoot(root, p); err != nil {
+				t.Errorf("validatePathWithinRoot(%q): unexpected error: %v", p, err)
+			}
+		}
+		for _, p := range []string{"..", "../x", "sub/../../x"} {
+			if err := validatePathWithinRoot(root, p); err == nil {
+				t.Errorf("validatePathWithinRoot(%q): expected escape error", p)
+			}
 		}
 	})
 }
