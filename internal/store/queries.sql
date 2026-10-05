@@ -107,8 +107,8 @@ DELETE FROM milestones WHERE id = ?;
 SELECT
     COUNT(*) AS total_tasks,
     COUNT(CASE WHEN status = 'done' THEN 1 END) AS completed_tasks,
-    COALESCE(MIN(NULLIF(target_at, '')), '') AS target_start_at,
-    COALESCE(MAX(NULLIF(target_at, '')), '') AS target_end_at
+    CAST(COALESCE(MIN(NULLIF(target_at, '')), '') AS TEXT) AS target_start_at,
+    CAST(COALESCE(MAX(NULLIF(target_at, '')), '') AS TEXT) AS target_end_at
 FROM tasks
 WHERE milestone_id = ?;
 

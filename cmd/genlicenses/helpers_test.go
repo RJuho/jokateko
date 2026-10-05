@@ -164,19 +164,19 @@ func TestHarvestNpmLicenses(t *testing.T) {
 		"package.json": `{"dependencies": {
 			"spdx-string": "1", "spdx-object": "1", "from-text": "1", "custom": "1",
 			"no-license": "1", "missing": "1", "broken": "1", "@scope/pkg": "1",
-			"tailwindcss": "4", "@types/node": "1", " ": "1"
+			"bun-plugin-tailwind": "1", "@types/node": "1", " ": "1"
 		}}`,
-		"node_modules/spdx-string/package.json": `{"version": "1.0.0", "license": "MIT", "repository": "owner/spdx-string"}`,
-		"node_modules/spdx-object/package.json": `{"version": "2.0.0", "license": {"type": "ISC"}, "repository": {"url": "git+https://github.com/o/obj.git"}}`,
-		"node_modules/from-text/package.json":   `{"version": "3.0.0", "homepage": "https://from-text.dev"}`,
-		"node_modules/from-text/LICENSE":        "Apache License\nVersion 2.0",
-		"node_modules/custom/package.json":      `{"version": "4.0.0", "license": "Unknown"}`,
-		"node_modules/custom/LICENSE":           "Do what you want, but not that.",
-		"node_modules/no-license/package.json":  `{"version": "5.0.0"}`,
-		"node_modules/broken/package.json":      `{oops`,
-		"node_modules/@scope/pkg/package.json":  `{"version": "6.0.0", "license": "BSD-2-Clause"}`,
-		"node_modules/tailwindcss/package.json": `{"version": "4.0.0", "license": "MIT"}`,
-		"node_modules/@types/node/package.json": `{"version": "1.0.0", "license": "MIT"}`,
+		"node_modules/spdx-string/package.json":         `{"version": "1.0.0", "license": "MIT", "repository": "owner/spdx-string"}`,
+		"node_modules/spdx-object/package.json":         `{"version": "2.0.0", "license": {"type": "ISC"}, "repository": {"url": "git+https://github.com/o/obj.git"}}`,
+		"node_modules/from-text/package.json":           `{"version": "3.0.0", "homepage": "https://from-text.dev"}`,
+		"node_modules/from-text/LICENSE":                "Apache License\nVersion 2.0",
+		"node_modules/custom/package.json":              `{"version": "4.0.0", "license": "Unknown"}`,
+		"node_modules/custom/LICENSE":                   "Do what you want, but not that.",
+		"node_modules/no-license/package.json":          `{"version": "5.0.0"}`,
+		"node_modules/broken/package.json":              `{oops`,
+		"node_modules/@scope/pkg/package.json":          `{"version": "6.0.0", "license": "BSD-2-Clause"}`,
+		"node_modules/bun-plugin-tailwind/package.json": `{"version": "1.0.0", "license": "MIT"}`,
+		"node_modules/@types/node/package.json":         `{"version": "1.0.0", "license": "MIT"}`,
 	})
 
 	got, err := harvestNpmLicenses(dir)

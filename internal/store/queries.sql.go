@@ -246,8 +246,8 @@ const getMilestoneTaskMetrics = `-- name: GetMilestoneTaskMetrics :one
 SELECT
     COUNT(*) AS total_tasks,
     COUNT(CASE WHEN status = 'done' THEN 1 END) AS completed_tasks,
-    COALESCE(MIN(NULLIF(target_at, '')), '') AS target_start_at,
-    COALESCE(MAX(NULLIF(target_at, '')), '') AS target_end_at
+    CAST(COALESCE(MIN(NULLIF(target_at, '')), '') AS TEXT) AS target_start_at,
+    CAST(COALESCE(MAX(NULLIF(target_at, '')), '') AS TEXT) AS target_end_at
 FROM tasks
 WHERE milestone_id = ?
 `
@@ -262,7 +262,12 @@ type GetMilestoneTaskMetricsRow struct {
 func (q *Queries) GetMilestoneTaskMetrics(ctx context.Context, milestoneID string) (GetMilestoneTaskMetricsRow, error) {
 	row := q.db.QueryRowContext(ctx, getMilestoneTaskMetrics, milestoneID)
 	var i GetMilestoneTaskMetricsRow
-	err := row.Scan(&i.TotalTasks, &i.CompletedTasks, &i.TargetStartAt, &i.TargetEndAt)
+	err := row.Scan(
+		&i.TotalTasks,
+		&i.CompletedTasks,
+		&i.TargetStartAt,
+		&i.TargetEndAt,
+	)
 	return i, err
 }
 
@@ -687,7 +692,12 @@ type UpdateTaskStatusParams struct {
 }
 
 func (q *Queries) UpdateTaskStatus(ctx context.Context, arg UpdateTaskStatusParams) error {
-	_, err := q.db.ExecContext(ctx, updateTaskStatus, arg.Status, arg.Mtime, arg.ChangedAt, arg.ID)
+	_, err := q.db.ExecContext(ctx, updateTaskStatus,
+		arg.Status,
+		arg.Mtime,
+		arg.ChangedAt,
+		arg.ID,
+	)
 	return err
 }
 

@@ -65,7 +65,7 @@ test.describe("About & Licenses Modal E2E", () => {
 			expect(await repoLink.getAttribute("rel")).toContain("noopener");
 		}
 
-		// 7. Test ecosystem filter buttons and verify types/CSS build tools are excluded
+		// 7. Test ecosystem filter buttons and verify type declarations and the Bun build plugin are excluded
 		await searchInput.clear();
 		await searchInput.fill("@types/");
 		await expect(modal.locator('[data-testid="license-package-item"]')).toHaveCount(0);

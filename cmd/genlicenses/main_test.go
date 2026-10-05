@@ -44,10 +44,10 @@ func TestIsExcludedNpmPackage(t *testing.T) {
 	}{
 		{"@types/d3", true},
 		{"@types/geojson", true},
-		{"tailwindcss", true},
-		{"daisyui", true},
+		{"tailwindcss", false},
+		{"daisyui", false},
 		{"bun-plugin-tailwind", true},
-		{"@tailwindcss/typography", true},
+		{"@tailwindcss/typography", false},
 		{"preact", false},
 		{"@preact/signals", false},
 		{"valibot", false},

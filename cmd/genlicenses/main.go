@@ -223,18 +223,11 @@ type npmPackageJSON struct {
 	Dependencies map[string]string `json:"dependencies"`
 }
 
+// isExcludedNpmPackage reports packages whose code never ships: type declarations and the
+// Bun build plugin. CSS frameworks (tailwindcss, daisyui, @tailwindcss/*) are listed,
+// because the CSS they generate is part of the bundle and needs attribution.
 func isExcludedNpmPackage(name string) bool {
-	if strings.HasPrefix(name, "@types/") {
-		return true
-	}
-	switch name {
-	case "tailwindcss", "daisyui", "bun-plugin-tailwind":
-		return true
-	}
-	if strings.HasPrefix(name, "@tailwindcss/") {
-		return true
-	}
-	return false
+	return strings.HasPrefix(name, "@types/") || name == "bun-plugin-tailwind"
 }
 
 // mainNpmPackages returns the runtime dependencies declared in web/package.json.
