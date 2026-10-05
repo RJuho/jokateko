@@ -39,10 +39,9 @@ func cmdInit(args []string, stdout, stderr io.Writer) int {
 	msDir := filepath.Join(jokatekoDir, "milestones")
 	stratDir := filepath.Join(jokatekoDir, "strategies")
 	glossDir := filepath.Join(jokatekoDir, "glossary")
-	tmplDir := filepath.Join(jokatekoDir, "templates")
 
 	// 1. Create directory structure
-	for _, d := range []string{tasksDir, msDir, stratDir, glossDir, tmplDir} {
+	for _, d := range []string{tasksDir, msDir, stratDir, glossDir} {
 		if err := os.MkdirAll(d, 0755); err != nil {
 			fmt.Fprintf(stderr, "failed to create directory %q: %v\n", d, err)
 			return 1
@@ -140,7 +139,7 @@ Verify that all project directories and configurations are ready.
 	}
 
 	fmt.Fprintf(stdout, `[OK] Initialized Jokateko project in %s
-  ✓ Created directory structure (.jokateko/{tasks,milestones,strategies,glossary,templates})
+  ✓ Created directory structure (.jokateko/{tasks,milestones,strategies,glossary})
   ✓ Created default configuration (.jokateko/config.toml)
   ✓ Added starter milestone and task (%s-initial-setup.md)
 Run 'jokateko parse' to validate your project state.

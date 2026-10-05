@@ -368,7 +368,7 @@ func TestMilestonesCRUD(t *testing.T) {
 		"title":       "MVP Milestone",
 		"status":      "open",
 		"target_date": "2026-09-15",
-		"tags":        []string{"mvp"},
+		"tags":        []string{"release"},
 		"summary":     "MVP release target",
 		"body":        "# Milestone Roadmap",
 	}
@@ -405,7 +405,7 @@ func TestStrategiesCRUD(t *testing.T) {
 		"id":      "zero-cgo",
 		"title":   "Zero CGO Architecture",
 		"tier":    1,
-		"tags":    []string{"core"},
+		"tags":    []string{"infra"},
 		"summary": "Rules for zero CGO",
 		"body":    "Strict rules.",
 	}
@@ -439,7 +439,7 @@ func TestGlossaryCRUD(t *testing.T) {
 	createPayload := map[string]any{
 		"id":      "tac",
 		"title":   "Tasks-as-Code",
-		"tags":    []string{"concept"},
+		"tags":    []string{"docs"},
 		"summary": "Markdown files as tasks",
 		"body":    "Explanation.",
 	}
@@ -645,7 +645,7 @@ func TestMilestoneDeletionSafeguards(t *testing.T) {
 		"title":       "MVP Milestone",
 		"status":      "open",
 		"target_date": "2026-09-15",
-		"tags":        []string{"mvp"},
+		"tags":        []string{"release"},
 		"summary":     "MVP roadmap target",
 		"body":        "# MVP Roadmap",
 	}

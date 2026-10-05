@@ -247,10 +247,10 @@ func TestMergeConfigOverrideMatrix(t *testing.T) {
 		{
 			name: "mcp",
 			raw: rawConfig{MCP: &rawMCPConfig{
-				Enabled: new(false), TimeoutSeconds: new(5), AllowMutations: new(false), Instructions: new("be nice"),
+				Enabled: new(false), AllowMutations: new(false), Instructions: new("be nice"),
 			}},
 			check: func(t *testing.T, c *Config) {
-				want := MCPConfig{Enabled: false, TimeoutSeconds: 5, AllowMutations: false, Instructions: "be nice"}
+				want := MCPConfig{Enabled: false, AllowMutations: false, Instructions: "be nice"}
 				if c.MCP != want {
 					t.Errorf("mcp = %+v, want %+v", c.MCP, want)
 				}

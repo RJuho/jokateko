@@ -13,6 +13,7 @@ import {
 } from '../../state/store'
 import { countCriteria } from '../../utils/criteria'
 import { t, tf } from '../../utils/i18n'
+import { saveTask } from '../../utils/taskApi'
 
 function formatForDatetimeLocal(val?: string): string {
 	if (!val) return ''
@@ -100,7 +101,8 @@ function TaskEditDialog({ task }: { task: Task }) {
 			summary: summary.trim(),
 			status,
 			priority,
-			milestone: milestone.trim() === '' ? null : milestone.trim(),
+			// '' clears the milestone; null would leave it unchanged on the server
+			milestone: milestone.trim(),
 			target_at: targetAt.trim() === '' ? '' : targetAt.trim(),
 			tags: parsedTags,
 			dependencies: parsedDeps,
@@ -132,18 +134,12 @@ function TaskEditDialog({ task }: { task: Task }) {
 		}
 
 		try {
-			const res = await fetch(`/api/tasks/${encodeURIComponent(task.id)}`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload),
-			})
-
-			if (!res.ok) {
-				const data = await res.json().catch(() => ({}))
-				throw new Error(data.error || `HTTP ${res.status}`)
-			}
-
-			const updatedTask: Task = await res.json()
+			const updatedTask = await saveTask(
+				`/api/tasks/${encodeURIComponent(task.id)}`,
+				'PUT',
+				payload,
+				milestoneList.find((m) => m.id === milestone)?.title ?? milestone,
+			)
 			upsertTask(updatedTask)
 			closeModal()
 			activeTaskDetailId.value = updatedTask.id
@@ -320,6 +316,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 							</label>
 							<select
 								id='task-edit-milestone'
+								data-testid='task-edit-milestone-select'
 								value={milestone}
 								onChange={(e) =>
 									setMilestone((e.target as HTMLSelectElement).value)

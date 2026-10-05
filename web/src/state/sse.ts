@@ -159,12 +159,6 @@ export function startSSE(endpoint = '/api/events'): void {
 		}
 	})
 
-	// Board refresh event
-	eventSource.addEventListener('board.refreshed', () => {
-		fetchLiveBoard()
-		fetchLiveEntities()
-	})
-
 	// Heartbeat
 	eventSource.addEventListener('ping', () => {
 		connectionStatus.value = 'connected'

@@ -27,7 +27,7 @@ flowchart TB
 
     subgraph WEB ["web/ · Bun + Preact UI"]
         direction TB
-        src["src/<br/>components · state · schemas · utils · hooks"]
+        src["src/<br/>components · state · schemas · utils · hooks · types"]
         scripts["scripts/<br/>bundle.ts · dev.ts · check-tailwind.ts"]
         dist["dist/ (generated)<br/>index.html.gz · mermaid.min.js.gz"]
         embed["embed.go<br/>go:embed dist"]
@@ -65,6 +65,7 @@ flowchart LR
     dist -->|go:embed| bin["bin/jokateko"]
 
     models["internal/model/*.go"] -->|go run ./cmd/gentypes| ts["web/src/types/generated.ts"]
+    ts -->|bun run typecheck| drift["web/src/types/drift.ts<br/>must match schemas/models.ts"]
     sql["internal/store/schema.sql<br/>queries.sql + sqlc.yaml"] -->|sqlc generate| sqlgo["internal/store/queries.sql.go<br/>models.go · querier.go"]
     gomod["go.mod (direct requires)"] -->|go run ./cmd/genlicenses| lic["internal/version/licenses.json<br/>web/src/data/licenses.json"]
     pkg -->|go run ./cmd/genlicenses| lic
@@ -72,7 +73,7 @@ flowchart LR
     jkdir[".jokateko/**"] -->|jokateko build| export["dist-kanban/index.html<br/>static export (gitignored)"]
 ```
 
-`make generate` runs sqlc, gentypes and genlicenses. `make build` rebuilds `web/dist` when UI sources change, then compiles the binary. Because `web/dist` is generated and gitignored, `go install …@latest` cannot build Jokateko. Use `make build`.
+`make generate` runs sqlc, gentypes and genlicenses. `make test` first runs `make typecheck` (`tsc --noEmit` in `web/`), so a Go model change that the hand-written Valibot schemas don't follow fails the build (see *Web UI architecture*). `make build` rebuilds `web/dist` when UI sources change, then compiles the binary. Because `web/dist` is generated and gitignored, `go install …@latest` cannot build Jokateko. Use `make build`.
 
 ## Key configuration files
 
@@ -80,7 +81,7 @@ flowchart LR
 |---|---|
 | `go.mod` / `go.sum` | Go module and locked dependencies (no CGO, see *Pure Go Zero-CGO & Minimal Dependencies*) |
 | `web/package.json` / `web/bun.lock` | UI dependencies. The lockfile pins exact versions and integrity hashes, including Mermaid's CDN version and SRI |
-| `Makefile` | Single entry point: `build`, `install`, `test`, `cover`, `e2e-test`, `lighthouse-test`, `generate`, `fuzz-*`, `chaos-test`, `cross-compile` |
+| `Makefile` | Single entry point: `build`, `install`, `typecheck`, `test`, `cover`, `e2e-test`, `lighthouse-test`, `generate`, `fuzz-*`, `chaos-test`, `cross-compile` |
 | `.jokateko/config.toml` | This repo's Jokateko project config (columns, tags, server, CSP). Validate with `jokateko parse` |
 | `internal/config/default.toml` | Compiled-in defaults and the reference config spec |
 | `internal/store/sqlc.yaml` | sqlc code generation config |
@@ -98,9 +99,10 @@ flowchart LR
    - signals state in `state/`
    - Valibot schemas in `schemas/`
    - pure helpers in `utils/`
+   - generated Go types and their drift check in `types/`
    - unit tests as `*.test.ts` next to the code
 3. **E2E tests** go in `tests/e2e/*.spec.ts`, using `data-testid` selectors. Spec files are parsed as plain JS by the Bun-backed runner (no type annotations).
-4. **`.jokateko/`** is mutated only through the Jokateko MCP tools or the UI. Never edit it directly.
+4. **`.jokateko/`** is mutated only through the Jokateko MCP tools or the UI. Never edit it directly. `jokateko init` creates only the four entity directories and `config.toml`.
 5. **Documentation** lives in `.jokateko/strategies` and `.jokateko/glossary`, not in a `docs/` folder. The only root Markdown files are the README, contributor and security docs, and the agent instructions.
 6. **Generated and build output** (`web/dist/`, `bin/`, `dist-kanban/`, `test-results/`, `playwright-report/`, `lighthouse-report/`) is gitignored. Regenerate it, never commit it.
 7. **New dependencies** in `go.mod` or `web/package.json` need explicit human approval.

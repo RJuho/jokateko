@@ -353,3 +353,28 @@ func TestCLI_Licenses(t *testing.T) {
 		t.Errorf("expected packages array not to be empty")
 	}
 }
+
+func TestCLI_MCPDisabled(t *testing.T) {
+	tempDir := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	if code := run(t.Context(), []string{"init", "-dir", tempDir}, &stdout, &stderr); code != 0 {
+		t.Fatalf("failed to init workspace: %s", stderr.String())
+	}
+	cfgPath := filepath.Join(tempDir, ".jokateko", "config.toml")
+	f, err := os.OpenFile(cfgPath, os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString("\n[mcp]\nenabled = false\n"); err != nil {
+		t.Fatal(err)
+	}
+	_ = f.Close()
+
+	stderr.Reset()
+	if code := runMCP(t.Context(), []string{"-dir", tempDir, "-timeout", "150ms"}, strings.NewReader(""), &stdout, &stderr); code != 1 {
+		t.Fatalf("runMCP exit code = %d, want 1. stderr: %s", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "MCP is disabled") {
+		t.Errorf("expected disabled message, got: %s", stderr.String())
+	}
+}

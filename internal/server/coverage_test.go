@@ -187,6 +187,9 @@ func TestHandleUpdateTask(t *testing.T) {
 	srv, _, _, _ := setupTestServer(t)
 	h := srv.Handler()
 
+	if rec := do(t, h, http.MethodPost, "/api/milestones", `{"id":"260915-mvp","title":"MVP","summary":"s"}`); rec.Code != http.StatusCreated {
+		t.Fatalf("seed milestone: %d %s", rec.Code, rec.Body)
+	}
 	if rec := do(t, h, http.MethodPost, "/api/tasks", `{"id":"260101-dep","title":"Dep","summary":"s"}`); rec.Code != http.StatusCreated {
 		t.Fatalf("seed dep: %d %s", rec.Code, rec.Body)
 	}
@@ -207,7 +210,7 @@ func TestHandleUpdateTask(t *testing.T) {
 		{"unknown task", "260101-missing", `{"title":"x"}`, http.StatusNotFound, nil},
 		{
 			"all fields", "260101-main",
-			`{"title":"  New title  ","priority":"high","milestone":" 260915-mvp ","tags":["a","b"],"summary":" new summary ","dependencies":["260101-dep"],"target_at":"2026-12-24","body":"edited"}`,
+			`{"title":"  New title  ","priority":"high","milestone":" 260915-mvp ","tags":["backend","api"],"summary":" new summary ","dependencies":["260101-dep"],"target_at":"2026-12-24","body":"edited"}`,
 			http.StatusOK,
 			func(t *testing.T, task model.Task) {
 				if task.Title != "New title" || task.Priority != model.PriorityHigh || task.Milestone != "260915-mvp" ||
@@ -217,14 +220,12 @@ func TestHandleUpdateTask(t *testing.T) {
 				}
 			},
 		},
-		{
-			"invalid priority is ignored", "260101-main", `{"priority":"ultra"}`, http.StatusOK,
-			func(t *testing.T, task model.Task) {
-				if task.Priority != model.PriorityHigh {
-					t.Errorf("priority = %q, want unchanged high", task.Priority)
-				}
-			},
-		},
+		{"invalid priority is rejected", "260101-main", `{"priority":"ultra"}`, http.StatusBadRequest, nil},
+		{"empty title is rejected", "260101-main", `{"title":"  "}`, http.StatusBadRequest, nil},
+		{"unknown milestone", "260101-main", `{"milestone":"260101-nope"}`, http.StatusNotFound, nil},
+		{"unknown dependency", "260101-main", `{"dependencies":["260101-nope"]}`, http.StatusNotFound, nil},
+		{"self dependency", "260101-main", `{"dependencies":["260101-main"]}`, http.StatusBadRequest, nil},
+		{"tag outside vocabulary", "260101-main", `{"tags":["nope"]}`, http.StatusBadRequest, nil},
 		{"move out of editable state", "260101-main", `{"status":" in_progress "}`, http.StatusOK, nil},
 		{"body edit outside editable state", "260101-main", `{"body":"rewritten"}`, http.StatusConflict, nil},
 	}
@@ -257,10 +258,10 @@ func TestSearchQueryParameters(t *testing.T) {
 	srv, _, _, _ := setupTestServer(t)
 	h := srv.Handler()
 	seed := []struct{ path, body string }{
-		{"/api/tasks", `{"id":"260101-fts","title":"Searchable task","summary":"needle","tags":["x"]}`},
-		{"/api/milestones", `{"id":"260101-ms","title":"Searchable milestone","summary":"needle","tags":["x"]}`},
-		{"/api/strategies", `{"id":"strat","title":"Searchable strategy","tier":1,"summary":"needle","tags":["x"]}`},
-		{"/api/glossary", `{"id":"term","title":"Searchable term","summary":"needle","tags":["x"]}`},
+		{"/api/tasks", `{"id":"260101-fts","title":"Searchable task","summary":"needle","tags":["docs"]}`},
+		{"/api/milestones", `{"id":"260101-ms","title":"Searchable milestone","summary":"needle","tags":["docs"]}`},
+		{"/api/strategies", `{"id":"strat","title":"Searchable strategy","tier":1,"summary":"needle","tags":["docs"]}`},
+		{"/api/glossary", `{"id":"term","title":"Searchable term","summary":"needle","tags":["docs"]}`},
 	}
 	for _, s := range seed {
 		if rec := do(t, h, http.MethodPost, s.path, s.body); rec.Code != http.StatusCreated {
@@ -279,7 +280,7 @@ func TestSearchQueryParameters(t *testing.T) {
 		{"q=needle&type=task", 1},
 		{"q=needle&type=milestone", 1},
 		{"q=needle&type=strategy", 1},
-		{"q=needle&type=glossary&tag=x", 1},
+		{"q=needle&type=glossary&tag=docs", 1},
 		{"q=needle&tag=missing", 0},
 		{"q=", 0},
 	}
@@ -528,5 +529,43 @@ func TestSSESkipsUnmarshalablePayloadAndClosesOnStop(t *testing.T) {
 	hub.Stop()
 	if ev := readEvent(); !strings.HasSuffix(ev, "EOF") {
 		t.Fatalf("expected stream to end after Stop, got %q", ev)
+	}
+}
+
+func TestTaskArchivedMilestoneNeedsReopen(t *testing.T) {
+	srv, _, _, _ := setupTestServer(t)
+	h := srv.Handler()
+
+	if rec := do(t, h, http.MethodPost, "/api/milestones", `{"id":"260101-closed","title":"Closed","status":"closed","summary":"s"}`); rec.Code != http.StatusCreated {
+		t.Fatalf("seed milestone: %d %s", rec.Code, rec.Body)
+	}
+
+	rec := do(t, h, http.MethodPost, "/api/tasks", `{"id":"260101-a","title":"A","summary":"s","milestone":"260101-closed"}`)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("create on closed milestone: got %d, want 409: %s", rec.Code, rec.Body)
+	}
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["code"] != service.CodeMilestoneArchived {
+		t.Fatalf("code = %q, want %q", body["code"], service.CodeMilestoneArchived)
+	}
+
+	if rec := do(t, h, http.MethodPost, "/api/tasks", `{"id":"260101-a","title":"A","summary":"s","milestone":"260101-closed","reopen_milestone":true}`); rec.Code != http.StatusCreated {
+		t.Fatalf("create with reopen: got %d: %s", rec.Code, rec.Body)
+	}
+	if rec := do(t, h, http.MethodPost, "/api/tasks", `{"id":"260101-b","title":"B","summary":"s"}`); rec.Code != http.StatusCreated {
+		t.Fatalf("seed task: %d %s", rec.Code, rec.Body)
+	}
+	if rec := do(t, h, http.MethodPut, "/api/tasks/260101-b", `{"milestone":"260101-closed"}`); rec.Code != http.StatusConflict {
+		t.Fatalf("update onto closed milestone: got %d, want 409: %s", rec.Code, rec.Body)
+	}
+	if rec := do(t, h, http.MethodPut, "/api/tasks/260101-b", `{"milestone":"260101-closed","reopen_milestone":true}`); rec.Code != http.StatusOK {
+		t.Fatalf("update with reopen: got %d: %s", rec.Code, rec.Body)
+	}
+	// Unchanged milestone: unrelated edits are not blocked.
+	if rec := do(t, h, http.MethodPut, "/api/tasks/260101-b", `{"title":"B2","milestone":"260101-closed"}`); rec.Code != http.StatusOK {
+		t.Fatalf("edit with unchanged milestone: got %d: %s", rec.Code, rec.Body)
 	}
 }

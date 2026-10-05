@@ -90,6 +90,8 @@ export const defaultTranslations = {
 	task_dependencies_count: 'Dependencies ({count})',
 	task_dependency_missing: 'missing',
 	task_confirm_delete: 'Are you sure you want to delete task "{title}"?',
+	task_milestone_reopen_confirm:
+		'Milestone "{milestone}" is closed or all its tasks are done. Attach this task to it anyway?',
 	task_delete_failed: 'Failed to delete task: {error}',
 	task_delete: 'Delete',
 	task_deleting: 'Deleting...',

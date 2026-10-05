@@ -85,9 +85,11 @@ func cmdServe(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 	}
 	defer stopPipeline()
 
-	// 5. Start HTTP Server with MCP support (Streamable HTTP transport)
+	// 5. Start HTTP Server with MCP support (Streamable HTTP transport) unless [mcp] enabled = false
 	srv := server.New(svc, sse)
-	srv.SetMCPHandler(mcp.New(svc).HTTPHandler())
+	if cfg.MCP.Enabled {
+		srv.SetMCPHandler(mcp.New(svc).HTTPHandler())
+	}
 
 	if err := srv.Start(); err != nil {
 		fmt.Fprintf(stderr, "failed to start HTTP server: %v\n", err)

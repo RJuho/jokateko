@@ -34,6 +34,10 @@ func runMCP(ctx context.Context, args []string, stdin io.Reader, stdout, stderr 
 		fmt.Fprintf(stderr, "warning: using default configuration: %v\n", err)
 		cfg = config.Default(workspaceDir)
 	}
+	if !cfg.MCP.Enabled {
+		fmt.Fprintln(stderr, "error: MCP is disabled in config.toml ([mcp] enabled = false)")
+		return 1
+	}
 
 	if *portFlag > 0 {
 		cfg.Server.Port = *portFlag

@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/RJuho/jokateko/internal/model"
 )
@@ -133,18 +132,10 @@ type TagsConfig struct {
 
 // MCPConfig defines Model Context Protocol settings for AI agents.
 type MCPConfig struct {
+	// Enabled serves /api/mcp and allows `jokateko mcp`; false turns both off.
 	Enabled        bool   `toml:"enabled"`
-	TimeoutSeconds int    `toml:"timeout_seconds"`
 	AllowMutations bool   `toml:"allow_mutations"`
 	Instructions   string `toml:"instructions"`
-}
-
-// Timeout returns the configured timeout as a time.Duration.
-func (m MCPConfig) Timeout() time.Duration {
-	if m.TimeoutSeconds <= 0 {
-		return 30 * time.Second
-	}
-	return time.Duration(m.TimeoutSeconds) * time.Second
 }
 
 // Dirs holds the absolute entity directory paths of a workspace.

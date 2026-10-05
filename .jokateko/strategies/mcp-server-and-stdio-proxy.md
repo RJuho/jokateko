@@ -1,7 +1,7 @@
 +++
 title = 'MCP server and stdio proxy'
 tier = 2
-tags = ['backend', 'api']
+tags = ['api', 'backend']
 summary = 'How Jokateko serves MCP: a stateless Streamable HTTP endpoint inside `serve`, and `jokateko mcp`, a stdio process that proxies to a same-workspace daemon or runs standalone, failing over live in both directions (including handshake replay) so agents survive daemon restarts and upgrades.'
 +++
 
@@ -73,5 +73,6 @@ The MCP `instructions` sent at handshake are `[mcp] instructions` from config (t
 
 ## Config switches
 
+- `[mcp] enabled = false` turns MCP off entirely: `serve` mounts no handler, so `/api/mcp` answers `404`, and `jokateko mcp` exits with status 1 and "MCP is disabled". The REST API and Web UI are unaffected. Default `true`.
 - `[mcp] allow_mutations = false` makes every write tool fail. Read tools keep working.
-- `[mcp] enabled` and `[mcp] timeout_seconds` are parsed but **not used by any code yet**.
+- There is no per-call timeout setting (the former `timeout_seconds` was never used and has been removed; a stale key in an existing config is ignored). Tool calls are short local file writes, bounded by the client's own request timeout.

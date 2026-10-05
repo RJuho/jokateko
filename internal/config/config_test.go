@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/RJuho/jokateko/internal/config"
 	"github.com/RJuho/jokateko/internal/model"
@@ -70,8 +69,8 @@ func TestDefaultConfig(t *testing.T) {
 		t.Error("expected IsAllowedTag('invalid-tag-foo') to be false")
 	}
 
-	if cfg.MCP.Timeout() != 30*time.Second {
-		t.Errorf("expected default timeout 30s, got %v", cfg.MCP.Timeout())
+	if !cfg.MCP.Enabled {
+		t.Error("expected MCP to be enabled by default")
 	}
 
 	if cfg.Translations["sort_by"] != "Sort" {

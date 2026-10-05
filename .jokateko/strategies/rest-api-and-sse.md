@@ -7,11 +7,12 @@ summary = 'The HTTP surface of `jokateko serve`: REST endpoints and their payloa
 
 # REST API and SSE
 
-Served by `internal/server` on `[server] host:port` (default `127.0.0.1:8080`) with the standard `net/http` mux. The REST API exists for the bundled Web UI. It is **not a stable public API**, and agents use MCP. All bodies are `application/json; charset=utf-8`. Mutations call `internal/service`, the same code as MCP.
+Served by `internal/server` on `[server] host:port` (default `127.0.0.1:8080`) with the standard `net/http` mux. The REST API exists for the bundled Web UI. It is **not a stable public API**, and agents use MCP. All bodies are `application/json; charset=utf-8`. Mutations call `internal/service`, the same code as MCP, so REST and MCP writes enforce the same guards (references, priorities, tag vocabulary, archived milestones).
 
 ## Conventions
 
-- Errors: `{"error": "<message>"}`. `400` invalid input, `404` not found, `409` conflict (duplicate ID, cycle, locked body, delete blocked), `403` rejected Host or cross-origin request, `415` non-JSON body, `500` unexpected.
+- Errors: `{"error": "<message>"}`, plus `"code"` when the client can act on it (see below). `400` invalid input, `404` not found (including an unknown `milestone` or `dependencies` entry), `409` conflict (duplicate ID, cycle, locked body, delete blocked, archived milestone), `403` rejected Host or cross-origin request, `415` non-JSON body, `500` unexpected.
+- Error codes: `milestone_archived` (`409`) — the task would be attached to a closed or fully completed milestone. Resend with `"reopen_milestone": true` after the user confirms; the Web UI asks with `confirm()`.
 - Create → `201` with the entity. Update → `200` with the entity. Delete → `200` `{"status":"deleted","id":"…"}`.
 - Bodies are capped at 1 MiB.
 - `body_html` in every entity is rendered by `internal/parser` in goldmark safe mode: raw HTML becomes escaped text (pure HTML comments are dropped) and dangerous link URLs are emptied, so the UI may insert it with `dangerouslySetInnerHTML`. Never re-enable `html.WithUnsafe()`.
@@ -24,24 +25,24 @@ Served by `internal/server` on `[server] host:port` (default `127.0.0.1:8080`) w
 | `GET /api/version` · `/api/about` · `/api/licenses` | Build metadata; About dialog data; bundled license texts |
 | `GET /api/board` | `BoardState`: columns with sorted tasks, plus UI config (`editable_states`, `locale`, `translations`, MCP instructions, …). Query: `status`, `milestone`, `tag`, `priority`, `q` |
 | `GET /api/tasks` · `GET /api/tasks/{id}` | Same filters as the board |
-| `POST /api/tasks` | `{id?, title, summary, status?, priority?, milestone?, tags?, dependencies?, target_at?, body?}` |
-| `PUT /api/tasks/{id}` | Partial: any of `title, status, priority, milestone, tags, summary, dependencies, target_at, body`. A `body` change outside `editable_states` → `409` unless only checkboxes changed |
+| `POST /api/tasks` | `{id?, title, summary, status?, priority?, milestone?, tags?, dependencies?, target_at?, body?, reopen_milestone?}`. Same checks as MCP `create_task` |
+| `PUT /api/tasks/{id}` | Partial: any of `title, status, priority, milestone, tags, summary, dependencies, target_at, body`, plus `reopen_milestone`. Only changed fields are checked. `null` leaves a field unchanged; `"milestone": ""` clears it. A `body` change outside `editable_states` → `409` unless only checkboxes changed |
 | `PUT /api/tasks/{id}/status` | `{status}`. Any configured column, **including `done`** (humans may skip `complete_task`) |
-| `DELETE /api/tasks/{id}[?force=true]` | `409` while other tasks depend on it. `force` leaves dangling dependency IDs |
+| `DELETE /api/tasks/{id}[?force=true]` | `409` while other tasks depend on it. `force` removes the ID from the dependents first (each broadcast as `task.updated`) |
 | `POST /api/tasks/{id}/dependencies` · `DELETE /api/tasks/{id}/dependencies/{depId}` | `{dependency_id}`. Existence and cycle checks |
 | `POST /api/tasks/{id}/notes` | `{note}` → appended under `## Notes` |
-| `GET/POST /api/milestones`, `GET/DELETE /api/milestones/{id}[?force=true]` | POST `{id?, title, summary, status?, target_date?, tags?, body?}` |
+| `GET/POST /api/milestones`, `GET/DELETE /api/milestones/{id}[?force=true]` | POST `{id?, title, summary, status?, target_date?, tags?, body?}`. Forced delete clears `milestone` on the assigned tasks first |
 | `GET/POST /api/strategies`, `GET/DELETE /api/strategies/{id}` | POST `{id?, title, tier, summary, tags?, body?}` |
 | `GET/POST /api/glossary`, `GET/DELETE /api/glossary/{id}` | POST `{id?, title, summary, tags?, body?}` |
 | `GET /api/tags` | `{enforced, tags:[{tag, task_count, milestone_count, strategy_count}]}` |
 | `GET /api/search` | `q` (required), `tag`, `type` (`all`/`task`/`milestone`/`strategy`/`glossary`), `limit` (default 20). FTS5 results with snippets |
-| `GET/POST/DELETE /api/mcp` | MCP Streamable HTTP (see *MCP server and stdio proxy*) |
+| `GET/POST/DELETE /api/mcp` | MCP Streamable HTTP (see *MCP server and stdio proxy*). `404` when `[mcp] enabled = false` |
 | `GET /api/events` | SSE, see below |
 | `GET /assets/mermaid-<version>.min.js` | Embedded Mermaid runtime, immutable caching |
 | `GET /robots.txt` | `User-agent: *` / `Allow: /` (kept for the Lighthouse SEO audit; the server is loopback-only anyway) |
 | `GET /` | The embedded UI (gzip when accepted) |
 
-There is no REST update for milestones, strategies or glossary terms. Those updates exist only as MCP tools. REST does **not** enforce the `[tags]` vocabulary or the archived-milestone guard; MCP does.
+There is no REST update for milestones, strategies or glossary terms. Those updates exist only as MCP tools.
 
 ## Request security pipeline
 
@@ -67,4 +68,4 @@ Headers: `text/event-stream`, `no-cache`, `keep-alive`, `X-Accel-Buffering: no`.
 | `milestone.*` · `strategy.*` · `glossary.*` | Full entity | Same as for tasks |
 | `<type>.deleted` | `{"id": "…"}` | Deleted by the service or on disk |
 
-Events are **best-effort**. The hub drops an event when its broadcast buffer or a client's 16-event buffer is full, so clients must tolerate gaps. Reloading the board recovers. `board.refreshed` is handled by the client but never emitted.
+Events are **best-effort**. The hub drops an event when its broadcast buffer or a client's 16-event buffer is full, so clients must tolerate gaps. There is no full-resync event: the client reloads the board and entities when the stream reconnects, and a page reload always recovers. The event names are also listed in `SSEEventType` in `web/src/types/generated.ts` (from `cmd/gentypes`).

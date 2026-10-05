@@ -118,7 +118,7 @@ func (s *Server) toolListMilestones(ctx context.Context, _ *mcp.CallToolRequest,
 
 	summaries := make([]MilestoneSummary, 0, len(milestones))
 	for _, ms := range milestones {
-		archived := isArchived(ms)
+		archived := service.IsArchived(ms)
 		if !in.IncludeArchived && archived {
 			continue
 		}
@@ -156,7 +156,7 @@ func (s *Server) milestoneDetail(ctx context.Context, ms model.Milestone) *Miles
 		ID:                 ms.ID,
 		Title:              ms.Title,
 		Status:             ms.Status,
-		IsArchived:         isArchived(ms),
+		IsArchived:         service.IsArchived(ms),
 		TargetDate:         ms.TargetDate,
 		TargetStartAt:      ms.TargetStartAt,
 		TargetEndAt:        ms.TargetEndAt,
@@ -191,10 +191,6 @@ func (s *Server) toolCreateMilestone(ctx context.Context, _ *mcp.CallToolRequest
 	if strings.TrimSpace(in.Summary) == "" {
 		return nil, nil, errors.New("summary is required")
 	}
-	if err := s.svc.CheckTags(in.Tags); err != nil {
-		return nil, nil, err
-	}
-
 	ms, err := s.svc.CreateMilestone(ctx, service.NewMilestone{
 		Title:      in.Title,
 		TargetDate: in.TargetDate,
@@ -215,11 +211,6 @@ func (s *Server) toolUpdateMilestone(ctx context.Context, _ *mcp.CallToolRequest
 	id, err := requireID(in.ID, "milestone")
 	if err != nil {
 		return nil, nil, err
-	}
-	if in.Tags != nil {
-		if err := s.svc.CheckTags(*in.Tags); err != nil {
-			return nil, nil, err
-		}
 	}
 
 	ms, err := s.svc.UpdateMilestone(ctx, id, func(ms *model.Milestone) error {

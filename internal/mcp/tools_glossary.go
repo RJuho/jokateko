@@ -116,10 +116,6 @@ func (s *Server) toolCreateGlossaryTerm(ctx context.Context, _ *mcp.CallToolRequ
 	if strings.TrimSpace(in.Summary) == "" {
 		return nil, nil, errors.New("summary is required")
 	}
-	if err := s.svc.CheckTags(in.Tags); err != nil {
-		return nil, nil, err
-	}
-
 	term, err := s.svc.CreateGlossaryTerm(ctx, service.NewGlossaryTerm{
 		Title:   in.Title,
 		Tags:    in.Tags,
@@ -140,11 +136,6 @@ func (s *Server) toolUpdateGlossaryTerm(ctx context.Context, _ *mcp.CallToolRequ
 	id, err := requireID(in.ID, "term")
 	if err != nil {
 		return nil, nil, err
-	}
-	if in.Tags != nil {
-		if err := s.svc.CheckTags(in.Tags); err != nil {
-			return nil, nil, err
-		}
 	}
 
 	term, err := s.svc.UpdateGlossaryTerm(ctx, id, func(t *model.GlossaryTerm) error {

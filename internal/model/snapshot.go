@@ -35,10 +35,12 @@ type TierConfig struct {
 
 // BuildConfig represents build timestamp and VCS metadata embedded into static exports.
 type BuildConfig struct {
-	Time    string `json:"time,omitempty"`
-	Branch  string `json:"branch,omitempty"`
-	Commit  string `json:"commit,omitempty"`
-	Version string `json:"version,omitempty"`
+	Time      string `json:"time,omitempty"`
+	Branch    string `json:"branch,omitempty"`
+	Commit    string `json:"commit,omitempty"`
+	Version   string `json:"version,omitempty"`
+	GoVersion string `json:"go_version,omitempty"`
+	Platform  string `json:"platform,omitempty"`
 }
 
 // ProjectConfig represents the project name and description for static exports.

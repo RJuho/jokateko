@@ -140,7 +140,12 @@ func generate(modelDir string, warn io.Writer) ([]byte, error) {
   | "milestone.created"
   | "milestone.updated"
   | "milestone.deleted"
-  | "board.refreshed"
+  | "strategy.created"
+  | "strategy.updated"
+  | "strategy.deleted"
+  | "glossary.created"
+  | "glossary.updated"
+  | "glossary.deleted"
   | "ping";
 
 export interface SSEEvent<T = unknown> {

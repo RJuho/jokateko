@@ -95,12 +95,12 @@ type UpdateTaskItemOutput struct {
 type CreateTaskInput struct {
 	Title           string   `json:"title" jsonschema:"required,Short, descriptive title"`
 	Status          string   `json:"status,omitempty" jsonschema:"Column status (defaults to first column, e.g. backlog)"`
-	Priority        string   `json:"priority,omitempty" jsonschema:"low, medium, high, or critical (default: medium)"`
-	Milestone       string   `json:"milestone,omitempty" jsonschema:"Associated milestone slug"`
-	ReopenMilestone bool     `json:"reopen_milestone,omitempty" jsonschema:"Set true if milestone is already completed/closed"`
+	Priority        string   `json:"priority,omitempty" jsonschema:"A configured priority ID, e.g. low, medium, high or critical (default: medium); unknown values are rejected"`
+	Milestone       string   `json:"milestone,omitempty" jsonschema:"Slug of an existing milestone"`
+	ReopenMilestone bool     `json:"reopen_milestone,omitempty" jsonschema:"Set true to attach the task to a closed or fully completed milestone"`
 	Tags            []string `json:"tags,omitempty" jsonschema:"Categorization tags"`
 	Summary         string   `json:"summary" jsonschema:"required,1-2 sentence high-level summary"`
-	Dependencies    []string `json:"dependencies,omitempty" jsonschema:"Slugs of blocking tasks"`
+	Dependencies    []string `json:"dependencies,omitempty" jsonschema:"Slugs of existing blocking tasks; cycles are rejected"`
 	TargetAt        string   `json:"target_at,omitempty" jsonschema:"Target delivery/due date in RFC3339 UTC or YYYY-MM-DD format"`
 	Body            string   `json:"body" jsonschema:"required,Markdown body with acceptance criteria"`
 }
@@ -142,11 +142,11 @@ type UpdateTaskContentInput struct {
 	ID              string    `json:"id" jsonschema:"required,Task ID or slug"`
 	Title           *string   `json:"title,omitempty" jsonschema:"New title"`
 	Summary         *string   `json:"summary,omitempty" jsonschema:"Updated summary"`
-	Priority        *string   `json:"priority,omitempty" jsonschema:"low, medium, high, critical"`
-	Milestone       *string   `json:"milestone,omitempty" jsonschema:"Associated milestone slug"`
-	ReopenMilestone bool      `json:"reopen_milestone,omitempty" jsonschema:"Set true if target milestone is already completed"`
+	Priority        *string   `json:"priority,omitempty" jsonschema:"A configured priority ID, e.g. low, medium, high or critical; unknown values are rejected"`
+	Milestone       *string   `json:"milestone,omitempty" jsonschema:"Slug of an existing milestone; empty string clears it"`
+	ReopenMilestone bool      `json:"reopen_milestone,omitempty" jsonschema:"Set true to attach the task to a closed or fully completed milestone"`
 	Tags            *[]string `json:"tags,omitempty" jsonschema:"New tag list"`
-	Dependencies    *[]string `json:"dependencies,omitempty" jsonschema:"New dependency slugs"`
+	Dependencies    *[]string `json:"dependencies,omitempty" jsonschema:"New list of existing blocking task slugs; cycles are rejected"`
 	TargetAt        *string   `json:"target_at,omitempty" jsonschema:"Updated target delivery/due date in RFC3339 UTC or YYYY-MM-DD format"`
 	Body            *string   `json:"body,omitempty" jsonschema:"New markdown body"`
 }
@@ -425,24 +425,17 @@ func (s *Server) toolCreateTask(ctx context.Context, _ *mcp.CallToolRequest, in 
 	if err := s.checkMutations(); err != nil {
 		return nil, nil, err
 	}
-	if err := s.svc.CheckTags(in.Tags); err != nil {
-		return nil, nil, err
-	}
-	milestone := strings.TrimSpace(in.Milestone)
-	if err := s.checkMilestoneOpen(ctx, milestone, in.ReopenMilestone); err != nil {
-		return nil, nil, err
-	}
-
 	task, err := s.svc.CreateTask(ctx, service.NewTask{
-		Title:        in.Title,
-		Status:       in.Status,
-		Priority:     model.Priority(in.Priority),
-		Milestone:    milestone,
-		Tags:         in.Tags,
-		Summary:      in.Summary,
-		Dependencies: in.Dependencies,
-		TargetAt:     in.TargetAt,
-		Body:         in.Body,
+		Title:           in.Title,
+		Status:          in.Status,
+		Priority:        model.Priority(in.Priority),
+		Milestone:       in.Milestone,
+		Tags:            in.Tags,
+		Summary:         in.Summary,
+		Dependencies:    in.Dependencies,
+		TargetAt:        in.TargetAt,
+		Body:            in.Body,
+		ReopenMilestone: in.ReopenMilestone,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -522,56 +515,22 @@ func (s *Server) toolUpdateTaskContent(ctx context.Context, _ *mcp.CallToolReque
 	if err != nil {
 		return nil, nil, err
 	}
-	if in.Tags != nil {
-		if err := s.svc.CheckTags(*in.Tags); err != nil {
-			return nil, nil, err
-		}
-	}
-	if in.Milestone != nil {
-		if err := s.checkMilestoneOpen(ctx, strings.TrimSpace(*in.Milestone), in.ReopenMilestone); err != nil {
-			return nil, nil, err
-		}
-	}
 
-	task, err := s.svc.UpdateTask(ctx, id, func(t *model.Task) error {
-		if in.Title != nil {
-			if v := strings.TrimSpace(*in.Title); v != "" {
-				t.Title = v
-			}
-		}
-		if in.Summary != nil {
-			if v := strings.TrimSpace(*in.Summary); v != "" {
-				t.Summary = v
-			}
-		}
-		if in.Priority != nil {
-			if p := model.Priority(*in.Priority); p.IsValid() {
-				t.Priority = p
-			}
-		}
-		if in.Milestone != nil {
-			t.Milestone = strings.TrimSpace(*in.Milestone)
-		}
-		if in.Tags != nil {
-			t.Tags = *in.Tags
-		}
-		if in.Dependencies != nil {
-			t.Dependencies = *in.Dependencies
-		}
-		if in.TargetAt != nil {
-			targetAt, err := service.NormalizeTargetAt(*in.TargetAt)
-			if err != nil {
-				return err
-			}
-			t.TargetAt = targetAt
-		}
-		if in.Body != nil {
-			if err := s.svc.CheckBodyEdit(t.Status, t.Body, *in.Body, "use add_task_note to append notes"); err != nil {
-				return err
-			}
-			t.Body = *in.Body
-		}
-		return nil
+	var priority *model.Priority
+	if in.Priority != nil {
+		priority = new(model.Priority(*in.Priority))
+	}
+	task, err := s.svc.PatchTask(ctx, id, service.TaskPatch{
+		Title:           in.Title,
+		Summary:         in.Summary,
+		Priority:        priority,
+		Milestone:       in.Milestone,
+		Tags:            in.Tags,
+		Dependencies:    in.Dependencies,
+		TargetAt:        in.TargetAt,
+		Body:            in.Body,
+		ReopenMilestone: in.ReopenMilestone,
+		BodyHint:        "use add_task_note to append notes",
 	})
 	if err != nil {
 		return nil, nil, err

@@ -13,8 +13,8 @@ Module `github.com/RJuho/jokateko`, Go 1.27+, `CGO_ENABLED=0`. All library code 
 
 | Package | Owns | Must not |
 |---|---|---|
-| `cmd/jokateko` | CLI dispatch (`flag.FlagSet`, no CLI library): `serve`, `mcp`, `parse`/`lint`, `build`, `init`, `version`, `about`, `licenses`, `help`. Wires packages together. `SIGINT`/`SIGTERM` cancel the root context for graceful shutdown | contain business rules |
-| `cmd/gentypes` | Generates `web/src/types/generated.ts` from `internal/model` | |
+| `cmd/jokateko` | CLI dispatch (`flag.FlagSet`, no CLI library): `serve`, `mcp`, `parse`/`lint`, `build`, `init`, `version`, `about`, `licenses`, `help`. Wires packages together (`/api/mcp` and `jokateko mcp` only when `[mcp] enabled`). `SIGINT`/`SIGTERM` cancel the root context for graceful shutdown | contain business rules |
+| `cmd/gentypes` | Generates `web/src/types/generated.ts` from `internal/model`. `web/src/types/drift.ts` compares it with the Valibot schemas at type level | |
 | `cmd/genlicenses` | Generates `internal/version/licenses.json` and `web/src/data/licenses.json` | |
 | `internal/config` | Embedded `default.toml`, overlay merge with the project `config.toml`, `init` template, `CFG-*`/`TAG-*` validation, resolved paths (`config.Dirs`) | |
 | `internal/model` | Domain types (Task, Milestone, Strategy, GlossaryTerm, BoardState, Snapshot, search, sort), frontmatter structs, milestone progress and auto-archive | do I/O |
@@ -23,16 +23,16 @@ Module `github.com/RJuho/jokateko`, Go 1.27+, `CGO_ENABLED=0`. All library code 
 | `internal/watcher` | `fsnotify` on the four entity dirs, 50 ms debounce, editor-artifact filter, ingest pipeline (parse → upsert/delete → callback) | write files |
 | `internal/writer` | Atomic writes: temp file `.<name>.*.tmp` in the same dir → `fsync` → `chmod` → `rename`, plus a suppression cache so self-writes are not re-ingested | |
 | `internal/validator` | Whole-project lint for `jokateko parse`: rules, DFS cycle detection, diagnostics | mutate |
-| `internal/service` | **The only mutation path**, shared by REST and MCP: ID validation and allocation, status check, editable-state body lock, dependency existence and cycle checks (`AddTaskDependency`), the `CheckTags` helper, completion and note editing, then write → re-index → notify | |
+| `internal/service` | **The only mutation path**, shared by REST and MCP: ID validation and allocation, status check, editable-state body lock, and the write-path guards that mirror `parse` — milestone and dependency existence, cycle checks, configured priorities, tag vocabulary on every entity, archived-milestone (`reopen_milestone`, error code `milestone_archived`). On update the guards check only changed fields. `force` deletes clean up references (dependents' `dependencies`, tasks' `milestone`). Then write → re-index → notify | |
 | `internal/server` | `net/http` mux: REST, SSE hub, `/api/mcp` Streamable HTTP, embedded UI and Mermaid assets, security middleware | write files directly |
-| `internal/mcp` | MCP server (official go-sdk): tools, resources, prompt, server instructions. Adds MCP-only guards before calling the service: tag vocabulary, archived-milestone (`reopen_milestone`), no `done` via `update_task_status`, `allow_mutations` | write files directly |
+| `internal/mcp` | MCP server (official go-sdk): tools, resources, prompt, server instructions. Its only own guards are agent workflow rules: no `done` via `update_task_status`, and `allow_mutations` | write files directly |
 | `internal/proxy` | `jokateko mcp`: stdio ↔ daemon bridge with live failover to an in-process standalone server | |
 | `internal/csp` | The Content-Security-Policy string (`csp.Build`) from `[server.security.csp]` plus the inline script/style hashes, shared by the server header and the export meta tag | |
 | `internal/exporter` | `jokateko build`: snapshot JSON, Mermaid mode and the CSP `<meta http-equiv>` injected into the embedded `index.html` | |
 | `internal/version` | Link-time version/commit/date, license data | |
 | `web` (`embed.go`) | `//go:embed` of `web/dist` | |
 
-Guards that should apply to every client belong in `service`, not in `mcp` or `server`. The MCP-only guards above are where they are for historical reasons. Move them down when you touch them.
+Guards that should apply to every client belong in `service`, not in `mcp` or `server`. Nothing written through the service should fail `jokateko parse`; when you add a `parse` rule, add the matching service guard (see *Validation rules and parse output*).
 
 ## Pipelines
 
@@ -59,7 +59,7 @@ Agent → stdio → `jokateko mcp` → either the daemon's `/api/mcp` (proxy mod
 
 ## Concurrency rules
 
-1. `service` serializes all mutations with one `sync.Mutex`, so concurrent REST and MCP read-modify-write cycles cannot lose updates.
+1. `service` serializes all mutations with one `sync.Mutex`, so concurrent REST and MCP read-modify-write cycles cannot lose updates. A forced delete rewrites the referencing files under the same lock.
 2. `store` guards the SQLite handle with a `sync.RWMutex`. Readers never see a half-applied batch.
 3. Files are never written partially: temp file + `fsync` + `rename` in the same directory.
 4. Echo prevention is content-based. The suppression cache stores what was written, so a different external edit made within the TTL is still ingested.

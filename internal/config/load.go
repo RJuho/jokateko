@@ -169,7 +169,6 @@ type rawTagsConfig struct {
 
 type rawMCPConfig struct {
 	Enabled        *bool   `toml:"enabled"`
-	TimeoutSeconds *int    `toml:"timeout_seconds"`
 	AllowMutations *bool   `toml:"allow_mutations"`
 	Instructions   *string `toml:"instructions"`
 }
@@ -326,9 +325,6 @@ func mergeConfig(target *Config, raw *rawConfig) {
 	if raw.MCP != nil {
 		if raw.MCP.Enabled != nil {
 			target.MCP.Enabled = *raw.MCP.Enabled
-		}
-		if raw.MCP.TimeoutSeconds != nil {
-			target.MCP.TimeoutSeconds = *raw.MCP.TimeoutSeconds
 		}
 		if raw.MCP.AllowMutations != nil {
 			target.MCP.AllowMutations = *raw.MCP.AllowMutations

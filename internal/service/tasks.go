@@ -68,6 +68,8 @@ type NewTask struct {
 	// TargetAt accepts any format understood by parser.NormalizeTimestamp.
 	TargetAt string
 	Body     string
+	// ReopenMilestone allows attaching the task to a closed or fully completed milestone.
+	ReopenMilestone bool
 }
 
 // CreateTask validates in, allocates a unique ID, and writes the new task.
@@ -92,9 +94,9 @@ func (s *Service) CreateTask(ctx context.Context, in NewTask) (model.Task, error
 		return model.Task{}, err
 	}
 
-	priority := in.Priority
-	if !priority.IsValid() {
-		priority = model.PriorityMedium
+	priority := model.Priority(strings.TrimSpace(string(in.Priority)))
+	if priority == "" {
+		priority = s.defaultPriority()
 	}
 
 	s.mu.Lock()
@@ -117,10 +119,13 @@ func (s *Service) CreateTask(ctx context.Context, in NewTask) (model.Task, error
 		Milestone:    strings.TrimSpace(in.Milestone),
 		Tags:         in.Tags,
 		Summary:      summary,
-		Dependencies: in.Dependencies,
+		Dependencies: trimIDs(in.Dependencies),
 		Body:         in.Body,
 		CreatedAt:    now,
 		TargetAt:     targetAt,
+	}
+	if err := s.checkTaskLocked(ctx, model.Task{}, &t, in.ReopenMilestone); err != nil {
+		return model.Task{}, err
 	}
 	if err := s.saveTaskLocked(ctx, &t, "task.created"); err != nil {
 		return model.Task{}, err
@@ -147,26 +152,210 @@ func (s *Service) CheckStatus(status string) error {
 	return nil
 }
 
-// UpdateTask loads a task, applies fn, and persists the result as "task.updated".
-// If fn returns an error, nothing is written.
+// CheckPriority rejects priorities that are not configured in [[priorities]]
+// (or, without that table, not one of the built-in priorities), matching TSK-005.
+func (s *Service) CheckPriority(p model.Priority) error {
+	if s.isPriority(p) {
+		return nil
+	}
+	allowed := make([]string, 0, len(s.cfg.Priorities))
+	for _, pc := range s.cfg.Priorities {
+		allowed = append(allowed, pc.ID)
+	}
+	if len(allowed) == 0 {
+		for _, vp := range model.ValidPriorities {
+			allowed = append(allowed, string(vp))
+		}
+	}
+	return invalidf("priority %q is not a configured priority. Allowed priorities: [%s]", p, strings.Join(allowed, ", "))
+}
+
+func (s *Service) isPriority(p model.Priority) bool {
+	if len(s.cfg.Priorities) > 0 {
+		return s.cfg.HasPriority(string(p))
+	}
+	return p.IsValid()
+}
+
+// defaultPriority is "medium" when configured, otherwise the first configured priority.
+func (s *Service) defaultPriority() model.Priority {
+	if s.isPriority(model.PriorityMedium) || len(s.cfg.Priorities) == 0 {
+		return model.PriorityMedium
+	}
+	return model.Priority(s.cfg.Priorities[0].ID)
+}
+
+// checkTaskLocked validates the references and vocabularies of t that differ from
+// prev (the zero Task on create), so that every write passes `jokateko parse`
+// while unrelated edits to files with older problems still go through.
+// reopen allows attaching t to a closed or fully completed milestone. Callers hold s.mu.
+func (s *Service) checkTaskLocked(ctx context.Context, prev model.Task, t *model.Task, reopen bool) error {
+	if err := s.checkAddedTags(prev.Tags, t.Tags); err != nil {
+		return err
+	}
+	if t.Priority != prev.Priority {
+		if err := s.CheckPriority(t.Priority); err != nil {
+			return err
+		}
+	}
+	if t.Milestone != "" && t.Milestone != prev.Milestone {
+		if err := s.checkMilestoneAttachable(ctx, t.Milestone, reopen); err != nil {
+			return err
+		}
+	}
+	newDeps := added(prev.Dependencies, t.Dependencies)
+	if len(newDeps) == 0 {
+		return nil
+	}
+	for _, dep := range newDeps {
+		if dep == t.ID {
+			return invalidf("task %q cannot depend on itself", t.ID)
+		}
+		if _, err := s.store.GetTask(ctx, dep); err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				return notFoundf("dependency task %q not found", dep)
+			}
+			return fmt.Errorf("failed to get dependency task %q: %w", dep, err)
+		}
+	}
+	return s.checkCycles(ctx, t.ID, t.Dependencies)
+}
+
+// checkMilestoneAttachable requires the milestone to exist and, unless reopen is
+// set, to be open with work remaining.
+func (s *Service) checkMilestoneAttachable(ctx context.Context, id string, reopen bool) error {
+	ms, err := s.GetMilestone(ctx, id)
+	if err != nil {
+		return err
+	}
+	if !reopen && IsArchived(ms) {
+		return &kindError{
+			kind: ErrConflict,
+			code: CodeMilestoneArchived,
+			msg:  fmt.Sprintf("cannot attach task to milestone %q: it is closed or all its tasks are done. Set reopen_milestone=true to attach it anyway", id),
+		}
+	}
+	return nil
+}
+
+// IsArchived reports whether a milestone is closed or has all tasks completed.
+func IsArchived(ms model.Milestone) bool {
+	return ms.Status == model.MilestoneStatusClosed || (ms.TotalTasks > 0 && ms.CompletedTasks == ms.TotalTasks)
+}
+
+// trimIDs trims each ID and drops empty ones.
+func trimIDs(ids []string) []string {
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if id = strings.TrimSpace(id); id != "" {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// UpdateTask loads a task, applies fn, validates the changed fields, and persists
+// the result as "task.updated". If fn or validation fails, nothing is written.
 func (s *Service) UpdateTask(ctx context.Context, id string, fn func(t *model.Task) error) (model.Task, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.updateTaskLocked(ctx, id, fn)
+	return s.updateTaskLocked(ctx, id, false, fn)
 }
 
-func (s *Service) updateTaskLocked(ctx context.Context, id string, fn func(t *model.Task) error) (model.Task, error) {
+func (s *Service) updateTaskLocked(ctx context.Context, id string, reopen bool, fn func(t *model.Task) error) (model.Task, error) {
 	t, err := s.GetTask(ctx, id)
 	if err != nil {
 		return model.Task{}, err
 	}
+	prev := t
+	prev.Tags = slices.Clone(t.Tags)
+	prev.Dependencies = slices.Clone(t.Dependencies)
 	if err := fn(&t); err != nil {
+		return model.Task{}, err
+	}
+	if err := s.checkTaskLocked(ctx, prev, &t, reopen); err != nil {
 		return model.Task{}, err
 	}
 	if err := s.saveTaskLocked(ctx, &t, "task.updated"); err != nil {
 		return model.Task{}, err
 	}
 	return t, nil
+}
+
+// TaskPatch is a partial task update; nil fields are left unchanged.
+type TaskPatch struct {
+	Title        *string
+	Status       *string
+	Priority     *model.Priority
+	Milestone    *string
+	Tags         *[]string
+	Summary      *string
+	Dependencies *[]string
+	// TargetAt accepts any format understood by parser.NormalizeTimestamp; "" clears it.
+	TargetAt *string
+	Body     *string
+	// ReopenMilestone allows attaching the task to a closed or fully completed milestone.
+	ReopenMilestone bool
+	// BodyHint completes the editable_states error, telling the client how to append notes instead.
+	BodyHint string
+}
+
+// PatchTask applies p to the task with the given ID.
+func (s *Service) PatchTask(ctx context.Context, id string, p TaskPatch) (model.Task, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.updateTaskLocked(ctx, id, p.ReopenMilestone, func(t *model.Task) error {
+		if p.Title != nil {
+			v := strings.TrimSpace(*p.Title)
+			if v == "" {
+				return invalidf("title must not be empty")
+			}
+			t.Title = v
+		}
+		if p.Summary != nil {
+			v := strings.TrimSpace(*p.Summary)
+			if v == "" {
+				return invalidf("summary must not be empty")
+			}
+			t.Summary = v
+		}
+		if p.Status != nil {
+			status := strings.TrimSpace(*p.Status)
+			if status == "" {
+				return invalidf("status must not be empty")
+			}
+			if err := s.CheckStatus(status); err != nil {
+				return err
+			}
+			t.Status = status
+		}
+		if p.Priority != nil {
+			t.Priority = model.Priority(strings.TrimSpace(string(*p.Priority)))
+		}
+		if p.Milestone != nil {
+			t.Milestone = strings.TrimSpace(*p.Milestone)
+		}
+		if p.Tags != nil {
+			t.Tags = *p.Tags
+		}
+		if p.Dependencies != nil {
+			t.Dependencies = trimIDs(*p.Dependencies)
+		}
+		if p.TargetAt != nil {
+			targetAt, err := NormalizeTargetAt(*p.TargetAt)
+			if err != nil {
+				return err
+			}
+			t.TargetAt = targetAt
+		}
+		if p.Body != nil {
+			if err := s.CheckBodyEdit(t.Status, t.Body, *p.Body, p.BodyHint); err != nil {
+				return err
+			}
+			t.Body = *p.Body
+		}
+		return nil
+	})
 }
 
 // CheckBodyEdit enforces the editable_states rule for replacing a task body.
@@ -379,7 +568,8 @@ func (s *Service) CompleteTask(ctx context.Context, in CompleteTaskInput) (model
 }
 
 // DeleteTask removes a task file and its index entry. Unless force is set,
-// it refuses to delete a task that other tasks depend on.
+// it refuses to delete a task that other tasks depend on; with force, the ID is
+// first removed from those tasks' dependencies so no dangling reference remains.
 func (s *Service) DeleteTask(ctx context.Context, id string, force bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -388,17 +578,23 @@ func (s *Service) DeleteTask(ctx context.Context, id string, force bool) error {
 	if err != nil {
 		return err
 	}
-	if !force {
-		downstream, err := s.store.GetDownstreamTasks(ctx, id)
-		if err != nil {
-			return fmt.Errorf("failed to check downstream tasks: %w", err)
+	downstream, err := s.store.GetDownstreamTasks(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to check downstream tasks: %w", err)
+	}
+	if len(downstream) > 0 && !force {
+		ids := make([]string, len(downstream))
+		for i, d := range downstream {
+			ids[i] = d.ID
 		}
-		if len(downstream) > 0 {
-			ids := make([]string, len(downstream))
-			for i, d := range downstream {
-				ids[i] = d.ID
-			}
-			return conflictf("cannot delete task %q: %d task(s) depend on it (%s). Set force=true to delete anyway", id, len(downstream), strings.Join(ids, ", "))
+		return conflictf("cannot delete task %q: %d task(s) depend on it (%s). Set force=true to delete anyway", id, len(downstream), strings.Join(ids, ", "))
+	}
+	for _, d := range downstream {
+		if _, err := s.updateTaskLocked(ctx, d.ID, false, func(dt *model.Task) error {
+			dt.Dependencies = slices.DeleteFunc(dt.Dependencies, func(dep string) bool { return dep == id })
+			return nil
+		}); err != nil {
+			return fmt.Errorf("failed to remove dependency %q from task %q: %w", id, d.ID, err)
 		}
 	}
 

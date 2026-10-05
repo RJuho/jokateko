@@ -321,7 +321,6 @@ func TestMCP_StrategyGlossaryNotFound(t *testing.T) {
 		{"delete glossary empty", "delete_glossary_term", internalmcp.DeleteGlossaryTermInput{ID: ""}, "glossary term id is required"},
 		{"update glossary empty", "update_glossary_term", internalmcp.UpdateGlossaryTermInput{ID: ""}, "term id is required"},
 		{"update glossary unknown", "update_glossary_term", internalmcp.UpdateGlossaryTermInput{ID: "missing", Summary: "x"}, "not found"},
-		{"update glossary bad tag", "update_glossary_term", internalmcp.UpdateGlossaryTermInput{ID: "missing", Tags: []string{"nope"}}, "not permitted"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

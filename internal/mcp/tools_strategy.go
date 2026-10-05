@@ -155,10 +155,6 @@ func (s *Server) toolCreateStrategy(ctx context.Context, _ *mcp.CallToolRequest,
 	if err := service.CheckTier(model.Tier(in.Tier)); err != nil {
 		return nil, nil, err
 	}
-	if err := s.svc.CheckTags(in.Tags); err != nil {
-		return nil, nil, err
-	}
-
 	strat, err := s.svc.CreateStrategy(ctx, service.NewStrategy{
 		Title:   in.Title,
 		Tier:    model.Tier(in.Tier),
@@ -182,11 +178,6 @@ func (s *Server) toolUpdateStrategy(ctx context.Context, _ *mcp.CallToolRequest,
 	}
 	if in.Tier > 0 {
 		if err := service.CheckTier(model.Tier(in.Tier)); err != nil {
-			return nil, nil, err
-		}
-	}
-	if in.Tags != nil {
-		if err := s.svc.CheckTags(in.Tags); err != nil {
 			return nil, nil, err
 		}
 	}

@@ -14,6 +14,7 @@ import {
 } from '../../state/store'
 import { countCriteria } from '../../utils/criteria'
 import { t } from '../../utils/i18n'
+import { saveTask } from '../../utils/taskApi'
 
 export function CreateTaskModal() {
 	// The dialog unmounts while closed, so every open starts with a fresh form
@@ -121,18 +122,12 @@ function CreateTaskDialog() {
 		}
 
 		try {
-			const res = await fetch('/api/tasks', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload),
-			})
-
-			if (!res.ok) {
-				const data = await res.json().catch(() => ({}))
-				throw new Error(data.error || `HTTP ${res.status}`)
-			}
-
-			const createdTask: Task = await res.json()
+			const createdTask = await saveTask(
+				'/api/tasks',
+				'POST',
+				payload,
+				milestoneList.find((m) => m.id === milestone)?.title ?? milestone,
+			)
 			upsertTask(createdTask)
 			closeModal()
 			activeTaskDetailId.value = createdTask.id
@@ -313,6 +308,7 @@ function CreateTaskDialog() {
 							</label>
 							<select
 								id='task-create-milestone'
+								data-testid='task-create-milestone-select'
 								value={milestone}
 								onChange={(e) =>
 									setMilestone((e.target as HTMLSelectElement).value)

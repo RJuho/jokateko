@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/RJuho/jokateko/internal/model"
@@ -90,6 +91,9 @@ func (s *Service) CreateMilestone(ctx context.Context, in NewMilestone) (model.M
 	if title == "" {
 		return model.Milestone{}, invalidf("title is required")
 	}
+	if err := s.CheckTags(in.Tags); err != nil {
+		return model.Milestone{}, err
+	}
 	status := in.Status
 	switch status {
 	case "":
@@ -134,7 +138,11 @@ func (s *Service) UpdateMilestone(ctx context.Context, id string, fn func(ms *mo
 	if err != nil {
 		return model.Milestone{}, err
 	}
+	prevTags := slices.Clone(ms.Tags)
 	if err := fn(&ms); err != nil {
+		return model.Milestone{}, err
+	}
+	if err := s.checkAddedTags(prevTags, ms.Tags); err != nil {
 		return model.Milestone{}, err
 	}
 	if err := s.saveMilestoneLocked(ctx, &ms, "milestone.updated"); err != nil {
@@ -154,7 +162,8 @@ func ParseMilestoneStatus(raw string) (model.MilestoneStatus, error) {
 }
 
 // DeleteMilestone removes a milestone. Unless force is set, it refuses to delete
-// a milestone that still has tasks assigned.
+// a milestone that still has tasks assigned; with force, those tasks lose their
+// milestone first so no dangling reference remains.
 func (s *Service) DeleteMilestone(ctx context.Context, id string, force bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -165,6 +174,18 @@ func (s *Service) DeleteMilestone(ctx context.Context, id string, force bool) er
 	}
 	if !force && ms.TotalTasks > 0 {
 		return conflictf("cannot delete milestone %q: %d task(s) are assigned to it. Set force=true to delete anyway", id, ms.TotalTasks)
+	}
+	assigned, err := s.store.ListTasks(ctx, model.FilterCriteria{Milestone: id})
+	if err != nil {
+		return fmt.Errorf("failed to list tasks of milestone %q: %w", id, err)
+	}
+	for _, a := range assigned {
+		if _, err := s.updateTaskLocked(ctx, a.ID, false, func(t *model.Task) error {
+			t.Milestone = ""
+			return nil
+		}); err != nil {
+			return fmt.Errorf("failed to detach task %q from milestone %q: %w", a.ID, id, err)
+		}
 	}
 	if err := s.removeEntityFile("milestone", ms.FilePath); err != nil {
 		return err
@@ -225,6 +246,9 @@ func (s *Service) CreateStrategy(ctx context.Context, in NewStrategy) (model.Str
 	if title == "" {
 		return model.Strategy{}, invalidf("title is required")
 	}
+	if err := s.CheckTags(in.Tags); err != nil {
+		return model.Strategy{}, err
+	}
 	tier := in.Tier
 	if tier == 0 {
 		tier = model.TierCore
@@ -267,7 +291,11 @@ func (s *Service) UpdateStrategy(ctx context.Context, id string, fn func(st *mod
 	if err != nil {
 		return model.Strategy{}, err
 	}
+	prevTags := slices.Clone(st.Tags)
 	if err := fn(&st); err != nil {
+		return model.Strategy{}, err
+	}
+	if err := s.checkAddedTags(prevTags, st.Tags); err != nil {
 		return model.Strategy{}, err
 	}
 	if err := s.saveStrategyLocked(ctx, &st, "strategy.updated"); err != nil {
@@ -334,6 +362,9 @@ func (s *Service) CreateGlossaryTerm(ctx context.Context, in NewGlossaryTerm) (m
 	if title == "" {
 		return model.GlossaryTerm{}, invalidf("title is required")
 	}
+	if err := s.CheckTags(in.Tags); err != nil {
+		return model.GlossaryTerm{}, err
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -368,7 +399,11 @@ func (s *Service) UpdateGlossaryTerm(ctx context.Context, id string, fn func(ter
 	if err != nil {
 		return model.GlossaryTerm{}, err
 	}
+	prevTags := slices.Clone(term.Tags)
 	if err := fn(&term); err != nil {
+		return model.GlossaryTerm{}, err
+	}
+	if err := s.checkAddedTags(prevTags, term.Tags); err != nil {
 		return model.GlossaryTerm{}, err
 	}
 	if err := s.saveGlossaryTermLocked(ctx, &term, "glossary.updated"); err != nil {

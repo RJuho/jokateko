@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/RJuho/jokateko/internal/config"
 	"github.com/RJuho/jokateko/internal/model"
@@ -169,22 +168,6 @@ func TestGetTier(t *testing.T) {
 
 	if _, ok := (&config.Config{}).GetTier("1"); ok {
 		t.Error("config without tiers must not find tier 1")
-	}
-}
-
-func TestMCPTimeout(t *testing.T) {
-	tests := []struct {
-		seconds int
-		want    time.Duration
-	}{
-		{0, 30 * time.Second},
-		{-5, 30 * time.Second},
-		{12, 12 * time.Second},
-	}
-	for _, tt := range tests {
-		if got := (config.MCPConfig{TimeoutSeconds: tt.seconds}).Timeout(); got != tt.want {
-			t.Errorf("Timeout(%d) = %v, want %v", tt.seconds, got, tt.want)
-		}
 	}
 }
 

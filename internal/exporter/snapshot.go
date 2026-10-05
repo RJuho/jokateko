@@ -83,10 +83,12 @@ func BuildSnapshot(ctx context.Context, cfg *config.Config, st *store.Store) (*m
 				EnforceAllowed: cfg.Tags.EnforceAllowed,
 			},
 			Build: model.BuildConfig{
-				Time:    time.Now().UTC().Format(time.RFC3339),
-				Branch:  branch,
-				Commit:  commit,
-				Version: vInfo.Version,
+				Time:      time.Now().UTC().Format(time.RFC3339),
+				Branch:    branch,
+				Commit:    commit,
+				Version:   vInfo.Version,
+				GoVersion: vInfo.GoVersion,
+				Platform:  vInfo.Platform,
 			},
 			Translations: cfg.Translations,
 			MCP: model.MCPConfig{

@@ -30,6 +30,8 @@ export interface BuildConfig {
   branch?: string;
   commit?: string;
   version?: string;
+  go_version?: string;
+  platform?: string;
 }
 
 export interface Column {
@@ -239,7 +241,12 @@ export type SSEEventType =
   | "milestone.created"
   | "milestone.updated"
   | "milestone.deleted"
-  | "board.refreshed"
+  | "strategy.created"
+  | "strategy.updated"
+  | "strategy.deleted"
+  | "glossary.created"
+  | "glossary.updated"
+  | "glossary.deleted"
   | "ping";
 
 export interface SSEEvent<T = unknown> {

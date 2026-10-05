@@ -45,6 +45,8 @@ All diagnostics are collected before anything is printed. One run reports everyt
 | `TAG-001` | error | With `enforce_allowed`, `tags.allowed` is non-empty and every tag is kebab-case `^[a-z0-9]+(-[a-z0-9]+)*$` |
 | `TAG-002` | error | No duplicates in `tags.allowed` |
 
+Unknown keys are ignored when loading, so a key removed from the schema (for example the old `[mcp] timeout_seconds`) does not break an existing config.
+
 ### Entities
 
 | ID | Severity | Check |
@@ -62,6 +64,10 @@ All diagnostics are collected before anything is printed. One run reports everyt
 | `GLS-003` | error | Glossary titles are unique (case-insensitive) |
 | `TSK-009` / `MLS-005` / `STR-004` / `GLS-004` | error | With `enforce_allowed`, every tag is in `tags.allowed` |
 | `DAG-001` | error | Task dependencies form a DAG. Three-colour DFS; the message prints the full cycle path |
+
+### Matching write-path guards
+
+`internal/service` rejects the same problems before writing, for REST and MCP alike: `TSK-004` (status), `TSK-005` (priority, an error on write rather than a warning), `TSK-006`/`TSK-007`/`TSK-008`/`DAG-001` (references and cycles) and the tag rules. Strategy tiers are checked against the built-in tiers 1–3. On update only changed fields are checked, so a file that already breaks a rule (edited by hand, or written before the vocabulary changed) stays editable. Forced deletes remove the references they would otherwise leave dangling. Files edited outside Jokateko are not guarded; `parse` is the check for those.
 
 ## Output format
 
@@ -96,5 +102,5 @@ Project is healthy. Exiting with code 0.
 ## Rules for contributors
 
 1. Every new check gets a **new, never reused** rule ID in the right family, with a `Fix` hint when the fix is mechanical.
-2. The goal is that write paths and `parse` agree: nothing written through the service should fail `parse`. Today they don't fully agree. MCP `create_task`/`update_task_content` don't verify `milestone` or `dependencies`; `force` deletes leave dangling references; and the service checks `priority` against the four built-in IDs, not `[[priorities]]`. Until those are fixed, `parse` is the safety net. Treat each mismatch as a bug, not as intended behaviour.
+2. Write paths and `parse` must agree: nothing written through the service may fail `parse`. A new entity rule needs the matching guard in `internal/service` (and a service test that runs `validator.ValidateWorkspace` after the write). Treat any mismatch as a bug.
 3. Add a validator test for each rule ID, including its severity.

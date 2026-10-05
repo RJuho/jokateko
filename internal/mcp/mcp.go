@@ -3,14 +3,12 @@
 package mcp
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/RJuho/jokateko/internal/config"
-	"github.com/RJuho/jokateko/internal/model"
 	"github.com/RJuho/jokateko/internal/service"
 	"github.com/RJuho/jokateko/internal/store"
 	"github.com/RJuho/jokateko/internal/version"
@@ -133,27 +131,6 @@ func (s *Server) checkMutations() error {
 		return errMutationsDisabled
 	}
 	return nil
-}
-
-// checkMilestoneOpen refuses to attach tasks to a closed or fully completed
-// milestone unless the agent explicitly asks to reopen it.
-func (s *Server) checkMilestoneOpen(ctx context.Context, slug string, reopen bool) error {
-	if slug == "" || reopen {
-		return nil
-	}
-	ms, err := s.store.GetMilestone(ctx, slug)
-	if err != nil {
-		return nil
-	}
-	if isArchived(ms) {
-		return fmt.Errorf("cannot attach task to completed milestone %q (100%% tasks done). Set reopen_milestone=true to explicitly attach tasks to this milestone", slug)
-	}
-	return nil
-}
-
-// isArchived reports whether a milestone is closed or has all tasks completed.
-func isArchived(ms model.Milestone) bool {
-	return ms.Status == model.MilestoneStatusClosed || (ms.TotalTasks > 0 && ms.CompletedTasks == ms.TotalTasks)
 }
 
 // requireID trims id and returns an error naming kind when it is empty.

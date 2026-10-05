@@ -177,8 +177,8 @@ enforce_allowed = true
 # Model Context Protocol (MCP) for AI Agents
 # ------------------------------------------------------------------------------
 [mcp]
+# false turns off both the /api/mcp endpoint and the `jokateko mcp` stdio proxy
 enabled = true
-timeout_seconds = 30
 allow_mutations = true
 instructions = """
 Jokateko manages tasks, milestones, architectural strategies, and glossary terms as version-controlled Markdown files in the repository (.jokateko/).
@@ -279,6 +279,7 @@ task_note_placeholder = "Add progress notes or follow-up criteria (e.g. - [ ] Ch
 task_dependencies_count = "Dependencies ({count})"
 task_dependency_missing = "missing"
 task_confirm_delete = "Are you sure you want to delete task \"{title}\"?"
+task_milestone_reopen_confirm = "Milestone \"{milestone}\" is closed or all its tasks are done. Attach this task to it anyway?"
 task_delete_failed = "Failed to delete task: {error}"
 task_delete = "Delete"
 task_deleting = "Deleting..."

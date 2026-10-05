@@ -383,6 +383,35 @@ func TestMCP_Guards(t *testing.T) {
 	if !comp.Success {
 		t.Errorf("expected success: %+v", comp)
 	}
+
+	// 4. References and priority are verified by the service for MCP writes too.
+	refTests := []struct {
+		name    string
+		tool    string
+		args    any
+		wantErr string
+	}{
+		{"create unknown milestone", "create_task", internalmcp.CreateTaskInput{Title: "X", Summary: "s", Milestone: "260101-ghost"}, "not found"},
+		{"create unknown dependency", "create_task", internalmcp.CreateTaskInput{Title: "X", Summary: "s", Dependencies: []string{"260101-ghost"}}, "not found"},
+		{"create unknown priority", "create_task", internalmcp.CreateTaskInput{Title: "X", Summary: "s", Priority: "ultra"}, "not a configured priority"},
+		{"update cycle", "update_task_content", internalmcp.UpdateTaskContentInput{ID: blocker.ID, Dependencies: &[]string{dependent.ID}}, "circular dependency"},
+		{"update unknown priority", "update_task_content", internalmcp.UpdateTaskContentInput{ID: blocker.ID, Priority: new("ultra")}, "not a configured priority"},
+		{"update closed milestone", "update_task_content", internalmcp.UpdateTaskContentInput{ID: blocker.ID, Milestone: new("260901-closed-ms")}, "reopen_milestone=true"},
+	}
+	for _, tt := range refTests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := callToolJSON[map[string]any](t, session, tt.tool, tt.args)
+			expectToolError(t, err, tt.wantErr)
+		})
+	}
+
+	// 5. Tag vocabulary applies to every entity update.
+	term, err := callToolJSON[map[string]any](t, session, "create_glossary_term", internalmcp.CreateGlossaryTermInput{Title: "Tagged Term", Summary: "s"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = callToolJSON[map[string]any](t, session, "update_glossary_term", internalmcp.UpdateGlossaryTermInput{ID: term["id"].(string), Tags: []string{"nope"}})
+	expectToolError(t, err, "not permitted")
 }
 
 func TestMCP_TaskDependencies(t *testing.T) {

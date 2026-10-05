@@ -250,7 +250,8 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 	return true
 }
 
-// writeServiceError maps service error kinds to HTTP status codes.
+// writeServiceError maps service error kinds to HTTP status codes. Errors that
+// carry a machine-readable code (service.ErrorCode) also return it as "code".
 func writeServiceError(w http.ResponseWriter, err error) {
 	status := http.StatusInternalServerError
 	switch {
@@ -260,6 +261,10 @@ func writeServiceError(w http.ResponseWriter, err error) {
 		status = http.StatusNotFound
 	case errors.Is(err, service.ErrConflict):
 		status = http.StatusConflict
+	}
+	if code := service.ErrorCode(err); code != "" {
+		writeJSON(w, status, map[string]string{"error": err.Error(), "code": code})
+		return
 	}
 	writeError(w, status, err.Error())
 }

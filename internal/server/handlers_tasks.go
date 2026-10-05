@@ -39,32 +39,34 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ID           string         `json:"id"`
-		Title        string         `json:"title"`
-		Status       string         `json:"status"`
-		Priority     model.Priority `json:"priority"`
-		Milestone    string         `json:"milestone"`
-		Tags         []string       `json:"tags"`
-		Summary      string         `json:"summary"`
-		Dependencies []string       `json:"dependencies"`
-		TargetAt     string         `json:"target_at"`
-		Body         string         `json:"body"`
+		ID              string         `json:"id"`
+		Title           string         `json:"title"`
+		Status          string         `json:"status"`
+		Priority        model.Priority `json:"priority"`
+		Milestone       string         `json:"milestone"`
+		Tags            []string       `json:"tags"`
+		Summary         string         `json:"summary"`
+		Dependencies    []string       `json:"dependencies"`
+		TargetAt        string         `json:"target_at"`
+		Body            string         `json:"body"`
+		ReopenMilestone bool           `json:"reopen_milestone"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
 	}
 
 	task, err := s.svc.CreateTask(r.Context(), service.NewTask{
-		ID:           req.ID,
-		Title:        req.Title,
-		Status:       req.Status,
-		Priority:     req.Priority,
-		Milestone:    req.Milestone,
-		Tags:         req.Tags,
-		Summary:      req.Summary,
-		Dependencies: req.Dependencies,
-		TargetAt:     req.TargetAt,
-		Body:         req.Body,
+		ID:              req.ID,
+		Title:           req.Title,
+		Status:          req.Status,
+		Priority:        req.Priority,
+		Milestone:       req.Milestone,
+		Tags:            req.Tags,
+		Summary:         req.Summary,
+		Dependencies:    req.Dependencies,
+		TargetAt:        req.TargetAt,
+		Body:            req.Body,
+		ReopenMilestone: req.ReopenMilestone,
 	})
 	if err != nil {
 		writeServiceError(w, err)
@@ -75,60 +77,33 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title        *string         `json:"title"`
-		Status       *string         `json:"status"`
-		Priority     *model.Priority `json:"priority"`
-		Milestone    *string         `json:"milestone"`
-		Tags         *[]string       `json:"tags"`
-		Summary      *string         `json:"summary"`
-		Dependencies *[]string       `json:"dependencies"`
-		TargetAt     *string         `json:"target_at"`
-		Body         *string         `json:"body"`
+		Title           *string         `json:"title"`
+		Status          *string         `json:"status"`
+		Priority        *model.Priority `json:"priority"`
+		Milestone       *string         `json:"milestone"`
+		Tags            *[]string       `json:"tags"`
+		Summary         *string         `json:"summary"`
+		Dependencies    *[]string       `json:"dependencies"`
+		TargetAt        *string         `json:"target_at"`
+		Body            *string         `json:"body"`
+		ReopenMilestone bool            `json:"reopen_milestone"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
 	}
 
-	task, err := s.svc.UpdateTask(r.Context(), r.PathValue("id"), func(t *model.Task) error {
-		if req.Title != nil {
-			t.Title = strings.TrimSpace(*req.Title)
-		}
-		if req.Status != nil {
-			status := strings.TrimSpace(*req.Status)
-			if err := s.svc.CheckStatus(status); err != nil {
-				return err
-			}
-			t.Status = status
-		}
-		if req.Priority != nil && req.Priority.IsValid() {
-			t.Priority = *req.Priority
-		}
-		if req.Milestone != nil {
-			t.Milestone = strings.TrimSpace(*req.Milestone)
-		}
-		if req.Tags != nil {
-			t.Tags = *req.Tags
-		}
-		if req.Summary != nil {
-			t.Summary = strings.TrimSpace(*req.Summary)
-		}
-		if req.Dependencies != nil {
-			t.Dependencies = *req.Dependencies
-		}
-		if req.TargetAt != nil {
-			targetAt, err := service.NormalizeTargetAt(*req.TargetAt)
-			if err != nil {
-				return err
-			}
-			t.TargetAt = targetAt
-		}
-		if req.Body != nil {
-			if err := s.svc.CheckBodyEdit(t.Status, t.Body, *req.Body, "use POST /api/tasks/{id}/notes to append notes"); err != nil {
-				return err
-			}
-			t.Body = *req.Body
-		}
-		return nil
+	task, err := s.svc.PatchTask(r.Context(), r.PathValue("id"), service.TaskPatch{
+		Title:           req.Title,
+		Status:          req.Status,
+		Priority:        req.Priority,
+		Milestone:       req.Milestone,
+		Tags:            req.Tags,
+		Summary:         req.Summary,
+		Dependencies:    req.Dependencies,
+		TargetAt:        req.TargetAt,
+		Body:            req.Body,
+		ReopenMilestone: req.ReopenMilestone,
+		BodyHint:        "use POST /api/tasks/{id}/notes to append notes",
 	})
 	if err != nil {
 		writeServiceError(w, err)

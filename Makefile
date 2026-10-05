@@ -1,4 +1,4 @@
-.PHONY: all build install test cover clean clean-cache generate install-tools install-ai-tools skills skills-update ui-build lint e2e-test lighthouse-test cross-compile docker-build devcontainer-build fuzz-markdown fuzz-api fuzz-mcp fuzz-all chaos-test
+.PHONY: all build install test typecheck cover clean clean-cache generate install-tools install-ai-tools skills skills-update ui-build lint e2e-test lighthouse-test cross-compile docker-build devcontainer-build fuzz-markdown fuzz-api fuzz-mcp fuzz-all chaos-test
 
 # Binary name, output directory and install location
 BINARY_NAME := jokateko
@@ -74,8 +74,12 @@ $(LICENSES):
 # Bundle Web UI using Bun (only when sources changed)
 ui-build: $(UI_OUT)
 
-# Run all Go tests with CGO disabled
-test: $(UI_OUT) $(LICENSES)
+# Type-check the Web UI, including the drift check between the Valibot schemas and the generated Go types
+typecheck: web/node_modules
+	cd web && bun run typecheck
+
+# Type-check the Web UI, then run all Go tests with CGO disabled
+test: typecheck $(UI_OUT) $(LICENSES)
 	CGO_ENABLED=0 go test -v ./...
 
 # Run cmd/ and internal/ Go tests with a coverage profile (coverage.out) and print the total statement coverage

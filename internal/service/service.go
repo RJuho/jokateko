@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -31,13 +32,26 @@ var (
 	ErrNotFound = store.ErrNotFound
 )
 
+// CodeMilestoneArchived marks the ErrConflict returned when a task is attached to a
+// closed or fully completed milestone without the reopen flag.
+const CodeMilestoneArchived = "milestone_archived"
+
 type kindError struct {
 	kind error
 	msg  string
+	code string
 }
 
 func (e *kindError) Error() string { return e.msg }
 func (e *kindError) Unwrap() error { return e.kind }
+
+// ErrorCode returns the machine-readable code of a Service error, or "" when it has none.
+func ErrorCode(err error) string {
+	if ke, ok := errors.AsType[*kindError](err); ok {
+		return ke.code
+	}
+	return ""
+}
 
 func invalidf(format string, args ...any) error {
 	return &kindError{kind: ErrInvalid, msg: fmt.Sprintf(format, args...)}
@@ -200,6 +214,23 @@ func (s *Service) CheckTags(tags []string) error {
 		}
 	}
 	return nil
+}
+
+// checkAddedTags runs CheckTags on the tags not already in old, so entities with
+// tags that predate the vocabulary stay editable.
+func (s *Service) checkAddedTags(old, tags []string) error {
+	return s.CheckTags(added(old, tags))
+}
+
+// added returns the values in next that are not in prev.
+func added(prev, next []string) []string {
+	var out []string
+	for _, v := range next {
+		if !slices.Contains(prev, v) {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 func nonNil(s []string) []string {

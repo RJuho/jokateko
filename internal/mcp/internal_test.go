@@ -125,7 +125,7 @@ func TestIsArchived(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isArchived(tt.ms); got != tt.want {
+			if got := service.IsArchived(tt.ms); got != tt.want {
 				t.Fatalf("isArchived = %v, want %v", got, tt.want)
 			}
 		})

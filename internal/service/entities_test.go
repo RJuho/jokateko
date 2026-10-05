@@ -213,7 +213,7 @@ func TestMilestoneLifecycle(t *testing.T) {
 	})
 
 	// Assign a task: deletion must be refused unless forced.
-	task, err := svc.CreateTask(ctx, NewTask{Title: "T", Summary: "s", Milestone: ms.ID})
+	task, err := svc.CreateTask(ctx, NewTask{Title: "T", Summary: "s", Milestone: ms.ID, ReopenMilestone: true})
 	if err != nil {
 		t.Fatal(err)
 	}
