@@ -1,7 +1,7 @@
 # Project name: jokateko
 
 Other documentation:
-- COMMANDS.md
+- README.md (CLI reference)
 - Architecture and specifications are Jokateko strategies and glossary terms (`list_strategies`, `lookup_glossary`); start with the tier-1 `architecture` strategy
 
 More resources:

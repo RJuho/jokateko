@@ -6,13 +6,13 @@ description = "Local, Markdown-driven Kanban and task management"
 
 [server]
 host = "0.0.0.0"
-port = 3000
+port = 8080
 open_browser = false
 
 [server.security]
 cors_allowed_origins = [
-  "http://localhost:3000",
-  "http://127.0.0.1:3000"
+  "http://localhost:8080",
+  "http://127.0.0.1:8080"
 ]
 
 [board]

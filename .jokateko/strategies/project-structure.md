@@ -87,7 +87,7 @@ flowchart LR
 | `web/biome.json` · `web/tsconfig.json` · `web/bunfig.toml` | UI lint and format, TypeScript, Bun dev-server Tailwind plugin |
 | `playwright.config.ts` · `playwright.lighthouse.config.ts` · `tsconfig.json` (root) | E2E and Lighthouse suites, and typing for `tests/` |
 | `.mcp.json` · `.agents/mcp_config.json` · `.claude/settings.json` · `skills-lock.json` | AI agent tooling: MCP servers (Jokateko, Playwright, Valibot, gopls) and skills |
-| `AGENTS.md` (`CLAUDE.md` is a symlink) · `COMMANDS.md` | Agent workflow rules and CLI reference |
+| `README.md` · `AGENTS.md` (`CLAUDE.md` is a symlink) | User guide with the CLI reference; agent workflow rules |
 | `.github/workflows/*.yml` · `.devcontainer/*` · `Dockerfile` | CI, devcontainer image and release builds |
 
 ## Rules
