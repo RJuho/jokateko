@@ -7,7 +7,7 @@ tags = ['housekeeping', 'release']
 summary = 'Tidy the repository root and make the AI-agent tooling work in any fresh clone: fix dangling skill symlinks, generalize AGENTS.md, and justify or remove each root-level file.'
 dependencies = ['261005-migrate-docs-into-strategies-and-glossar']
 created_at = '2026-10-05T10:58:36Z'
-changed_at = '2026-10-05T10:58:36Z'
+changed_at = '2026-10-05T11:24:42Z'
 +++
 
 ## Context
@@ -25,3 +25,9 @@ Decision: keep the agent tooling (`.mcp.json`, `.agents/mcp_config.json`, `.clau
 - [ ] `install-ai-tools` reviewed: clearly labelled optional / dev-only, or removed
 - [ ] `.gitignore` covers all local artifacts (`.DS_Store`, reports, `coverage.out`, `.vscode` if unused). `git status` is clean after a full `make test e2e-test build`
 - [ ] Fresh-clone check: `git clone` into a temp dir, then `make build` and `make test` succeed without the devcontainer's pre-existing state
+
+## Notes
+
+### [2026-10-05 11:24 UTC]
+
+Decision (2026-10-05, maintainer): keep `host = "0.0.0.0"` in this repo's `.jokateko/config.toml`. It is needed so the host can reach `jokateko serve` inside the devcontainer. Add a comment in the config explaining this. SECURITY.md should still say that the Host/DNS-rebinding check only covers loopback connections, so `0.0.0.0` exposes the unauthenticated API to the network. Use it only in a trusted container setup.

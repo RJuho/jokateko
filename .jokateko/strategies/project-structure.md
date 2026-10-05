@@ -7,7 +7,7 @@ summary = 'Map of the most important folders, config files and generated artifac
 
 # Project Structure
 
-Jokateko ships as **one pure-Go binary** (CLI, daemon, MCP server) that embeds a **Bun-built Preact UI**. The repository's `.jokateko/` folder dogfoods the tool itself. File-level detail: `docs/file-structure.md` and `docs/module-structure.md`.
+Jokateko ships as **one pure-Go binary** (CLI, daemon, MCP server) that embeds a **Bun-built Preact UI**. The repository's `.jokateko/` folder dogfoods the tool itself and holds all project documentation as strategies and glossary terms. Package-level detail: *Go packages and data flow* and *Web UI architecture*. The user-facing `.jokateko/` layout: *Workspace and entity file format*.
 
 ## Directory map
 
@@ -17,11 +17,11 @@ flowchart TB
 
     subgraph GO ["Go backend"]
         direction TB
-        cmdJ["cmd/jokateko/<br/>CLI: serve · mcp · build · parse · init · version"]
+        cmdJ["cmd/jokateko/<br/>CLI: serve · mcp · build · parse · init · version · about · licenses"]
         cmdGen["cmd/gentypes · cmd/genlicenses<br/>code generators"]
         core["internal/ model · parser · validator<br/>domain types, Markdown + TOML, DAG checks"]
         data["internal/ store · watcher · writer<br/>in-memory SQLite (sqlc), fsnotify, atomic writes"]
-        api["internal/ server · mcp · proxy<br/>REST + SSE, MCP tools, stdio proxy"]
+        api["internal/ service · server · mcp · proxy<br/>shared mutations, REST + SSE, MCP tools, stdio proxy"]
         misc["internal/ config · exporter · version<br/>TOML config, static export, licenses"]
     end
 
@@ -43,7 +43,6 @@ flowchart TB
     subgraph META ["Project & infra"]
         direction TB
         jk[".jokateko/<br/>tasks · milestones · strategies · glossary"]
-        docs["docs/ · specifications"]
         infra[".github/workflows · .devcontainer · Dockerfile"]
     end
 
@@ -73,7 +72,7 @@ flowchart LR
     jkdir[".jokateko/**"] -->|jokateko build| export["dist-kanban/index.html<br/>static export (gitignored)"]
 ```
 
-`make generate` runs sqlc, gentypes and genlicenses. `make build` rebuilds `web/dist` when UI sources change, then compiles the binary.
+`make generate` runs sqlc, gentypes and genlicenses. `make build` rebuilds `web/dist` when UI sources change, then compiles the binary. Because `web/dist` is generated and gitignored, `go install …@latest` cannot build Jokateko. Use `make build`.
 
 ## Key configuration files
 
@@ -81,14 +80,14 @@ flowchart LR
 |---|---|
 | `go.mod` / `go.sum` | Go module and locked dependencies (no CGO, see *Pure Go Zero-CGO & Minimal Dependencies*) |
 | `web/package.json` / `web/bun.lock` | UI dependencies. The lockfile pins exact versions and integrity hashes, including Mermaid's CDN version and SRI |
-| `Makefile` | Single entry point: `build`, `install`, `test`, `e2e-test`, `lighthouse-test`, `generate`, `fuzz-*`, `chaos-test`, `cross-compile` |
+| `Makefile` | Single entry point: `build`, `install`, `test`, `cover`, `e2e-test`, `lighthouse-test`, `generate`, `fuzz-*`, `chaos-test`, `cross-compile` |
 | `.jokateko/config.toml` | This repo's Jokateko project config (columns, tags, server, CSP). Validate with `jokateko parse` |
-| `internal/config/default.toml` | Compiled-in defaults and reference config spec |
+| `internal/config/default.toml` | Compiled-in defaults and the reference config spec |
 | `internal/store/sqlc.yaml` | sqlc code generation config |
 | `web/biome.json` · `web/tsconfig.json` · `web/bunfig.toml` | UI lint and format, TypeScript, Bun dev-server Tailwind plugin |
 | `playwright.config.ts` · `playwright.lighthouse.config.ts` · `tsconfig.json` (root) | E2E and Lighthouse suites, and typing for `tests/` |
 | `.mcp.json` · `.agents/mcp_config.json` · `.claude/settings.json` · `skills-lock.json` | AI agent tooling: MCP servers (Jokateko, Playwright, Valibot, gopls) and skills |
-| `CLAUDE.md` · `AGENTS.md` · `COMMANDS.md` | Agent workflow rules and CLI reference |
+| `AGENTS.md` (`CLAUDE.md` is a symlink) · `COMMANDS.md` | Agent workflow rules and CLI reference |
 | `.github/workflows/*.yml` · `.devcontainer/*` · `Dockerfile` | CI, devcontainer image and release builds |
 
 ## Rules
@@ -102,5 +101,6 @@ flowchart LR
    - unit tests as `*.test.ts` next to the code
 3. **E2E tests** go in `tests/e2e/*.spec.ts`, using `data-testid` selectors. Spec files are parsed as plain JS by the Bun-backed runner (no type annotations).
 4. **`.jokateko/`** is mutated only through the Jokateko MCP tools or the UI. Never edit it directly.
-5. **Generated and build output** (`web/dist/`, `bin/`, `dist-kanban/`, `test-results/`, `playwright-report/`, `lighthouse-report/`) is gitignored. Regenerate it, never commit it.
-6. **New dependencies** in `go.mod` or `web/package.json` need explicit human approval.
+5. **Documentation** lives in `.jokateko/strategies` and `.jokateko/glossary`, not in a `docs/` folder. The only root Markdown files are the README, contributor and security docs, and the agent instructions.
+6. **Generated and build output** (`web/dist/`, `bin/`, `dist-kanban/`, `test-results/`, `playwright-report/`, `lighthouse-report/`) is gitignored. Regenerate it, never commit it.
+7. **New dependencies** in `go.mod` or `web/package.json` need explicit human approval.

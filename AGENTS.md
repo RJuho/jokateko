@@ -2,7 +2,7 @@
 
 Other documentation:
 - COMMANDS.md
-- /docs/README.md
+- Architecture and specifications are Jokateko strategies and glossary terms (`list_strategies`, `lookup_glossary`); start with the tier-1 `architecture` strategy
 
 More resources:
 - [Bun documentation](https://bun.com/llms.txt)

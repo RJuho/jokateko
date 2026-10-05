@@ -12,4 +12,4 @@ You can inspect the full default reference specification here:
 ## Documentation
 
 - [CLI Commands](COMMANDS.md)
-- [Architecture & Specifications](docs/README.md)
+- Architecture & specifications: Jokateko strategies and glossary in [`.jokateko/strategies/`](.jokateko/strategies/) and [`.jokateko/glossary/`](.jokateko/glossary/). Browse them with `jokateko serve`, or start with [Tasks-as-Code Architecture](.jokateko/strategies/architecture.md).
