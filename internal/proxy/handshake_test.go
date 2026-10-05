@@ -192,10 +192,7 @@ func TestProxy_GoSDK18ClientSurvivesSwitches(t *testing.T) {
 func (c *rawClient) expectResponse(id int) map[string]any {
 	c.t.Helper()
 	for {
-		line, err := c.out.ReadString('\n')
-		if err != nil {
-			c.t.Fatalf("read response %d: %v", id, err)
-		}
+		line := c.readLine(id)
 		var m map[string]any
 		if err := json.Unmarshal([]byte(line), &m); err != nil {
 			c.t.Fatalf("decode %q: %v", line, err)

@@ -65,14 +65,40 @@ func (c *rawClient) send(msg string) {
 	}
 }
 
+// readTimeout bounds each read, so a lost response fails the test instead of
+// hanging it.
+const readTimeout = 5 * time.Second
+
+// readLine reads the next message line while waiting for response id. On
+// timeout the reader goroutine stays blocked until cleanup closes the pipe.
+func (c *rawClient) readLine(id int) string {
+	c.t.Helper()
+	type result struct {
+		line string
+		err  error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		line, err := c.out.ReadString('\n')
+		ch <- result{line, err}
+	}()
+	select {
+	case res := <-ch:
+		if res.err != nil {
+			c.t.Fatalf("read response %d: %v", id, res.err)
+		}
+		return res.line
+	case <-time.After(readTimeout):
+		c.t.Fatalf("timed out after %v waiting for response %d", readTimeout, id)
+		return ""
+	}
+}
+
 // waitID reads messages until the response with the given id arrives.
 func (c *rawClient) waitID(id int) map[string]any {
 	c.t.Helper()
 	for {
-		line, err := c.out.ReadString('\n')
-		if err != nil {
-			c.t.Fatalf("read response %d: %v", id, err)
-		}
+		line := c.readLine(id)
 		var m map[string]any
 		if err := json.Unmarshal([]byte(line), &m); err != nil {
 			c.t.Fatalf("decode %q: %v", line, err)

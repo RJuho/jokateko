@@ -67,6 +67,10 @@ type Runner struct {
 	probeTimeout time.Duration
 	pollInterval time.Duration
 
+	// switchMu serializes backend switches. A switch requested while another
+	// is in flight waits for it, then re-checks the state it finds.
+	switchMu sync.Mutex
+
 	mu            sync.RWMutex
 	isProxy       bool
 	activeBackend sdk_mcp.Connection
@@ -230,28 +234,7 @@ func (r *Runner) Run(ctx context.Context) error {
 			}
 
 			r.inspectClientMessage(msg)
-
-			r.mu.RLock()
-			backend := r.activeBackend
-			isProxy := r.isProxy
-			r.mu.RUnlock()
-
-			if backend == nil {
-				continue
-			}
-
-			if err := backend.Write(runCtx, msg); err != nil {
-				if isProxy {
-					if switchErr := r.switchToStandalone(runCtx); switchErr == nil {
-						r.mu.RLock()
-						newBackend := r.activeBackend
-						r.mu.RUnlock()
-						if newBackend != nil {
-							_ = newBackend.Write(runCtx, msg)
-						}
-					}
-				}
-			}
+			r.forward(runCtx, clientConn, msg)
 		}
 	}()
 
@@ -555,25 +538,54 @@ func (r *Runner) inspectClientMessage(msg jsonrpc.Message) {
 	}
 }
 
+// forward delivers a client message to the active backend. When a write to
+// the daemon fails, it fails over to the standalone engine and retries there.
+// A call that still cannot be delivered gets an error response, so the client
+// never waits for a reply that will not come.
+func (r *Runner) forward(ctx context.Context, client sdk_mcp.Connection, msg jsonrpc.Message) {
+	r.mu.RLock()
+	backend := r.activeBackend
+	isProxy := r.isProxy
+	r.mu.RUnlock()
+
+	err := errors.New("no active backend")
+	if backend != nil {
+		err = backend.Write(ctx, msg)
+	}
+	if err != nil && isProxy {
+		if err = r.switchToStandalone(ctx); err == nil {
+			r.mu.RLock()
+			backend = r.activeBackend
+			r.mu.RUnlock()
+			err = backend.Write(ctx, msg)
+		}
+	}
+	if err == nil {
+		return
+	}
+
+	req, ok := msg.(*jsonrpc.Request)
+	if !ok || !req.IsCall() {
+		return
+	}
+	fmt.Fprintf(r.stderr, "jokateko: cannot deliver %q: %v\n", req.Method, err)
+	_ = client.Write(ctx, &jsonrpc.Response{
+		ID: req.ID,
+		Error: &jsonrpc.Error{
+			Code:    jsonrpc.CodeInternalError,
+			Message: fmt.Sprintf("jokateko proxy: backend unavailable: %v", err),
+		},
+	})
+}
+
 func (r *Runner) switchToProxy(ctx context.Context) error {
+	r.switchMu.Lock()
+	defer r.switchMu.Unlock()
+
 	r.mu.Lock()
 	if r.isProxy {
 		r.mu.Unlock()
 		return nil
-	}
-	if r.switching {
-		r.mu.Unlock()
-		for range 50 {
-			time.Sleep(10 * time.Millisecond)
-			r.mu.RLock()
-			isProxy := r.isProxy
-			switching := r.switching
-			r.mu.RUnlock()
-			if !switching && isProxy {
-				return nil
-			}
-		}
-		return errors.New("timeout waiting for concurrent switch")
 	}
 	r.switching = true
 	r.mu.Unlock()
@@ -618,24 +630,13 @@ func (r *Runner) switchToProxy(ctx context.Context) error {
 }
 
 func (r *Runner) switchToStandalone(ctx context.Context) error {
+	r.switchMu.Lock()
+	defer r.switchMu.Unlock()
+
 	r.mu.Lock()
 	if !r.isProxy && r.localEngine != nil {
 		r.mu.Unlock()
 		return nil
-	}
-	if r.switching {
-		r.mu.Unlock()
-		for range 50 {
-			time.Sleep(10 * time.Millisecond)
-			r.mu.RLock()
-			isStandalone := !r.isProxy && r.localEngine != nil
-			switching := r.switching
-			r.mu.RUnlock()
-			if !switching && isStandalone {
-				return nil
-			}
-		}
-		return errors.New("timeout waiting for concurrent switch")
 	}
 	r.switching = true
 	r.mu.Unlock()

@@ -232,22 +232,60 @@ func TestSwitchToStandaloneIsIdempotent(t *testing.T) {
 	}
 }
 
-func TestSwitchWaitsForConcurrentSwitch(t *testing.T) {
+// TestSwitchWaitsForInFlightSwitch covers a switch requested while another is
+// still running, e.g. the proxy write failover racing the tail of a
+// switchToProxy that is still closing the old local engine.
+func TestSwitchWaitsForInFlightSwitch(t *testing.T) {
 	dir := t.TempDir()
 
-	t.Run("proxy times out", func(t *testing.T) {
+	// inFlight holds switchMu like a running switch, runs call, and checks
+	// that call blocks until finish completes the other switch.
+	inFlight := func(t *testing.T, r *Runner, finish func(), call func() error) {
+		t.Helper()
+		r.switchMu.Lock()
+		errCh := make(chan error, 1)
+		go func() { errCh <- call() }()
+		select {
+		case err := <-errCh:
+			r.switchMu.Unlock()
+			t.Fatalf("switch did not wait for the in-flight switch: %v", err)
+		case <-time.After(50 * time.Millisecond):
+		}
+		r.mu.Lock()
+		finish()
+		r.mu.Unlock()
+		r.switchMu.Unlock()
+		select {
+		case err := <-errCh:
+			if err != nil {
+				t.Fatalf("switch returned %v", err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("switch did not return")
+		}
+	}
+
+	t.Run("standalone after in-flight proxy switch", func(t *testing.T) {
 		r := NewRunner(config.Default(dir), dir, nil, nil, io.Discard)
-		r.switching = true
-		if err := r.switchToProxy(t.Context()); err == nil || !strings.Contains(err.Error(), "timeout waiting") {
-			t.Fatalf("err = %v", err)
+		daemon := &fakeConn{}
+		inFlight(t, r, func() {
+			r.activeBackend = daemon
+			r.isProxy = true
+		}, func() error { return r.switchToStandalone(t.Context()) })
+		t.Cleanup(func() { r.localEngine.Close() })
+		if !r.LocalEngineRunning() {
+			t.Fatal("standalone engine not running after the switch")
+		}
+		if !daemon.closed {
+			t.Error("daemon connection not closed")
 		}
 	})
 
-	t.Run("standalone times out", func(t *testing.T) {
+	t.Run("proxy after in-flight proxy switch", func(t *testing.T) {
 		r := NewRunner(config.Default(dir), dir, nil, nil, io.Discard)
-		r.switching = true
-		if err := r.switchToStandalone(t.Context()); err == nil || !strings.Contains(err.Error(), "timeout waiting") {
-			t.Fatalf("err = %v", err)
+		inFlight(t, r, func() { r.isProxy = true }, func() error { return r.switchToProxy(t.Context()) })
+		if _, _, connects, _ := r.Stats(); connects != 0 {
+			t.Errorf("proxyConnects = %d, want 0", connects)
 		}
 	})
 
@@ -258,35 +296,55 @@ func TestSwitchWaitsForConcurrentSwitch(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+}
 
-	completeAfterWait := func(t *testing.T, r *Runner, finish func(), call func() error) {
-		t.Helper()
-		r.switching = true
-		errCh := make(chan error, 1)
-		go func() { errCh <- call() }()
-		// Let the other "switch" complete; the waiter observes it on its next poll.
-		r.mu.Lock()
-		finish()
-		r.switching = false
-		r.mu.Unlock()
-		select {
-		case err := <-errCh:
-			if err != nil {
-				t.Fatalf("waiter returned %v", err)
-			}
-		case <-time.After(5 * time.Second):
-			t.Fatal("waiter did not return")
-		}
-	}
+func TestForward(t *testing.T) {
+	dir := t.TempDir()
+	call := mustDecode(t, `{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{}}`)
+	notif := mustDecode(t, `{"jsonrpc":"2.0","method":"notifications/initialized"}`)
 
-	t.Run("proxy completes while waiting", func(t *testing.T) {
+	t.Run("delivers to the active backend", func(t *testing.T) {
 		r := NewRunner(config.Default(dir), dir, nil, nil, io.Discard)
-		completeAfterWait(t, r, func() { r.isProxy = true }, func() error { return r.switchToProxy(t.Context()) })
+		backend, client := &fakeConn{}, &fakeConn{}
+		r.activeBackend = backend
+		r.forward(t.Context(), client, call)
+		if len(backend.writes) != 1 || len(client.writes) != 0 {
+			t.Fatalf("backend writes = %d, client writes = %d", len(backend.writes), len(client.writes))
+		}
 	})
 
-	t.Run("standalone completes while waiting", func(t *testing.T) {
+	t.Run("proxy write failure fails over", func(t *testing.T) {
 		r := NewRunner(config.Default(dir), dir, nil, nil, io.Discard)
-		completeAfterWait(t, r, func() { r.localEngine = &localEngine{} }, func() error { return r.switchToStandalone(t.Context()) })
+		daemon, client := &fakeConn{failWrite: map[int]error{0: errors.New("connection refused")}}, &fakeConn{}
+		r.activeBackend = daemon
+		r.isProxy = true
+		r.forward(t.Context(), client, call)
+		t.Cleanup(func() { r.localEngine.Close() })
+		if !r.LocalEngineRunning() {
+			t.Fatal("did not fail over to the standalone engine")
+		}
+		if len(client.writes) != 0 {
+			t.Fatalf("client got %v, want the call delivered to the new backend", client.writes)
+		}
+	})
+
+	t.Run("undeliverable call gets an error response", func(t *testing.T) {
+		r := NewRunner(config.Default(dir), dir, nil, nil, io.Discard)
+		backend, client := &fakeConn{failWrite: map[int]error{0: errors.New("broken pipe")}}, &fakeConn{}
+		r.activeBackend = backend
+		r.localEngine = &localEngine{}
+		r.forward(t.Context(), client, call)
+		r.forward(t.Context(), client, notif)
+		if len(client.writes) != 1 {
+			t.Fatalf("client writes = %v, want one error response", client.writes)
+		}
+		resp, ok := client.writes[0].(*jsonrpc.Response)
+		if !ok || resp.ID != call.(*jsonrpc.Request).ID {
+			t.Fatalf("client got %#v, want response to id 7", client.writes[0])
+		}
+		if werr, ok := errors.AsType[*jsonrpc.Error](resp.Error); !ok || werr.Code != jsonrpc.CodeInternalError {
+			t.Fatalf("response error = %v, want internal error", resp.Error)
+		}
 	})
 }
 
