@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { Task } from '../../schemas/models'
 import { columnTasks, config, mode, tasks, upsertTask } from '../../state/store'
-import { t } from '../../utils/i18n'
+import { t, tf } from '../../utils/i18n'
 import { Column } from './Column'
 
 export function KanbanBoard() {
@@ -138,7 +138,10 @@ export function KanbanBoard() {
 									isSelected ? 'btn-primary btn-soft' : 'btn-ghost'
 								}`}
 								aria-pressed={isSelected}
-								aria-label={`Scroll to column ${c.name} (${count} tasks)`}
+								aria-label={tf('arial_scroll_to_column', {
+									name: c.name,
+									count,
+								})}
 								data-testid={`quick-nav-col-${c.id}`}
 							>
 								<span

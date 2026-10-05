@@ -2,6 +2,7 @@ import { User, X } from 'lucide-preact'
 import { useLayoutEffect } from 'preact/hooks'
 import type { Column } from '../../schemas/models'
 import { activeColumnDetailId, config } from '../../state/store'
+import { t, tf, tParts } from '../../utils/i18n'
 
 export function ColumnDetailModal() {
 	const columnId = activeColumnDetailId.value
@@ -45,7 +46,7 @@ function ColumnDetailDialog({ column }: { column: Column }) {
 			class='modal modal-open z-50 bg-neutral/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4'
 			role='dialog'
 			aria-modal='true'
-			aria-label={`Column details: ${column.name}`}
+			aria-label={tf('arial_column_details', { name: column.name })}
 			data-testid='column-detail-modal'
 			onClick={(e) => {
 				if (e.target === e.currentTarget) {
@@ -73,14 +74,14 @@ function ColumnDetailDialog({ column }: { column: Column }) {
 							class='text-xs font-mono text-base-content/60'
 							data-testid='column-modal-id'
 						>
-							status: {column.id}
+							{tf('column_status_id', { id: column.id })}
 						</span>
 					</div>
 					<button
 						type='button'
 						class='btn btn-sm btn-circle btn-ghost text-base-content/70 hover:text-base-content'
 						onClick={closeModal}
-						aria-label='Close modal'
+						aria-label={t('arial_close_modal')}
 						data-testid='column-modal-close-btn'
 					>
 						<X class='size-4' />
@@ -90,7 +91,7 @@ function ColumnDetailDialog({ column }: { column: Column }) {
 				{/* Role & Handled By Section */}
 				<div class='flex flex-col gap-1.5'>
 					<h4 class='text-xs font-semibold uppercase tracking-wider text-base-content/70'>
-						Assigned Role / Handled By
+						{t('column_handled_by')}
 					</h4>
 					{column.handled_by ? (
 						<div
@@ -106,15 +107,17 @@ function ColumnDetailDialog({ column }: { column: Column }) {
 										{column.handled_by}
 									</span>
 									<span class='badge badge-xs badge-primary font-medium'>
-										Assigned
+										{t('column_assigned')}
 									</span>
 								</div>
 								<p class='text-xs text-base-content/70 mt-0.5'>
-									Tasks in this column are designated for handling by{' '}
-									<span class='font-semibold text-base-content'>
-										{column.handled_by}
-									</span>
-									.
+									{tParts('column_assigned_text', {
+										handler: (
+											<span class='font-semibold text-base-content'>
+												{column.handled_by}
+											</span>
+										),
+									})}
 								</p>
 							</div>
 						</div>
@@ -123,8 +126,10 @@ function ColumnDetailDialog({ column }: { column: Column }) {
 							class='p-3 rounded-xl bg-base-200/40 border border-base-200 text-xs text-base-content/70 flex items-center gap-2'
 							data-testid='column-modal-handled-by'
 						>
-							<span class='badge badge-xs badge-ghost'>Unassigned</span>
-							<span>Open to any team member or AI agent persona.</span>
+							<span class='badge badge-xs badge-ghost'>
+								{t('column_unassigned')}
+							</span>
+							<span>{t('column_unassigned_text')}</span>
 						</div>
 					)}
 				</div>
@@ -133,7 +138,7 @@ function ColumnDetailDialog({ column }: { column: Column }) {
 				<div class='flex flex-col gap-1.5'>
 					<div class='flex items-center justify-between'>
 						<h4 class='text-xs font-semibold uppercase tracking-wider text-base-content/70'>
-							Workflow Guidance & Instructions
+							{t('column_instructions')}
 						</h4>
 					</div>
 					{column.instructions ? (
@@ -148,15 +153,18 @@ function ColumnDetailDialog({ column }: { column: Column }) {
 							class='p-3.5 rounded-xl bg-base-200/40 border border-base-200 text-xs text-base-content/60 italic'
 							data-testid='column-modal-instructions'
 						>
-							No column-specific workflow instructions configured. You can set{' '}
-							<code class='font-mono text-xs bg-base-300 px-1 py-0.5 rounded'>
-								instructions = "..."
-							</code>{' '}
-							under{' '}
-							<code class='font-mono text-xs bg-base-300 px-1 py-0.5 rounded'>
-								[[board.columns]]
-							</code>{' '}
-							in config.
+							{tParts('column_no_instructions', {
+								instructions: (
+									<code class='font-mono text-xs bg-base-300 px-1 py-0.5 rounded'>
+										instructions = "..."
+									</code>
+								),
+								section: (
+									<code class='font-mono text-xs bg-base-300 px-1 py-0.5 rounded'>
+										[[board.columns]]
+									</code>
+								),
+							})}
 						</div>
 					)}
 				</div>
@@ -164,13 +172,13 @@ function ColumnDetailDialog({ column }: { column: Column }) {
 				{/* Board Column Policies Grid */}
 				<div class='flex flex-col gap-1.5'>
 					<h4 class='text-xs font-semibold uppercase tracking-wider text-base-content/70'>
-						Column Policies
+						{t('column_policies')}
 					</h4>
 					<div class='grid grid-cols-1 sm:grid-cols-2 gap-2.5'>
 						{/* Creation Policy */}
 						<div class='p-3 rounded-xl bg-base-200/50 border border-base-300 flex flex-col gap-1'>
 							<span class='text-[11px] font-semibold text-base-content/60 uppercase'>
-								Task Creation
+								{t('column_task_creation')}
 							</span>
 							<div class='flex items-center gap-1.5 flex-wrap'>
 								<span
@@ -178,27 +186,29 @@ function ColumnDetailDialog({ column }: { column: Column }) {
 										isCreatable ? 'badge-success' : 'badge-ghost'
 									}`}
 								>
-									{isCreatable ? 'Allowed' : 'Restricted'}
+									{isCreatable
+										? t('column_creation_allowed')
+										: t('column_creation_restricted')}
 								</span>
 								{isDefaultCreate && (
 									<span class='badge badge-xs badge-outline text-[10px]'>
-										Default
+										{t('column_creation_default')}
 									</span>
 								)}
 							</div>
 							<p class='text-[11px] text-base-content/70 mt-0.5'>
 								{isCreatable
 									? isDefaultCreate
-										? 'Initial column for newly created tasks.'
-										: 'New tasks can be created directly in this column.'
-									: 'Tasks cannot be created directly here.'}
+										? t('column_creation_default_text')
+										: t('column_creation_allowed_text')
+									: t('column_creation_restricted_text')}
 							</p>
 						</div>
 
 						{/* Editable Policy */}
 						<div class='p-3 rounded-xl bg-base-200/50 border border-base-300 flex flex-col gap-1'>
 							<span class='text-[11px] font-semibold text-base-content/60 uppercase'>
-								Specification Editing
+								{t('column_spec_editing')}
 							</span>
 							<div class='flex items-center gap-1.5'>
 								<span
@@ -206,13 +216,13 @@ function ColumnDetailDialog({ column }: { column: Column }) {
 										isEditable ? 'badge-info' : 'badge-warning'
 									}`}
 								>
-									{isEditable ? 'Editable' : 'Locked'}
+									{isEditable ? t('column_editable') : t('column_locked')}
 								</span>
 							</div>
 							<p class='text-[11px] text-base-content/70 mt-0.5'>
 								{isEditable
-									? 'Full task specification body is editable.'
-									: 'Body is locked; only append notes are allowed.'}
+									? t('column_editable_text')
+									: t('column_locked_text')}
 							</p>
 						</div>
 					</div>
@@ -222,7 +232,7 @@ function ColumnDetailDialog({ column }: { column: Column }) {
 				{mcpInstructions && (
 					<details class='collapse collapse-arrow bg-base-200/40 border border-base-300 rounded-xl text-left'>
 						<summary class='collapse-title text-xs font-semibold uppercase tracking-wider text-base-content/70 py-2.5 px-3.5 min-h-0'>
-							Global MCP System Prompt
+							{t('column_mcp_prompt')}
 						</summary>
 						<div class='collapse-content border-t border-base-200 px-3.5 pt-2.5 pb-3 font-sans text-xs/relaxed whitespace-pre-wrap text-base-content/80'>
 							{mcpInstructions}
@@ -238,7 +248,7 @@ function ColumnDetailDialog({ column }: { column: Column }) {
 						onClick={closeModal}
 						data-testid='column-modal-close'
 					>
-						Close
+						{t('close')}
 					</button>
 				</div>
 			</div>

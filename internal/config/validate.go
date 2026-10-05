@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -13,6 +14,7 @@ import (
 
 var (
 	tagRegex            = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+	localeRe            = regexp.MustCompile(`^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$`)
 	hexColorRe          = regexp.MustCompile(`^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
 	validSortByFields   = []string{"default", "priority", "target_at", "changed_at", "created_at", "title", "id"}
 	validSortDirections = []string{"asc", "desc"}
@@ -167,6 +169,19 @@ func Validate(cfg *Config, rootPath string) error {
 				errs = append(errs, fmt.Errorf("TAG-002: duplicate tag %q in tags.allowed", tag))
 			}
 			seenTags[tag] = true
+		}
+	}
+
+	// CFG-011: Project locale must look like a BCP 47 language tag
+	if cfg.Project.Locale != "" && !localeRe.MatchString(cfg.Project.Locale) {
+		errs = append(errs, fmt.Errorf("CFG-011: project.locale %q is not a BCP 47 language tag (e.g. \"en-US\", \"fi-FI\")", cfg.Project.Locale))
+	}
+
+	// CFG-010: Translation keys must be known UI labels
+	known := knownTranslationKeys()
+	for _, key := range slices.Sorted(maps.Keys(cfg.Translations)) {
+		if !known[key] {
+			errs = append(errs, fmt.Errorf("CFG-010: unknown translation key %q in [translations]", key))
 		}
 	}
 

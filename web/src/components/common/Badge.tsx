@@ -3,6 +3,7 @@ import type { ComponentChildren } from 'preact'
 import type { Priority } from '../../schemas/models'
 import { configuredPriorities } from '../../state/store'
 import { getContrastTextColor } from '../../utils/colors'
+import { t, tf, uiLocale } from '../../utils/i18n'
 import { isDoneStatus } from '../../utils/status'
 
 interface PriorityBadgeProps {
@@ -32,7 +33,7 @@ export function PriorityBadge({
 			} ${className}`}
 			style={style}
 			role='status'
-			aria-label={`Priority: ${label}`}
+			aria-label={tf('arial_priority', { priority: label })}
 			data-testid='task-priority-badge'
 		>
 			{label}
@@ -64,7 +65,7 @@ export function TagBadge({
 				onClick={onClick}
 				class={`badge badge-sm text-xs transition-all ${activeClass} ${className}`}
 				aria-pressed={selected}
-				aria-label={`Filter by tag ${tag}`}
+				aria-label={tf('arial_filter_by_tag', { tag })}
 			>
 				{tag}
 			</button>
@@ -136,7 +137,7 @@ export function TargetDateBadge({
 	const date = new Date(targetAt)
 	if (Number.isNaN(date.getTime())) return null
 
-	const formatted = date.toLocaleDateString(undefined, {
+	const formatted = date.toLocaleDateString(uiLocale(), {
 		month: 'short',
 		day: 'numeric',
 		year:
@@ -145,7 +146,10 @@ export function TargetDateBadge({
 
 	const isDone = isDoneStatus(status)
 	let badgeClass = 'badge-ghost text-base-content/70'
-	let titleSuffix = ''
+	let titleKey:
+		| 'arial_target_title'
+		| 'arial_target_overdue_title'
+		| 'arial_target_approaching_title' = 'arial_target_title'
 
 	if (!isDone) {
 		const today = new Date()
@@ -158,10 +162,10 @@ export function TargetDateBadge({
 
 		if (diffDays < 0) {
 			badgeClass = 'badge-error text-error-content'
-			titleSuffix = ' (Overdue)'
+			titleKey = 'arial_target_overdue_title'
 		} else if (diffDays <= 3) {
 			badgeClass = 'badge-warning text-warning-content'
-			titleSuffix = ' (Approaching)'
+			titleKey = 'arial_target_approaching_title'
 		}
 	} else {
 		badgeClass = 'badge-ghost text-base-content/40'
@@ -170,11 +174,11 @@ export function TargetDateBadge({
 	return (
 		<span
 			class={`badge badge-xs gap-1 font-medium text-[10px] px-1.5 py-0.5 ${badgeClass} ${className}`}
-			title={`Target: ${targetAt}${titleSuffix}`}
+			title={tf(titleKey, { date: targetAt })}
 			data-testid='target-date-badge'
 		>
 			<Calendar class='size-3'>
-				<title>Target date</title>
+				<title>{t('arial_target_date')}</title>
 			</Calendar>
 			<span>{formatted}</span>
 		</span>

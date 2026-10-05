@@ -74,14 +74,14 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("expected default timeout 30s, got %v", cfg.MCP.Timeout())
 	}
 
-	if cfg.Translations.SortBy != "Sort" {
-		t.Errorf("expected default Translations.SortBy 'Sort', got %q", cfg.Translations.SortBy)
+	if cfg.Translations["sort_by"] != "Sort" {
+		t.Errorf("expected default Translations[sort_by] 'Sort', got %q", cfg.Translations["sort_by"])
 	}
-	if cfg.Translations.SortDefault != "Default (Workflow)" {
-		t.Errorf("expected default Translations.SortDefault 'Default (Workflow)', got %q", cfg.Translations.SortDefault)
+	if cfg.Translations["sort_default"] != "Default (Workflow)" {
+		t.Errorf("expected default Translations[sort_default] 'Default (Workflow)', got %q", cfg.Translations["sort_default"])
 	}
-	if cfg.Translations.ArialSortTasks != "Sort tasks" {
-		t.Errorf("expected default Translations.ArialSortTasks 'Sort tasks', got %q", cfg.Translations.ArialSortTasks)
+	if cfg.Translations["arial_sort_tasks"] != "Sort tasks" {
+		t.Errorf("expected default Translations[arial_sort_tasks] 'Sort tasks', got %q", cfg.Translations["arial_sort_tasks"])
 	}
 }
 
@@ -496,30 +496,114 @@ arial_sort_tasks = "Järjestä tehtävät"
 		t.Fatalf("failed to load config with translations: %v", err)
 	}
 
-	if cfg.Translations.Board != "Taulu" {
-		t.Errorf("expected Translations.Board to be 'Taulu', got %q", cfg.Translations.Board)
+	if cfg.Translations["board"] != "Taulu" {
+		t.Errorf("expected Translations[board] to be 'Taulu', got %q", cfg.Translations["board"])
 	}
-	if cfg.Translations.Strategies != "Strategiat" {
-		t.Errorf("expected Translations.Strategies to be 'Strategiat', got %q", cfg.Translations.Strategies)
+	if cfg.Translations["strategies"] != "Strategiat" {
+		t.Errorf("expected Translations[strategies] to be 'Strategiat', got %q", cfg.Translations["strategies"])
 	}
-	if cfg.Translations.Glossary != "Sanasto" {
-		t.Errorf("expected Translations.Glossary to be 'Sanasto', got %q", cfg.Translations.Glossary)
+	if cfg.Translations["glossary"] != "Sanasto" {
+		t.Errorf("expected Translations[glossary] to be 'Sanasto', got %q", cfg.Translations["glossary"])
 	}
-	if cfg.Translations.FooterText != "Rakennettu ❤️ 🇪🇺 kera 🤖" {
-		t.Errorf("expected Translations.FooterText to be 'Rakennettu ❤️ 🇪🇺 kera 🤖', got %q", cfg.Translations.FooterText)
+	if cfg.Translations["footer_text"] != "Rakennettu ❤️ 🇪🇺 kera 🤖" {
+		t.Errorf("expected Translations[footer_text] to be 'Rakennettu ❤️ 🇪🇺 kera 🤖', got %q", cfg.Translations["footer_text"])
 	}
-	if cfg.Translations.SortBy != "Järjestä" {
-		t.Errorf("expected Translations.SortBy to be 'Järjestä', got %q", cfg.Translations.SortBy)
+	if cfg.Translations["sort_by"] != "Järjestä" {
+		t.Errorf("expected Translations[sort_by] to be 'Järjestä', got %q", cfg.Translations["sort_by"])
 	}
-	if cfg.Translations.SortDefault != "Oletus (Työnkulku)" {
-		t.Errorf("expected Translations.SortDefault to be 'Oletus (Työnkulku)', got %q", cfg.Translations.SortDefault)
+	if cfg.Translations["sort_default"] != "Oletus (Työnkulku)" {
+		t.Errorf("expected Translations[sort_default] to be 'Oletus (Työnkulku)', got %q", cfg.Translations["sort_default"])
 	}
-	if cfg.Translations.ArialMainNav != "Päänavigointi" {
-		t.Errorf("expected Translations.ArialMainNav to be 'Päänavigointi', got %q", cfg.Translations.ArialMainNav)
+	if cfg.Translations["arial_main_nav"] != "Päänavigointi" {
+		t.Errorf("expected Translations[arial_main_nav] to be 'Päänavigointi', got %q", cfg.Translations["arial_main_nav"])
 	}
-	if cfg.Translations.ArialSortTasks != "Järjestä tehtävät" {
-		t.Errorf("expected Translations.ArialSortTasks to be 'Järjestä tehtävät', got %q", cfg.Translations.ArialSortTasks)
+	if cfg.Translations["arial_sort_tasks"] != "Järjestä tehtävät" {
+		t.Errorf("expected Translations[arial_sort_tasks] to be 'Järjestä tehtävät', got %q", cfg.Translations["arial_sort_tasks"])
 	}
+}
+
+func TestValidateTranslationKeys(t *testing.T) {
+	t.Run("every default key is accepted", func(t *testing.T) {
+		cfg := config.Default("/tmp/proj")
+		if len(cfg.Translations) == 0 {
+			t.Fatal("default.toml must declare translations")
+		}
+		if err := config.Validate(cfg, "/tmp/proj"); err != nil {
+			t.Errorf("default config must validate, got: %v", err)
+		}
+	})
+
+	t.Run("unknown key is rejected", func(t *testing.T) {
+		cfg := config.Default("/tmp/proj")
+		cfg.Translations["boad"] = "Taulu"
+		err := config.Validate(cfg, "/tmp/proj")
+		if err == nil || !strings.Contains(err.Error(), "CFG-010") || !strings.Contains(err.Error(), `"boad"`) {
+			t.Errorf("expected CFG-010 error for unknown key, got: %v", err)
+		}
+	})
+
+	t.Run("unknown key in config.toml fails Load", func(t *testing.T) {
+		tempDir := t.TempDir()
+		jokatekoDir := filepath.Join(tempDir, ".jokateko")
+		if err := os.MkdirAll(jokatekoDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		toml := "version = \"0\"\n\n[translations]\nboard = \"Taulu\"\nnot_a_label = \"x\"\n"
+		if err := os.WriteFile(filepath.Join(jokatekoDir, "config.toml"), []byte(toml), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := config.Load(tempDir); err == nil || !strings.Contains(err.Error(), "CFG-010") {
+			t.Errorf("expected CFG-010 error, got: %v", err)
+		}
+	})
+}
+
+func TestProjectLocale(t *testing.T) {
+	t.Run("defaults to empty (browser locale)", func(t *testing.T) {
+		if got := config.Default("/tmp/proj").Project.Locale; got != "" {
+			t.Errorf("default locale = %q, want empty", got)
+		}
+	})
+
+	t.Run("valid tags are accepted", func(t *testing.T) {
+		for _, tag := range []string{"fi", "fi-FI", "en-US", "zh-Hant-TW", "es-419", "sr-Latn"} {
+			cfg := config.Default("/tmp/proj")
+			cfg.Project.Locale = tag
+			if err := config.Validate(cfg, "/tmp/proj"); err != nil {
+				t.Errorf("locale %q: unexpected error: %v", tag, err)
+			}
+		}
+	})
+
+	t.Run("invalid tags are rejected", func(t *testing.T) {
+		for _, tag := range []string{"f", "fi_FI", "finnish language", "fi-", "-FI", "en-US-toolongsubtag"} {
+			cfg := config.Default("/tmp/proj")
+			cfg.Project.Locale = tag
+			err := config.Validate(cfg, "/tmp/proj")
+			if err == nil || !strings.Contains(err.Error(), "CFG-011") {
+				t.Errorf("locale %q: expected CFG-011 error, got: %v", tag, err)
+			}
+		}
+	})
+
+	t.Run("loaded from config.toml and trimmed", func(t *testing.T) {
+		tempDir := t.TempDir()
+		jokatekoDir := filepath.Join(tempDir, ".jokateko")
+		if err := os.MkdirAll(jokatekoDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		toml := "version = \"0\"\n\n[project]\nname = \"P\"\nlocale = \" fi-FI \"\n"
+		if err := os.WriteFile(filepath.Join(jokatekoDir, "config.toml"), []byte(toml), 0644); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := config.Load(tempDir)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.Project.Locale != "fi-FI" {
+			t.Errorf("locale = %q, want %q", cfg.Project.Locale, "fi-FI")
+		}
+	})
 }
 
 func TestCustomPrioritiesTOML(t *testing.T) {

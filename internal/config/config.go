@@ -16,16 +16,16 @@ const CurrentVersion = "0"
 
 // Config is the root configuration structure loaded from .jokateko/config.toml.
 type Config struct {
-	Version      string                   `toml:"version"`
-	Project      ProjectConfig            `toml:"project"`
-	Paths        PathsConfig              `toml:"paths"`
-	Server       ServerConfig             `toml:"server"`
-	Board        BoardConfig              `toml:"board"`
-	Priorities   []model.PriorityConfig   `toml:"priorities"`
-	Strategies   StrategiesConfig         `toml:"strategies"`
-	Tags         TagsConfig               `toml:"tags"`
-	MCP          MCPConfig                `toml:"mcp"`
-	Translations model.TranslationsConfig `toml:"translations"`
+	Version      string                 `toml:"version"`
+	Project      ProjectConfig          `toml:"project"`
+	Paths        PathsConfig            `toml:"paths"`
+	Server       ServerConfig           `toml:"server"`
+	Board        BoardConfig            `toml:"board"`
+	Priorities   []model.PriorityConfig `toml:"priorities"`
+	Strategies   StrategiesConfig       `toml:"strategies"`
+	Tags         TagsConfig             `toml:"tags"`
+	MCP          MCPConfig              `toml:"mcp"`
+	Translations map[string]string      `toml:"translations"`
 }
 
 // IsTaskEditable reports whether a task in the given status is permitted
@@ -64,6 +64,9 @@ type StrategiesConfig struct {
 type ProjectConfig struct {
 	Name        string `toml:"name"`
 	Description string `toml:"description"`
+	// Locale is an optional BCP 47 language tag (e.g. "fi-FI") for dates,
+	// weekday and month names in the Web UI. Empty uses the browser locale.
+	Locale string `toml:"locale"`
 }
 
 // PathsConfig specifies directory paths for storage and static export.

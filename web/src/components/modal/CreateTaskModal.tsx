@@ -13,6 +13,7 @@ import {
 	upsertTask,
 } from '../../state/store'
 import { countCriteria } from '../../utils/criteria'
+import { t } from '../../utils/i18n'
 
 export function CreateTaskModal() {
 	// The dialog unmounts while closed, so every open starts with a fresh form
@@ -62,11 +63,11 @@ function CreateTaskDialog() {
 	async function handleSubmit(e: Event) {
 		e.preventDefault()
 		if (!title.trim()) {
-			setError('Title is required')
+			setError(t('task_title_required'))
 			return
 		}
 		if (!summary.trim()) {
-			setError('Summary is required')
+			setError(t('task_summary_required'))
 			return
 		}
 
@@ -147,7 +148,7 @@ function CreateTaskDialog() {
 			class='modal modal-open z-50 bg-neutral/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4'
 			role='dialog'
 			aria-modal='true'
-			aria-label='Create New Task'
+			aria-label={t('arial_create_task_dialog')}
 			data-testid='create-task-modal'
 			onClick={(e) => {
 				if (e.target === e.currentTarget) {
@@ -166,12 +167,14 @@ function CreateTaskDialog() {
 			>
 				{/* Top Bar */}
 				<div class='flex items-center justify-between border-b border-base-200 pb-3'>
-					<h2 class='text-lg font-bold text-base-content'>Create New Task</h2>
+					<h2 class='text-lg font-bold text-base-content'>
+						{t('task_create_new')}
+					</h2>
 					<button
 						type='button'
 						onClick={closeModal}
 						class='btn btn-sm btn-ghost btn-circle'
-						aria-label='Close create modal'
+						aria-label={t('arial_close_create_modal')}
 					>
 						<X class='size-4' />
 					</button>
@@ -192,17 +195,17 @@ function CreateTaskDialog() {
 							for='task-create-title'
 							class='label py-1 text-xs font-semibold'
 						>
-							Title <span class='text-error'>*</span>
+							{t('task_field_title')} <span class='text-error'>*</span>
 						</label>
 						<input
 							id='task-create-title'
 							type='text'
 							value={title}
 							onInput={(e) => setTitle((e.target as HTMLInputElement).value)}
-							placeholder='e.g., Implement OAuth2 flow'
+							placeholder={t('task_title_placeholder')}
 							class='input input-sm input-bordered w-full rounded-lg'
 							required
-							aria-label='New task title'
+							aria-label={t('arial_new_task_title')}
 							data-testid='task-create-title-input'
 						/>
 					</div>
@@ -213,7 +216,7 @@ function CreateTaskDialog() {
 							for='task-create-summary'
 							class='label py-1 text-xs font-semibold'
 						>
-							Summary <span class='text-error'>*</span>
+							{t('task_field_summary')} <span class='text-error'>*</span>
 						</label>
 						<textarea
 							id='task-create-summary'
@@ -221,11 +224,11 @@ function CreateTaskDialog() {
 							onInput={(e) =>
 								setSummary((e.target as HTMLTextAreaElement).value)
 							}
-							placeholder='Concise summary of work and scope'
+							placeholder={t('task_summary_placeholder')}
 							class='textarea textarea-sm textarea-bordered w-full rounded-lg'
 							rows={2}
 							required
-							aria-label='New task summary'
+							aria-label={t('arial_new_task_summary')}
 							data-testid='task-create-summary-input'
 						/>
 					</div>
@@ -237,7 +240,7 @@ function CreateTaskDialog() {
 								for='task-create-status'
 								class='label py-1 text-xs font-semibold'
 							>
-								Column
+								{t('task_field_column')}
 							</label>
 							<select
 								id='task-create-status'
@@ -246,7 +249,7 @@ function CreateTaskDialog() {
 									setStatus((e.target as HTMLSelectElement).value)
 								}
 								class='select select-sm select-bordered w-full rounded-lg'
-								aria-label='Select initial column'
+								aria-label={t('arial_select_initial_column')}
 							>
 								{cols.map((c) => (
 									<option key={c.id} value={c.id}>
@@ -261,7 +264,7 @@ function CreateTaskDialog() {
 								for='task-create-priority'
 								class='label py-1 text-xs font-semibold flex items-center justify-between'
 							>
-								<span>Priority</span>
+								<span>{t('task_field_priority')}</span>
 								{priorityList.find((p) => p.id === priority)?.color && (
 									<span
 										class='inline-block size-2.5 rounded-full shadow-2xs'
@@ -291,7 +294,7 @@ function CreateTaskDialog() {
 											}
 										: undefined
 								}
-								aria-label='Select initial priority'
+								aria-label={t('arial_select_initial_priority')}
 							>
 								{priorityList.map((p) => (
 									<option key={p.id} value={p.id}>
@@ -306,7 +309,7 @@ function CreateTaskDialog() {
 								for='task-create-milestone'
 								class='label py-1 text-xs font-semibold'
 							>
-								Milestone
+								{t('task_field_milestone')}
 							</label>
 							<select
 								id='task-create-milestone'
@@ -315,9 +318,9 @@ function CreateTaskDialog() {
 									setMilestone((e.target as HTMLSelectElement).value)
 								}
 								class='select select-sm select-bordered w-full rounded-lg'
-								aria-label='Select milestone'
+								aria-label={t('arial_select_milestone')}
 							>
-								<option value=''>None</option>
+								<option value=''>{t('none')}</option>
 								{milestoneList.map((m) => (
 									<option key={m.id} value={m.id}>
 										{m.title}
@@ -331,7 +334,7 @@ function CreateTaskDialog() {
 								for='task-create-target-at'
 								class='label py-1 text-xs font-semibold'
 							>
-								Target Date & Time
+								{t('task_field_target_at')}
 							</label>
 							<input
 								id='task-create-target-at'
@@ -341,7 +344,7 @@ function CreateTaskDialog() {
 									setTargetAt((e.target as HTMLInputElement).value)
 								}
 								class='input input-sm input-bordered w-full rounded-lg'
-								aria-label='Select target date and time'
+								aria-label={t('arial_select_target_at')}
 								data-testid='task-create-target-at-input'
 							/>
 						</div>
@@ -354,7 +357,7 @@ function CreateTaskDialog() {
 								for='task-create-tags'
 								class='label py-1 text-xs font-semibold'
 							>
-								Tags (comma separated)
+								{t('task_field_tags')}
 							</label>
 							<input
 								id='task-create-tags'
@@ -365,7 +368,7 @@ function CreateTaskDialog() {
 								}
 								placeholder='frontend, ui/ux, api'
 								class='input input-sm input-bordered w-full rounded-lg'
-								aria-label='New task tags'
+								aria-label={t('arial_new_task_tags')}
 							/>
 						</div>
 
@@ -374,7 +377,7 @@ function CreateTaskDialog() {
 								for='task-create-deps'
 								class='label py-1 text-xs font-semibold'
 							>
-								Dependencies (IDs comma separated)
+								{t('task_field_dependencies')}
 							</label>
 							<input
 								id='task-create-deps'
@@ -385,7 +388,7 @@ function CreateTaskDialog() {
 								}
 								placeholder='260901-task-a, 260901-task-b'
 								class='input input-sm input-bordered w-full rounded-lg font-mono text-xs'
-								aria-label='New task dependencies'
+								aria-label={t('arial_new_task_dependencies')}
 							/>
 						</div>
 					</div>
@@ -396,16 +399,16 @@ function CreateTaskDialog() {
 							for='task-create-body'
 							class='label py-1 text-xs font-semibold'
 						>
-							Body & Acceptance Criteria (Markdown)
+							{t('task_field_body')}
 						</label>
 						<textarea
 							id='task-create-body'
 							value={body}
-							placeholder='Enter task description or acceptance criteria (Markdown)...'
+							placeholder={t('task_create_body_placeholder')}
 							onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)}
 							class='textarea textarea-sm textarea-bordered w-full rounded-lg font-mono text-xs'
 							rows={6}
-							aria-label='New task markdown body'
+							aria-label={t('arial_new_task_body')}
 						/>
 					</div>
 				</div>
@@ -417,19 +420,19 @@ function CreateTaskDialog() {
 						onClick={closeModal}
 						disabled={isSaving}
 						class='btn btn-ghost btn-sm'
-						aria-label='Cancel task creation'
+						aria-label={t('arial_cancel_create')}
 						data-testid='create-task-cancel-button'
 					>
-						Cancel
+						{t('cancel')}
 					</button>
 					<button
 						type='submit'
 						disabled={isSaving}
 						class='btn btn-primary btn-sm'
-						aria-label='Create task'
+						aria-label={t('arial_create_task')}
 						data-testid='create-task-submit-button'
 					>
-						{isSaving ? 'Creating...' : 'Create Task'}
+						{isSaving ? t('task_creating') : t('task_create')}
 					</button>
 				</div>
 			</form>

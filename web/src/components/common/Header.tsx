@@ -420,8 +420,8 @@ export function Header() {
 							type='button'
 							onClick={() => openAboutModal('about')}
 							class='btn btn-ghost btn-sm btn-square text-base-content/70 hover:text-base-content'
-							title='About & Licenses'
-							aria-label='About Jokateko and Open Source Licenses'
+							title={t('arial_about_title')}
+							aria-label={t('arial_about_dialog')}
 							data-testid='about-modal-trigger'
 						>
 							<Info class='size-4' />

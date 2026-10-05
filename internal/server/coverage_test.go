@@ -319,6 +319,27 @@ func TestBoardDefaultsWhenConfigEmpty(t *testing.T) {
 	}
 }
 
+func TestBoardCarriesLocaleAndTranslations(t *testing.T) {
+	srv, _ := newConfiguredServer(t, func(c *config.Config) {
+		c.Project.Locale = "fi-FI"
+		c.Translations["board"] = "Taulu"
+	})
+	rec := do(t, srv.Handler(), http.MethodGet, "/api/board", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("got %d: %s", rec.Code, rec.Body)
+	}
+	var board model.BoardState
+	if err := json.Unmarshal(rec.Body.Bytes(), &board); err != nil {
+		t.Fatal(err)
+	}
+	if board.Locale != "fi-FI" {
+		t.Errorf("locale = %q, want %q", board.Locale, "fi-FI")
+	}
+	if board.Translations["board"] != "Taulu" {
+		t.Errorf("translations[board] = %q, want %q", board.Translations["board"], "Taulu")
+	}
+}
+
 func TestMiddlewareEdgeCases(t *testing.T) {
 	srv, _ := newConfiguredServer(t, func(c *config.Config) {
 		c.Server.Security.CORSEnabled = true

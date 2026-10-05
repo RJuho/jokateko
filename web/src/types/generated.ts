@@ -21,6 +21,8 @@ export interface BoardState {
   creatable_states?: string[];
   default_create_state?: string;
   mcp_instructions?: string;
+  locale?: string;
+  translations?: Record<string, string>;
 }
 
 export interface BuildConfig {
@@ -118,6 +120,7 @@ export interface PriorityConfig {
 export interface ProjectConfig {
   name: string;
   description?: string;
+  locale?: string;
 }
 
 export interface SearchResult {
@@ -148,7 +151,7 @@ export interface SnapshotConfig {
   tiers?: TierConfig[];
   tags?: TagsConfig;
   build?: BuildConfig;
-  translations?: TranslationsConfig;
+  translations?: Record<string, string>;
   mcp?: MCPConfig;
 }
 
@@ -227,60 +230,6 @@ export interface TierConfig {
   title: string;
   summary: string;
   color?: string;
-}
-
-export interface TranslationsConfig {
-  board?: string;
-  strategies?: string;
-  glossary?: string;
-  milestones?: string;
-  search?: string;
-  tasks?: string;
-  architectural_strategies?: string;
-  strategies_subtitle?: string;
-  tiers?: string;
-  all_tiers?: string;
-  project_glossary?: string;
-  glossary_subtitle?: string;
-  footer_text?: string;
-  reset?: string;
-  no_tasks?: string;
-  no_matching_results?: string;
-  no_matches_current_page?: string;
-  no_matches_other_pages?: string;
-  show_completed?: string;
-  hide_completed?: string;
-  show_archived?: string;
-  sort_by?: string;
-  sort_default?: string;
-  sort_priority?: string;
-  sort_target_at?: string;
-  sort_changed_at?: string;
-  sort_created_at?: string;
-  sort_title?: string;
-  arial_main_nav?: string;
-  arial_mobile_nav?: string;
-  arial_mobile_menu?: string;
-  arial_open_menu?: string;
-  arial_close_menu?: string;
-  arial_search?: string;
-  arial_search_input?: string;
-  arial_search_results?: string;
-  arial_theme_toggle?: string;
-  arial_theme_dark?: string;
-  arial_theme_light_label?: string;
-  arial_theme_dark_label?: string;
-  arial_filter_tasks?: string;
-  arial_filter_by_priority?: string;
-  arial_filter_by_tags?: string;
-  arial_reset_all_filters?: string;
-  arial_sort_tasks?: string;
-  arial_sort_options?: string;
-  arial_column_quick_nav?: string;
-  arial_kanban_columns?: string;
-  arial_milestones_roadmap?: string;
-  arial_footer?: string;
-  arial_github_repo?: string;
 }
 
 export type SSEEventType =

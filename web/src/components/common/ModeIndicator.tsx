@@ -1,5 +1,6 @@
 import { config, connectionStatus, mode } from '../../state/store'
 import { formatBrowserDateTime } from '../../utils/date'
+import { t, uiLocale } from '../../utils/i18n'
 
 interface ModeIndicatorProps {
 	/** 'header' aligns right in the desktop navbar, 'menu' aligns left in the mobile menu. */
@@ -43,7 +44,7 @@ export function ModeIndicator({ variant }: ModeIndicatorProps) {
 			<div
 				class={s.wrapper}
 				title={
-					isConnected ? 'Live daemon connected' : 'Reconnecting to daemon...'
+					isConnected ? t('arial_live_connected') : t('arial_live_reconnecting')
 				}
 				data-testid='mode-indicator-live'
 				data-connection={connectionStatus.value}
@@ -69,7 +70,7 @@ export function ModeIndicator({ variant }: ModeIndicatorProps) {
 	}
 
 	const isClient = currentMode === 'client'
-	const formattedDate = formatBrowserDateTime(build?.time)
+	const formattedDate = formatBrowserDateTime(build?.time, uiLocale())
 	return (
 		<div
 			class={s.wrapper}

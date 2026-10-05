@@ -40,6 +40,8 @@ func (s *Server) handleGetBoard(w http.ResponseWriter, r *http.Request) {
 	}
 	board.DefaultCreateState = defaultCreate
 	board.MCPInstructions = s.cfg.MCP.Instructions
+	board.Locale = s.cfg.Project.Locale
+	board.Translations = s.cfg.Translations
 
 	writeJSON(w, http.StatusOK, board)
 }

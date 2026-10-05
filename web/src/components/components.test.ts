@@ -93,6 +93,15 @@ describe('Sample Data & Component Logic Verification', () => {
 		expect(formatBrowserDateTime(null)).toBe('')
 	})
 
+	it('formats ISO datetime in an explicit locale', () => {
+		expect(formatBrowserDateTime('2026-09-02T12:00:00Z', 'fi-FI')).toContain(
+			'2.9.2026',
+		)
+		expect(formatBrowserDateTime('2026-09-02T12:00:00Z', 'en-US')).toContain(
+			'Sep 2, 2026',
+		)
+	})
+
 	it('clearing search query when milestone is selected shows all milestone tasks', () => {
 		initFromSnapshot(sampleSnapshot)
 

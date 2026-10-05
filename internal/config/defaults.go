@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"path/filepath"
+	"sync"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -30,3 +31,13 @@ func Default(baseDir string) *Config {
 
 	return &cfg
 }
+
+// knownTranslationKeys returns the translation keys declared in the embedded
+// default.toml, which is the backend's list of every UI label the Web UI reads.
+var knownTranslationKeys = sync.OnceValue(func() map[string]bool {
+	keys := make(map[string]bool)
+	for key := range Default("").Translations {
+		keys[key] = true
+	}
+	return keys
+})

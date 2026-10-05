@@ -465,7 +465,9 @@ export async function fetchLiveBoard(): Promise<boolean> {
 				project: {
 					...config.value.project,
 					name: parsed.output.project_name,
+					locale: parsed.output.locale,
 				},
+				translations: parsed.output.translations,
 				board: {
 					columns: parsed.output.columns.map((c) => ({
 						id: c.id,

@@ -4,6 +4,7 @@ import { navigateTo } from '../../router'
 import type { Task } from '../../schemas/models'
 import { mode, tasks } from '../../state/store'
 import { copyToClipboard } from '../../utils/clipboard'
+import { t, tf } from '../../utils/i18n'
 import { isDoneStatus } from '../../utils/status'
 import { PriorityBadge, TagBadge, TargetDateBadge } from '../common/Badge'
 
@@ -61,12 +62,12 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 					{isBlocked && (
 						<span
 							class='badge badge-xs badge-warning p-1'
-							title={`Blocked by unfinished dependencies: ${task.dependencies.join(
-								', ',
-							)}`}
+							title={tf('arial_blocked_by', {
+								dependencies: task.dependencies.join(', '),
+							})}
 						>
 							<Ban class='size-3'>
-								<title>Blocked</title>
+								<title>{t('arial_blocked')}</title>
 							</Ban>
 						</span>
 					)}
@@ -76,8 +77,8 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 						type='button'
 						onClick={handleCopyId}
 						class='text-[10px] font-mono text-base-content/40 hover:text-base-content hover:bg-base-200/70 px-1 py-0.5 rounded tracking-tight transition-colors'
-						title={idCopied ? 'Copied!' : 'Click to copy ID'}
-						aria-label={`Copy task ID ${task.id}`}
+						title={idCopied ? t('copied') : t('arial_click_to_copy_id')}
+						aria-label={tf('arial_copy_task_id', { id: task.id })}
 					>
 						<span class="inline-grid [grid-template-areas:'stack'] items-center justify-center">
 							<span class='[grid-area:stack] invisible'>{task.id}</span>
@@ -86,7 +87,7 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 									idCopied ? 'text-success font-semibold' : ''
 								}`}
 							>
-								{idCopied ? 'copied!' : task.id}
+								{idCopied ? t('id_copied') : task.id}
 							</span>
 						</span>
 					</button>
@@ -100,7 +101,10 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 				onDragStart={(e) => onDragStart?.(e, task)}
 				onClick={handleClick}
 				class='w-full text-left flex flex-col gap-2.5 cursor-pointer focus:outline-hidden group'
-				aria-label={`Open task: ${task.title}, Priority: ${task.priority}`}
+				aria-label={tf('arial_open_task', {
+					title: task.title,
+					priority: task.priority,
+				})}
 			>
 				{/* Card Title */}
 				<h4 class='line-clamp-2 text-sm/snug font-semibold text-base-content transition-colors group-hover:text-primary'>
@@ -121,7 +125,7 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 						{criteriaProgress && (
 							<div class='flex items-center gap-1 text-[11px] text-base-content/60 font-medium'>
 								<CircleCheck class='size-3.5 text-primary'>
-									<title>Checklist progress</title>
+									<title>{t('arial_checklist_progress')}</title>
 								</CircleCheck>
 								<span>{criteriaProgress}</span>
 							</div>
@@ -136,7 +140,9 @@ export function TaskCard({ task, onDragStart }: TaskCardProps) {
 						{task.milestone && (
 							<span
 								class='badge badge-xs badge-ghost text-[10px] text-base-content/60 truncate max-w-[120px]'
-								title={`Milestone: ${task.milestone}`}
+								title={tf('arial_milestone_badge', {
+									milestone: task.milestone,
+								})}
 							>
 								{task.milestone}
 							</span>

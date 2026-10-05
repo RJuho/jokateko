@@ -21,54 +21,15 @@ import {
 	formatWeekTitle,
 	formatYearMonth,
 	formatYearWeek,
-	getDateFromISOWeek,
 	getISOWeek,
 	getMonthCalendarWeeks,
 	getWeekCalendar,
+	monthName,
+	weekdayName,
 } from '../../utils/date'
-import { t } from '../../utils/i18n'
+import { t, tf, uiLocale } from '../../utils/i18n'
 import { isDoneStatus } from '../../utils/status'
 import { FilterBar } from '../common/FilterBar'
-
-const monthShortKeys = [
-	'month_jan_short',
-	'month_feb_short',
-	'month_mar_short',
-	'month_apr_short',
-	'month_may_short',
-	'month_jun_short',
-	'month_jul_short',
-	'month_aug_short',
-	'month_sep_short',
-	'month_oct_short',
-	'month_nov_short',
-	'month_dec_short',
-] as const
-
-const monthFullKeys = [
-	'month_jan',
-	'month_feb',
-	'month_mar',
-	'month_apr',
-	'month_may',
-	'month_jun',
-	'month_jul',
-	'month_aug',
-	'month_sep',
-	'month_oct',
-	'month_nov',
-	'month_dec',
-] as const
-
-const weekdayHeaders = [
-	{ key: 'day_mon', default: 'Mon' },
-	{ key: 'day_tue', default: 'Tue' },
-	{ key: 'day_wed', default: 'Wed' },
-	{ key: 'day_thu', default: 'Thu' },
-	{ key: 'day_fri', default: 'Fri' },
-	{ key: 'day_sat', default: 'Sat' },
-	{ key: 'day_sun', default: 'Sun' },
-] as const
 
 interface MilestoneSpan {
 	milestone: Milestone
@@ -90,6 +51,13 @@ export function CalendarView() {
 	const weekScrollRef = useRef<HTMLDivElement>(null)
 	const [activeMobileDay, setActiveMobileDay] = useState<string>('')
 
+	// Weekday and month names come from Intl in the project (or browser) locale
+	const locale = uiLocale()
+	const weekdayNames = useMemo(
+		() => Array.from({ length: 7 }, (_, i) => weekdayName(i, 'short', locale)),
+		[locale],
+	)
+
 	// Month / Year or Week Title
 	const currentYear = currentDate.getFullYear()
 	const currentMonth = currentDate.getMonth()
@@ -97,16 +65,10 @@ export function CalendarView() {
 	const periodTitle = useMemo(() => {
 		if (isWeekView) {
 			const { year: isoYear, week: isoWeek } = getISOWeek(currentDate)
-			const monday = getDateFromISOWeek(isoYear, isoWeek)
-			const thursday = new Date(monday)
-			thursday.setDate(monday.getDate() + 3)
-			const monthIndex = thursday.getMonth()
-			const monthName = t(monthShortKeys[monthIndex])
-			return formatWeekTitle(isoYear, isoWeek, monthName)
+			return formatWeekTitle(isoYear, isoWeek, locale)
 		}
-		const monthName = t(monthFullKeys[currentMonth])
-		return formatMonthYearTitle(currentYear, currentMonth, monthName)
-	}, [isWeekView, currentDate, currentYear, currentMonth])
+		return formatMonthYearTitle(currentYear, currentMonth, locale)
+	}, [isWeekView, currentDate, currentYear, currentMonth, locale])
 
 	// Calculate weeks and days based on viewMode
 	const weeks: CalendarWeekInfo[] = useMemo(() => {
@@ -504,8 +466,8 @@ export function CalendarView() {
 						{weeks[0].days.map((day) => {
 							const isSelected = activeMobileDay === day.dateKey
 							const count = (tasksByDate[day.dateKey] || []).length
-							const dayHeader =
-								weekdayHeaders[day.dayOfWeekIndex] || weekdayHeaders[0]
+							const dayName =
+								weekdayNames[day.dayOfWeekIndex] ?? weekdayNames[0]
 
 							return (
 								<button
@@ -518,10 +480,14 @@ export function CalendarView() {
 											: 'btn-ghost font-medium text-base-content/70'
 									} ${day.isToday ? 'ring-1 ring-primary/50' : ''}`}
 									aria-pressed={isSelected}
-									aria-label={`${t(dayHeader.key)} ${day.date.getDate()} (${count} tasks)`}
+									aria-label={tf('arial_calendar_day', {
+										day: dayName,
+										date: day.date.getDate(),
+										count,
+									})}
 									data-testid={`quick-nav-day-${day.dateKey}`}
 								>
-									<span>{t(dayHeader.key)}</span>
+									<span>{dayName}</span>
 									<span class='font-mono'>{day.date.getDate()}</span>
 									{count > 0 && (
 										<span class='badge badge-xs badge-neutral'>{count}</span>
@@ -545,16 +511,16 @@ export function CalendarView() {
 						>
 							#
 						</div>
-						{weekdayHeaders.map((day, idx) => (
+						{weekdayNames.map((dayName, idx) => (
 							<div
-								key={day.key}
+								key={idx}
 								class={`p-2 text-center font-medium ${
 									idx === 5 || idx === 6
 										? 'text-base-content/50'
 										: 'text-base-content/80'
 								} ${idx < 6 ? 'border-r border-base-200/60' : ''}`}
 							>
-								{t(day.key, day.default)}
+								{dayName}
 							</div>
 						))}
 					</div>
@@ -584,7 +550,7 @@ export function CalendarView() {
 											isWeekView ? 'hidden md:flex flex-col' : 'flex flex-col'
 										}`}
 										data-testid='calendar-week-number'
-										title={`${t('week_num', 'Week')} ${week.weekNumber}`}
+										title={tf('arial_week_title', { week: week.weekNumber })}
 									>
 										<span class='text-[10px] sm:text-xs font-mono font-medium text-base-content/45 mt-1'>
 											{week.weekNumber}
@@ -639,7 +605,10 @@ export function CalendarView() {
 																		: '#6366f1',
 															}}
 															data-testid={`calendar-milestone-${span.milestone.id}`}
-															title={`${span.milestone.title} (${percent}%)`}
+															title={tf('arial_milestone_progress', {
+																title: span.milestone.title,
+																percent,
+															})}
 														>
 															<span class='truncate font-semibold'>
 																{span.milestone.title}
@@ -697,14 +666,14 @@ export function CalendarView() {
 														<div class='flex items-center gap-1.5'>
 															{isWeekView && (
 																<span class='font-bold text-sm text-base-content md:hidden'>
-																	{t(
-																		(
-																			weekdayHeaders[day.dayOfWeekIndex]
-																			|| weekdayHeaders[0]
-																		).key,
-																	)}
+																	{weekdayNames[day.dayOfWeekIndex]
+																		?? weekdayNames[0]}
 																	, {day.date.getDate()}{' '}
-																	{t(monthShortKeys[day.date.getMonth()])}
+																	{monthName(
+																		day.date.getMonth(),
+																		'short',
+																		locale,
+																	)}
 																</span>
 															)}
 															<button
@@ -718,7 +687,9 @@ export function CalendarView() {
 																		: 'text-base-content/80 hover:bg-base-200'
 																}`}
 																title={t('view_week_tasks')}
-																aria-label={`${t('view_week_tasks')} ${day.dateKey}`}
+																aria-label={tf('arial_view_week_tasks_date', {
+																	date: day.dateKey,
+																})}
 															>
 																{day.dayOfMonth}
 															</button>
@@ -747,7 +718,9 @@ export function CalendarView() {
 																			: 'opacity-0 group-hover:opacity-100'
 																	}`}
 																	title={t('add_task_date')}
-																	aria-label={`${t('add_task_date')} ${day.dateKey}`}
+																	aria-label={tf('arial_add_task_date', {
+																		date: day.dateKey,
+																	})}
 																	data-testid={`calendar-add-task-${day.dateKey}`}
 																>
 																	+
@@ -777,7 +750,10 @@ export function CalendarView() {
 																					? '#64748b'
 																					: '#6366f1',
 																		}}
-																		title={`${m.title} (${percent}%)`}
+																		title={tf('arial_milestone_progress', {
+																			title: m.title,
+																			percent,
+																		})}
 																	>
 																		<span class='truncate'>{m.title}</span>
 																		<span class='text-[10px] opacity-90 font-mono ml-2 shrink-0'>
@@ -831,7 +807,10 @@ export function CalendarView() {
 																					: 'bg-base-200/60 hover:bg-base-300/70 text-base-content/85 opacity-75'
 																		}`}
 																		data-testid={`calendar-task-${task.id}`}
-																		title={`${task.title} (${task.status})`}
+																		title={tf('arial_task_status_title', {
+																			title: task.title,
+																			status: task.status,
+																		})}
 																	>
 																		<span
 																			class={`rounded-full shrink-0 ${
@@ -879,7 +858,9 @@ export function CalendarView() {
 																	}}
 																	class='btn btn-ghost btn-xs text-[10px] text-primary h-5 min-h-5 px-1 font-semibold hover:bg-primary/10 w-full justify-start cursor-pointer'
 																	title={t('view_week_tasks')}
-																	aria-label={`+${overflowCount} ${t('more')}`}
+																	aria-label={tf('arial_more_tasks', {
+																		count: overflowCount,
+																	})}
 																	data-testid={`calendar-more-tasks-${day.dateKey}`}
 																>
 																	+{overflowCount} {t('more')}

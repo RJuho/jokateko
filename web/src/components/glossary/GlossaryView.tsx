@@ -4,7 +4,7 @@ import { useMermaidDiagrams } from '../../hooks/useMermaidDiagrams'
 import { navigateTo } from '../../router'
 import { activeGlossaryId, filters, glossary } from '../../state/store'
 import { copyToClipboard } from '../../utils/clipboard'
-import { t } from '../../utils/i18n'
+import { t, tf } from '../../utils/i18n'
 import { matchesQuery, normalizeQuery } from '../../utils/search'
 import { TagBadge } from '../common/Badge'
 
@@ -133,10 +133,12 @@ export function GlossaryView() {
 										class='p-1 rounded text-base-content/40 hover:text-base-content hover:bg-base-200/60 transition-colors shrink-0'
 										title={
 											copiedLink === term.id
-												? 'Link copied to clipboard!'
-												: 'Copy link to term'
+												? t('arial_link_copied')
+												: t('arial_copy_term_link_title')
 										}
-										aria-label={`Copy link to glossary term ${term.title}`}
+										aria-label={tf('arial_copy_term_link', {
+											title: term.title,
+										})}
 									>
 										{copiedLink === term.id ? (
 											<Check class='size-3.5 text-success' />
@@ -153,12 +155,12 @@ export function GlossaryView() {
 									class='font-mono text-[10px] text-base-content/40 hover:text-base-content hover:bg-base-200/60 px-1.5 py-0.5 rounded transition-colors shrink-0'
 									title={
 										copiedId === term.id
-											? 'Copied to clipboard!'
-											: 'Click to copy ID'
+											? t('arial_id_copied')
+											: t('arial_click_to_copy_id')
 									}
-									aria-label={`Copy glossary ID ${term.id}`}
+									aria-label={tf('arial_copy_term_id', { id: term.id })}
 								>
-									{copiedId === term.id ? 'copied!' : term.id}
+									{copiedId === term.id ? t('id_copied') : term.id}
 								</button>
 							</div>
 
@@ -168,7 +170,7 @@ export function GlossaryView() {
 								onClick={() => handleCardClick(term.id)}
 								class='w-full text-left flex flex-col gap-2 cursor-pointer focus:outline-hidden group'
 								aria-expanded={isOpened}
-								aria-label={`Glossary term: ${term.title}`}
+								aria-label={tf('arial_glossary_term', { title: term.title })}
 							>
 								{/* Term Summary */}
 								{term.summary && (
@@ -209,9 +211,7 @@ export function GlossaryView() {
 
 				{visibleTerms.length === 0 && (
 					<div class='col-span-full flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-base-300 rounded-2xl text-base-content/40'>
-						<span class='text-sm font-medium'>
-							{t('no_terms_found', 'No glossary terms found')}
-						</span>
+						<span class='text-sm font-medium'>{t('no_terms_found')}</span>
 					</div>
 				)}
 			</div>

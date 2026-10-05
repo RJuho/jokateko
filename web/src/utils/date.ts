@@ -1,16 +1,20 @@
 /**
- * Formats an ISO datetime string or timestamp into the user's current browser locale.
+ * Formats an ISO datetime string or timestamp in the given locale, or the
+ * browser locale when it is undefined.
  * Example in en-US: 'Sep 2, 2026, 05:30 AM'
  * Example in fi-FI: '2. syysk. 2026 klo 5.30'
  */
-export function formatBrowserDateTime(isoOrDateString?: string | null): string {
+export function formatBrowserDateTime(
+	isoOrDateString?: string | null,
+	locale?: string,
+): string {
 	if (!isoOrDateString) return ''
 	const d = new Date(isoOrDateString)
 	if (Number.isNaN(d.getTime())) {
 		return isoOrDateString
 	}
 	try {
-		return new Intl.DateTimeFormat(undefined, {
+		return new Intl.DateTimeFormat(locale, {
 			year: 'numeric',
 			month: 'short',
 			day: 'numeric',
@@ -228,38 +232,47 @@ export function getWeekCalendar(year: number, week: number): CalendarWeekInfo {
 }
 
 /**
- * Formats a localized Month Year title, e.g. "September 2026"
+ * Returns the localized weekday name; dayOfWeekIndex 0 is Monday, 6 is Sunday.
+ * The locale is undefined for the browser locale.
+ */
+export function weekdayName(
+	dayOfWeekIndex: number,
+	style: 'short' | 'long' = 'short',
+	locale?: string,
+): string {
+	// 2024-01-01 was a Monday
+	return new Intl.DateTimeFormat(locale, { weekday: style }).format(
+		new Date(2024, 0, 1 + dayOfWeekIndex),
+	)
+}
+
+/**
+ * Returns the localized stand-alone month name; month is 0-based.
+ * The locale is undefined for the browser locale.
+ */
+export function monthName(
+	month: number,
+	style: 'short' | 'long' = 'long',
+	locale?: string,
+): string {
+	return new Intl.DateTimeFormat(locale, { month: style }).format(
+		new Date(2024, month, 1),
+	)
+}
+
+/**
+ * Formats a localized Month Year title, e.g. "September 2026" (en-US) or
+ * "syyskuu 2026" (fi-FI).
  */
 export function formatMonthYearTitle(
 	year: number,
 	month: number,
-	monthName?: string,
+	locale?: string,
 ): string {
-	if (monthName) {
-		return `${monthName} ${year}`
-	}
-	try {
-		return new Intl.DateTimeFormat(undefined, {
-			month: 'long',
-			year: 'numeric',
-		}).format(new Date(year, month, 1))
-	} catch {
-		const months = [
-			'January',
-			'February',
-			'March',
-			'April',
-			'May',
-			'June',
-			'July',
-			'August',
-			'September',
-			'October',
-			'November',
-			'December',
-		]
-		return `${months[month] ?? ''} ${year}`
-	}
+	return new Intl.DateTimeFormat(locale, {
+		month: 'long',
+		year: 'numeric',
+	}).format(new Date(year, month, 1))
 }
 
 /**
@@ -270,14 +283,11 @@ export function formatMonthYearTitle(
 export function formatWeekTitle(
 	year: number,
 	week: number,
-	monthName?: string,
+	locale?: string,
 ): string {
 	const monday = getDateFromISOWeek(year, week)
 	const thursday = new Date(monday)
 	thursday.setDate(monday.getDate() + 3)
-	const fallbackMonth = new Intl.DateTimeFormat(undefined, {
-		month: 'short',
-	}).format(thursday)
-	const mName = monthName || fallbackMonth
+	const mName = monthName(thursday.getMonth(), 'short', locale)
 	return `${week} · ${mName} ${thursday.getFullYear()}`
 }

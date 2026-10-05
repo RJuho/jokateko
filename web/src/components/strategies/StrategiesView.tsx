@@ -10,7 +10,7 @@ import {
 } from '../../state/store'
 import { copyToClipboard } from '../../utils/clipboard'
 import { getContrastTextColor } from '../../utils/colors'
-import { t } from '../../utils/i18n'
+import { t, tf } from '../../utils/i18n'
 import { matchesQuery, normalizeQuery } from '../../utils/search'
 import { TagBadge } from '../common/Badge'
 
@@ -217,7 +217,7 @@ export function StrategiesView() {
 							style={activeStyle}
 							title={tr.summary || tr.title}
 							aria-pressed={isSelected}
-							aria-label={`Filter strategies by ${tr.label}`}
+							aria-label={tf('arial_filter_strategies_by', { tier: tr.label })}
 						>
 							<span>{tr.label}</span>
 							<span class='text-[10px] opacity-70 hidden sm:inline'>
@@ -278,12 +278,12 @@ export function StrategiesView() {
 										class='font-mono text-xs text-base-content/50 hover:text-base-content hover:bg-base-200/60 px-1.5 py-0.5 rounded transition-colors'
 										title={
 											copiedId === s.id
-												? 'Copied to clipboard!'
-												: 'Click to copy ID'
+												? t('arial_id_copied')
+												: t('arial_click_to_copy_id')
 										}
-										aria-label={`Copy strategy ID ${s.id}`}
+										aria-label={tf('arial_copy_strategy_id', { id: s.id })}
 									>
-										{copiedId === s.id ? 'copied!' : s.id}
+										{copiedId === s.id ? t('id_copied') : s.id}
 									</button>
 
 									{/* Link Icon Button: Copies anchor link */}
@@ -293,10 +293,10 @@ export function StrategiesView() {
 										class='p-1 rounded text-base-content/40 hover:text-base-content hover:bg-base-200/60 transition-colors'
 										title={
 											copiedLink === s.id
-												? 'Link copied to clipboard!'
-												: 'Copy link to strategy'
+												? t('arial_link_copied')
+												: t('arial_copy_strategy_link_title')
 										}
-										aria-label={`Copy link to strategy ${s.id}`}
+										aria-label={tf('arial_copy_strategy_link', { id: s.id })}
 									>
 										{copiedLink === s.id ? (
 											<Check class='size-3.5 text-success' />
@@ -317,7 +317,7 @@ export function StrategiesView() {
 									onClick={() => handleCardClick(s.id)}
 									class='text-left cursor-pointer focus:outline-hidden after:absolute after:inset-0'
 									aria-expanded={isOpened}
-									aria-label={`Strategy: ${s.title}`}
+									aria-label={tf('arial_strategy', { title: s.title })}
 								>
 									<h2 class='text-base/snug font-bold text-base-content transition-colors group-hover:text-primary'>
 										{s.title}
@@ -369,9 +369,7 @@ export function StrategiesView() {
 
 				{visibleStrategies.length === 0 && (
 					<div class='flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-base-300 rounded-2xl text-base-content/40'>
-						<span class='text-sm font-medium'>
-							{t('no_strategies_found', 'No strategies found')}
-						</span>
+						<span class='text-sm font-medium'>{t('no_strategies_found')}</span>
 					</div>
 				)}
 			</div>

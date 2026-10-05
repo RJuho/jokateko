@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
+import { readdirSync, readFileSync } from 'node:fs'
 import { config } from '../state/store'
-import { t } from './i18n'
+import { defaultTranslations, t, tf, tParts, uiLocale } from './i18n'
 
 describe('i18n Translations System', () => {
 	it('returns default English translation when translations config is undefined or empty', () => {
@@ -88,5 +89,172 @@ describe('i18n Translations System', () => {
 
 	it('returns fallback parameter if key is unknown and fallback is supplied', () => {
 		expect(t('non_existent_key', 'Custom Fallback')).toBe('Custom Fallback')
+	})
+
+	it('provides English defaults for modal strings', () => {
+		config.value = { ...config.value, translations: undefined }
+
+		expect(t('task_edit')).toBe('Edit Task')
+		expect(t('task_create_new')).toBe('Create New Task')
+		expect(t('task_title_required')).toBe('Title is required')
+		expect(t('task_edit_body_placeholder')).toBe(
+			'## Acceptance Criteria\n- [ ] Criterion 1\n- [ ] Criterion 2',
+		)
+		expect(t('column_policies')).toBe('Column Policies')
+		expect(t('about_tab_licenses')).toBe('Open Source Licenses')
+		expect(t('arial_close_modal')).toBe('Close modal')
+		expect(t('cancel')).toBe('Cancel')
+	})
+
+	it('lets config.translations override modal strings', () => {
+		config.value = {
+			...config.value,
+			translations: {
+				task_edit: 'Muokkaa tehtävää',
+				arial_close_modal: 'Sulje',
+				task_dependencies_count: 'Riippuvuudet: {count}',
+			},
+		}
+
+		expect(t('task_edit')).toBe('Muokkaa tehtävää')
+		expect(t('arial_close_modal')).toBe('Sulje')
+		expect(tf('task_dependencies_count', { count: 3 })).toBe('Riippuvuudet: 3')
+		expect(t('task_create')).toBe('Create Task')
+	})
+})
+
+describe('i18n interpolation', () => {
+	it('tf fills {name} placeholders in the default text', () => {
+		config.value = { ...config.value, translations: undefined }
+
+		expect(tf('arial_task_details', { title: 'Fix login' })).toBe(
+			'Task Details: Fix login',
+		)
+		expect(tf('task_criteria_done', { completed: 2, total: 5 })).toBe(
+			'2 / 5 done',
+		)
+	})
+
+	it('tf follows the word order of a configured translation', () => {
+		config.value = {
+			...config.value,
+			translations: { task_column_badge: '{column} -sarake' },
+		}
+
+		expect(tf('task_column_badge', { column: 'Valmis' })).toBe('Valmis -sarake')
+	})
+
+	it('tf keeps placeholders that have no value', () => {
+		config.value = { ...config.value, translations: undefined }
+
+		expect(tf('task_criteria_done', { completed: 1 })).toBe('1 / {total} done')
+	})
+
+	it('tParts places non-string values between text segments', () => {
+		config.value = { ...config.value, translations: undefined }
+		const node = { node: true }
+
+		expect(tParts('column_assigned_text', { handler: node })).toEqual([
+			'Tasks in this column are designated for handling by ',
+			node,
+			'.',
+		])
+	})
+})
+
+describe('screen-reader labels', () => {
+	it('fills placeholders in the English defaults', () => {
+		config.value = { ...config.value, translations: undefined }
+
+		expect(tf('arial_calendar_day', { day: 'Mon', date: 5, count: 2 })).toBe(
+			'Mon 5 (2 tasks)',
+		)
+		expect(tf('arial_open_task', { title: 'Fix', priority: 'high' })).toBe(
+			'Open task: Fix, Priority: high',
+		)
+		expect(tf('arial_target_overdue_title', { date: '2026-09-01' })).toBe(
+			'Target: 2026-09-01 (Overdue)',
+		)
+		expect(t('arial_dismiss_schema_warning')).toBe(
+			'Dismiss schema warning banner',
+		)
+	})
+
+	it('can be translated with a different word order', () => {
+		config.value = {
+			...config.value,
+			translations: { arial_scroll_to_column: '{count} tehtävää: {name}' },
+		}
+
+		expect(tf('arial_scroll_to_column', { name: 'Valmis', count: 3 })).toBe(
+			'3 tehtävää: Valmis',
+		)
+	})
+
+	it('has no hard-coded English labels left in components', () => {
+		const dir = new URL('../components/', import.meta.url)
+		const files = readdirSync(dir, {
+			recursive: true,
+			encoding: 'utf8',
+		}).filter((f) => f.endsWith('.tsx'))
+		// aria-label/title/alt given as a string literal or template literal,
+		// or an SVG <title> with literal text
+		const literal = /(aria-label|title|alt)=('|"|\{`)|<title>[A-Za-z]/
+		const offenders = files.flatMap((f) =>
+			readFileSync(new URL(f, dir), 'utf8')
+				.split('\n')
+				.map((line, i) => ({ line: line.trim(), at: `${f}:${i + 1}` }))
+				.filter(({ line }) => literal.test(line))
+				.map(({ at, line }) => `${at} ${line}`),
+		)
+		expect(offenders).toEqual([])
+	})
+})
+
+describe('uiLocale', () => {
+	const withLocale = (locale?: string) => {
+		config.value = {
+			...config.value,
+			project: { ...config.value.project, locale },
+		}
+	}
+
+	it('is undefined (browser locale) when the project locale is unset or blank', () => {
+		withLocale(undefined)
+		expect(uiLocale()).toBeUndefined()
+		withLocale('  ')
+		expect(uiLocale()).toBeUndefined()
+	})
+
+	it('returns the canonical form of a valid tag', () => {
+		withLocale('fi-fi')
+		expect(uiLocale()).toBe('fi-FI')
+		withLocale(' en-GB ')
+		expect(uiLocale()).toBe('en-GB')
+	})
+
+	it('falls back to the browser locale for an invalid tag', () => {
+		withLocale('fi_FI')
+		expect(uiLocale()).toBeUndefined()
+		withLocale(undefined)
+	})
+})
+
+describe('default.toml parity', () => {
+	const toml = Bun.TOML.parse(
+		readFileSync(
+			new URL('../../../internal/config/default.toml', import.meta.url),
+			'utf8',
+		),
+	) as { translations: Record<string, string> }
+
+	it('declares exactly the keys of defaultTranslations', () => {
+		expect(Object.keys(toml.translations).sort()).toEqual(
+			Object.keys(defaultTranslations).sort(),
+		)
+	})
+
+	it('uses the same English defaults', () => {
+		expect(toml.translations).toEqual({ ...defaultTranslations })
 	})
 })

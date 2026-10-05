@@ -3,7 +3,7 @@ import { useState } from 'preact/hooks'
 import { navigateTo } from '../../router'
 import type { Milestone } from '../../schemas/models'
 import { filters, milestones, tasks } from '../../state/store'
-import { t } from '../../utils/i18n'
+import { t, tf } from '../../utils/i18n'
 import { isDoneStatus } from '../../utils/status'
 
 export function MilestoneCards() {
@@ -53,7 +53,9 @@ export function MilestoneCards() {
 							type='button'
 							onClick={() => handleMilestoneClick(m.id)}
 							aria-pressed={isSelected}
-							aria-label={`Filter tasks by milestone ${m.title}`}
+							aria-label={tf('arial_filter_by_milestone_card', {
+								title: m.title,
+							})}
 							class={`w-56 sm:w-64 p-2.5 rounded-xl border text-left transition-all shrink-0 select-none ${
 								isSelected
 									? 'border-primary bg-primary/10 ring-1 ring-primary shadow-xs'
@@ -68,7 +70,7 @@ export function MilestoneCards() {
 									{completed && (
 										<span
 											class='badge badge-xs badge-success text-[10px]'
-											title='Milestone ready'
+											title={t('arial_milestone_ready')}
 										>
 											done
 										</span>

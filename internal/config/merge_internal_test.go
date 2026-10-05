@@ -1,6 +1,7 @@
 package config
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -40,7 +41,7 @@ func TestMergeConfigEmptyRawKeepsDefaults(t *testing.T) {
 		Strategies:   &rawStrategiesConfig{},
 		Tags:         &rawTagsConfig{},
 		MCP:          &rawMCPConfig{},
-		Translations: &model.TranslationsConfig{},
+		Translations: map[string]string{"board": "", "search": "  "},
 	}
 	mergeConfig(cfg, raw)
 	if !reflect.DeepEqual(cfg, want) {
@@ -266,53 +267,46 @@ func TestMergeConfigOverrideMatrix(t *testing.T) {
 	}
 }
 
-// stringFields returns pointers to every string field of a TranslationsConfig.
-func stringFields(tc *model.TranslationsConfig) map[string]*string {
-	v := reflect.ValueOf(tc).Elem()
-	out := make(map[string]*string, v.NumField())
-	for i := range v.NumField() {
-		f := v.Field(i)
-		if f.Kind() == reflect.String {
-			out[v.Type().Field(i).Name] = f.Addr().Interface().(*string)
-		}
-	}
-	return out
-}
-
 func TestMergeTranslations(t *testing.T) {
-	t.Run("every non-empty field overrides", func(t *testing.T) {
-		var target, raw model.TranslationsConfig
-		for name, p := range stringFields(&target) {
-			*p = "default-" + name
-		}
-		for name, p := range stringFields(&raw) {
-			*p = "custom-" + name
-		}
-		mergeTranslations(&target, &raw)
-		for name, p := range stringFields(&target) {
-			if *p != "custom-"+name {
-				t.Errorf("%s = %q, want override", name, *p)
-			}
+	t.Run("non-blank values override", func(t *testing.T) {
+		target := map[string]string{"board": "Board", "search": "Search"}
+		mergeTranslations(&target, map[string]string{"board": "Taulu", "search": "Haku"})
+		want := map[string]string{"board": "Taulu", "search": "Haku"}
+		if !maps.Equal(target, want) {
+			t.Errorf("got %v, want %v", target, want)
 		}
 	})
 
-	t.Run("empty fields keep defaults", func(t *testing.T) {
-		var target model.TranslationsConfig
-		for name, p := range stringFields(&target) {
-			*p = "default-" + name
-		}
-		want := target
-		mergeTranslations(&target, &model.TranslationsConfig{})
-		if target != want {
-			t.Error("empty translations must not override defaults")
+	t.Run("blank values keep defaults", func(t *testing.T) {
+		target := map[string]string{"board": "Board", "search": "Search"}
+		mergeTranslations(&target, map[string]string{"board": "", "search": " \t"})
+		want := map[string]string{"board": "Board", "search": "Search"}
+		if !maps.Equal(target, want) {
+			t.Errorf("got %v, want %v", target, want)
 		}
 	})
 
 	t.Run("partial override", func(t *testing.T) {
-		target := model.TranslationsConfig{Board: "Board", Search: "Search"}
-		mergeTranslations(&target, &model.TranslationsConfig{Search: "Haku"})
-		if target.Board != "Board" || target.Search != "Haku" {
-			t.Errorf("got %+v", target)
+		target := map[string]string{"board": "Board", "search": "Search"}
+		mergeTranslations(&target, map[string]string{"search": "Haku"})
+		if target["board"] != "Board" || target["search"] != "Haku" {
+			t.Errorf("got %v", target)
+		}
+	})
+
+	t.Run("nil target is allocated", func(t *testing.T) {
+		var target map[string]string
+		mergeTranslations(&target, map[string]string{"modal_cancel": "Peruuta"})
+		if target["modal_cancel"] != "Peruuta" {
+			t.Errorf("got %v", target)
+		}
+	})
+
+	t.Run("nil raw is a no-op", func(t *testing.T) {
+		var target map[string]string
+		mergeTranslations(&target, nil)
+		if target != nil {
+			t.Errorf("got %v, want nil", target)
 		}
 	})
 }

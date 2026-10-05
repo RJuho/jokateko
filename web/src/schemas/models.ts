@@ -82,6 +82,7 @@ export const GlossaryTermSchema = v.object({
 export const ProjectConfigSchema = v.object({
 	name: v.string(),
 	description: v.optional(v.string(), ''),
+	locale: v.optional(v.string()),
 })
 
 export const BoardConfigSchema = v.object({
@@ -163,6 +164,8 @@ export const BoardStateSchema = v.object({
 	creatable_states: v.optional(v.array(v.string())),
 	default_create_state: v.optional(v.string()),
 	mcp_instructions: v.optional(v.string()),
+	locale: v.optional(v.string()),
+	translations: v.optional(TranslationsConfigSchema),
 })
 
 // Automatically inferred TypeScript types (Single source of truth)

@@ -11,6 +11,9 @@ export default defineConfig({
 		baseURL: process.env.BASE_URL || 'http://localhost:8080',
 		trace: 'on-first-retry',
 		headless: true,
+		// Fixed browser locale: dates and calendar names follow it unless a
+		// test sets [project] locale
+		locale: 'en-US',
 	},
 	projects: [
 		{

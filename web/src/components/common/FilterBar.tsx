@@ -12,7 +12,7 @@ import {
 	toggleTagFilter,
 } from '../../state/store'
 import { getContrastTextColor } from '../../utils/colors'
-import { t } from '../../utils/i18n'
+import { t, tf } from '../../utils/i18n'
 import { TagBadge } from './Badge'
 
 export function FilterBar() {
@@ -73,7 +73,7 @@ export function FilterBar() {
 										}`}
 										style={activeStyle}
 										aria-pressed={isSelected}
-										aria-label={`Filter state ${col.name}`}
+										aria-label={tf('arial_filter_state', { name: col.name })}
 										data-testid={`filter-state-${col.id}`}
 									>
 										{color && (
@@ -125,7 +125,7 @@ export function FilterBar() {
 									}`}
 									style={activeStyle}
 									aria-pressed={isSelected}
-									aria-label={`Filter priority ${p.name}`}
+									aria-label={tf('arial_filter_priority', { name: p.name })}
 								>
 									{p.name.slice(0, 3)}
 								</button>

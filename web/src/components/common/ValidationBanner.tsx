@@ -1,6 +1,7 @@
 import { TriangleAlert, X } from 'lucide-preact'
 import { useState } from 'preact/hooks'
 import { validationWarnings } from '../../state/store'
+import { t } from '../../utils/i18n'
 
 export function ValidationBanner() {
 	const warnings = validationWarnings.value
@@ -44,7 +45,11 @@ export function ValidationBanner() {
 					onClick={() => setIsExpanded(!isExpanded)}
 					class='btn btn-xs btn-ghost'
 					aria-expanded={isExpanded}
-					aria-label={isExpanded ? 'Hide issue details' : 'Show issue details'}
+					aria-label={
+						isExpanded
+							? t('arial_hide_issue_details')
+							: t('arial_show_issue_details')
+					}
 				>
 					{isExpanded ? 'Hide Details' : 'View Details'}
 				</button>
@@ -54,7 +59,7 @@ export function ValidationBanner() {
 						validationWarnings.value = []
 					}}
 					class='btn btn-xs btn-ghost btn-circle'
-					aria-label='Dismiss schema warning banner'
+					aria-label={t('arial_dismiss_schema_warning')}
 				>
 					<X class='size-4' />
 				</button>

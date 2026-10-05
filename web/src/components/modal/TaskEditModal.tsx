@@ -12,6 +12,7 @@ import {
 	upsertTask,
 } from '../../state/store'
 import { countCriteria } from '../../utils/criteria'
+import { t, tf } from '../../utils/i18n'
 
 function formatForDatetimeLocal(val?: string): string {
 	if (!val) return ''
@@ -73,11 +74,11 @@ function TaskEditDialog({ task }: { task: Task }) {
 	async function handleSubmit(e: Event) {
 		e.preventDefault()
 		if (!title.trim()) {
-			setError('Title is required')
+			setError(t('task_title_required'))
 			return
 		}
 		if (!summary.trim()) {
-			setError('Summary is required')
+			setError(t('task_summary_required'))
 			return
 		}
 
@@ -158,7 +159,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 			class='modal modal-open z-50 bg-neutral/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4'
 			role='dialog'
 			aria-modal='true'
-			aria-label={`Edit Task: ${task.title}`}
+			aria-label={tf('arial_edit_task_dialog', { title: task.title })}
 			data-testid='task-edit-modal'
 			onClick={(e) => {
 				if (e.target === e.currentTarget) {
@@ -177,12 +178,12 @@ function TaskEditDialog({ task }: { task: Task }) {
 			>
 				{/* Top Bar */}
 				<div class='flex items-center justify-between border-b border-base-200 pb-3'>
-					<h2 class='text-lg font-bold text-base-content'>Edit Task</h2>
+					<h2 class='text-lg font-bold text-base-content'>{t('task_edit')}</h2>
 					<button
 						type='button'
 						onClick={closeModal}
 						class='btn btn-sm btn-ghost btn-circle'
-						aria-label='Close edit modal'
+						aria-label={t('arial_close_edit_modal')}
 					>
 						<X class='size-4' />
 					</button>
@@ -203,7 +204,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 							for='task-edit-title'
 							class='label py-1 text-xs font-semibold'
 						>
-							Title <span class='text-error'>*</span>
+							{t('task_field_title')} <span class='text-error'>*</span>
 						</label>
 						<input
 							id='task-edit-title'
@@ -212,7 +213,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 							onInput={(e) => setTitle((e.target as HTMLInputElement).value)}
 							class='input input-sm input-bordered w-full rounded-lg'
 							required
-							aria-label='Task title'
+							aria-label={t('arial_task_title')}
 							data-testid='task-edit-title-input'
 						/>
 					</div>
@@ -223,7 +224,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 							for='task-edit-summary'
 							class='label py-1 text-xs font-semibold'
 						>
-							Summary <span class='text-error'>*</span>
+							{t('task_field_summary')} <span class='text-error'>*</span>
 						</label>
 						<textarea
 							id='task-edit-summary'
@@ -234,7 +235,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 							class='textarea textarea-sm textarea-bordered w-full rounded-lg'
 							rows={2}
 							required
-							aria-label='Task summary'
+							aria-label={t('arial_task_summary')}
 							data-testid='task-edit-summary-input'
 						/>
 					</div>
@@ -246,7 +247,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 								for='task-edit-status'
 								class='label py-1 text-xs font-semibold'
 							>
-								Column
+								{t('task_field_column')}
 							</label>
 							<select
 								id='task-edit-status'
@@ -255,7 +256,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 									setStatus((e.target as HTMLSelectElement).value)
 								}
 								class='select select-sm select-bordered w-full rounded-lg'
-								aria-label='Select column'
+								aria-label={t('arial_select_column')}
 							>
 								{cols.map((c) => (
 									<option key={c.id} value={c.id}>
@@ -270,7 +271,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 								for='task-edit-priority'
 								class='label py-1 text-xs font-semibold flex items-center justify-between'
 							>
-								<span>Priority</span>
+								<span>{t('task_field_priority')}</span>
 								{priorityList.find((p) => p.id === priority)?.color && (
 									<span
 										class='inline-block size-2.5 rounded-full shadow-2xs'
@@ -300,7 +301,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 											}
 										: undefined
 								}
-								aria-label='Select priority'
+								aria-label={t('arial_select_priority')}
 							>
 								{priorityList.map((p) => (
 									<option key={p.id} value={p.id}>
@@ -315,7 +316,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 								for='task-edit-milestone'
 								class='label py-1 text-xs font-semibold'
 							>
-								Milestone
+								{t('task_field_milestone')}
 							</label>
 							<select
 								id='task-edit-milestone'
@@ -324,9 +325,9 @@ function TaskEditDialog({ task }: { task: Task }) {
 									setMilestone((e.target as HTMLSelectElement).value)
 								}
 								class='select select-sm select-bordered w-full rounded-lg'
-								aria-label='Select milestone'
+								aria-label={t('arial_select_milestone')}
 							>
-								<option value=''>None</option>
+								<option value=''>{t('none')}</option>
 								{milestoneList.map((m) => (
 									<option key={m.id} value={m.id}>
 										{m.title}
@@ -340,7 +341,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 								for='task-edit-target-at'
 								class='label py-1 text-xs font-semibold'
 							>
-								Target Date & Time
+								{t('task_field_target_at')}
 							</label>
 							<input
 								id='task-edit-target-at'
@@ -350,7 +351,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 									setTargetAt((e.target as HTMLInputElement).value)
 								}
 								class='input input-sm input-bordered w-full rounded-lg'
-								aria-label='Target date and time'
+								aria-label={t('arial_target_at')}
 								data-testid='task-edit-target-at-input'
 							/>
 						</div>
@@ -363,7 +364,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 								for='task-edit-tags'
 								class='label py-1 text-xs font-semibold'
 							>
-								Tags (comma separated)
+								{t('task_field_tags')}
 							</label>
 							<input
 								id='task-edit-tags'
@@ -374,7 +375,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 								}
 								placeholder='frontend, ui/ux, api'
 								class='input input-sm input-bordered w-full rounded-lg'
-								aria-label='Task tags'
+								aria-label={t('arial_task_tags')}
 							/>
 						</div>
 
@@ -383,7 +384,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 								for='task-edit-deps'
 								class='label py-1 text-xs font-semibold'
 							>
-								Dependencies (IDs comma separated)
+								{t('task_field_dependencies')}
 							</label>
 							<input
 								id='task-edit-deps'
@@ -394,7 +395,7 @@ function TaskEditDialog({ task }: { task: Task }) {
 								}
 								placeholder='260901-task-a, 260901-task-b'
 								class='input input-sm input-bordered w-full rounded-lg font-mono text-xs'
-								aria-label='Task dependencies'
+								aria-label={t('arial_task_dependencies')}
 							/>
 						</div>
 					</div>
@@ -403,11 +404,11 @@ function TaskEditDialog({ task }: { task: Task }) {
 					<div>
 						<div class='flex items-center justify-between py-1'>
 							<label for='task-edit-body' class='text-xs font-semibold'>
-								Body & Acceptance Criteria (Markdown)
+								{t('task_field_body')}
 							</label>
 							{!isBodyEditable && (
 								<span class='text-[11px] text-warning'>
-									Locked in {task.status} (use Notes for updates)
+									{tf('task_body_locked', { status: task.status })}
 								</span>
 							)}
 						</div>
@@ -418,8 +419,8 @@ function TaskEditDialog({ task }: { task: Task }) {
 							onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)}
 							class={`textarea textarea-sm textarea-bordered w-full rounded-lg font-mono text-xs ${!isBodyEditable ? 'bg-base-200/60 cursor-not-allowed opacity-80' : ''}`}
 							rows={6}
-							placeholder='## Acceptance Criteria&#10;- [ ] Criterion 1&#10;- [ ] Criterion 2'
-							aria-label='Task markdown body'
+							placeholder={t('task_edit_body_placeholder')}
+							aria-label={t('arial_task_body')}
 						/>
 					</div>
 				</div>
@@ -431,18 +432,18 @@ function TaskEditDialog({ task }: { task: Task }) {
 						onClick={closeModal}
 						disabled={isSaving}
 						class='btn btn-ghost btn-sm'
-						aria-label='Cancel editing'
+						aria-label={t('arial_cancel_editing')}
 					>
-						Cancel
+						{t('cancel')}
 					</button>
 					<button
 						type='submit'
 						disabled={isSaving}
 						class='btn btn-primary btn-sm'
-						aria-label='Save changes'
+						aria-label={t('arial_save_changes')}
 						data-testid='save-task-button'
 					>
-						{isSaving ? 'Saving...' : 'Save Changes'}
+						{isSaving ? t('saving') : t('task_save_changes')}
 					</button>
 				</div>
 			</form>

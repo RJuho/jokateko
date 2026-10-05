@@ -68,6 +68,7 @@ func BuildSnapshot(ctx context.Context, cfg *config.Config, st *store.Store) (*m
 			Project: model.ProjectConfig{
 				Name:        cfg.Project.Name,
 				Description: cfg.Project.Description,
+				Locale:      cfg.Project.Locale,
 			},
 			Board: model.BoardConfig{
 				Columns:            cols,

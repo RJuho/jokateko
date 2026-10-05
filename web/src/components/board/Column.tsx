@@ -11,7 +11,7 @@ import {
 	type SortMode,
 	setColumnSortMode,
 } from '../../state/store'
-import { t } from '../../utils/i18n'
+import { t, tf } from '../../utils/i18n'
 import { TaskCard } from './TaskCard'
 
 interface ColumnProps {
@@ -105,7 +105,7 @@ export function Column({
 			onDragOver={handleDragOver}
 			onDragLeave={handleDragLeave}
 			onDrop={handleDrop}
-			aria-label={`Kanban column: ${column.name}`}
+			aria-label={tf('arial_kanban_column', { name: column.name })}
 			data-testid={`column-${column.id}`}
 		>
 			{/* Column Header: Pill with solid board color, no border */}
@@ -121,8 +121,8 @@ export function Column({
 					onClick={() => {
 						activeColumnDetailId.value = column.id
 					}}
-					aria-label={`Column info: ${column.name}`}
-					title={`Click to view workflow guidance and prompt for ${column.name}`}
+					aria-label={tf('arial_column_info', { name: column.name })}
+					title={tf('arial_column_info_title', { name: column.name })}
 					data-testid={`column-header-pill-${column.id}`}
 				>
 					<span
@@ -132,7 +132,10 @@ export function Column({
 								: 'w-5 h-5 rounded-full'
 						} flex items-center justify-center text-[11px] font-bold bg-base-100 text-base-content shadow-2xs shrink-0`}
 						data-testid='column-task-count'
-						title={`${tasks.length} tasks in ${column.name}`}
+						title={tf('arial_column_task_count', {
+							count: tasks.length,
+							name: column.name,
+						})}
 					>
 						{tasks.length}
 					</span>
@@ -169,7 +172,7 @@ export function Column({
 								isCreateTaskModalOpen.value = true
 							}}
 							class='flex size-5 shrink-0 items-center justify-center rounded-full text-slate-900/80 transition-colors hover:bg-black/15 hover:text-slate-900 cursor-pointer'
-							aria-label={`Add new task to ${column.name}`}
+							aria-label={tf('arial_add_task_to_column', { name: column.name })}
 							data-testid={`add-task-${column.id}`}
 						>
 							<Plus class='size-3.5' strokeWidth={2.5} />
@@ -194,11 +197,12 @@ export function Column({
 							}`}
 							aria-expanded={isSortOpen}
 							aria-haspopup='menu'
-							aria-label={`${t('arial_sort_tasks')}: ${column.name}`}
-							title={`${t('sort_by')}: ${
-								sortOptions.find((o) => o.id === currentSort)?.label
-								|| t('sort_by')
-							}`}
+							aria-label={tf('arial_sort_column', { name: column.name })}
+							title={tf('arial_sort_by_title', {
+								sort:
+									sortOptions.find((o) => o.id === currentSort)?.label
+									|| t('sort_by'),
+							})}
 							data-testid={`column-sort-button-${column.id}`}
 						>
 							<ArrowUpDown class='size-3.5' />
@@ -246,7 +250,7 @@ export function Column({
 			{/* Task Cards List: Responsive column height without double body scrollbar */}
 			<ul
 				class='flex flex-col gap-2.5 overflow-y-auto flex-1 min-h-0 pr-0.5'
-				aria-label={`Tasks in ${column.name}`}
+				aria-label={tf('arial_column_tasks', { name: column.name })}
 			>
 				{tasks.map((task) => (
 					<li key={task.id} class='list-none'>

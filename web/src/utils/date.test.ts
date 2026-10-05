@@ -10,8 +10,10 @@ import {
 	getISOWeek,
 	getMonthCalendarWeeks,
 	getWeekCalendar,
+	monthName,
 	parseYearMonth,
 	parseYearWeek,
+	weekdayName,
 } from './date'
 
 describe('Calendar Date Utilities', () => {
@@ -76,11 +78,38 @@ describe('Calendar Date Utilities', () => {
 	})
 
 	it('formats week title with week number, month and year without W prefix', () => {
-		expect(formatWeekTitle(2026, 36)).toBe('36 · Sep 2026')
-		expect(formatWeekTitle(2026, 36, 'syys')).toBe('36 · syys 2026')
+		expect(formatWeekTitle(2026, 36, 'en-US')).toBe('36 · Sep 2026')
+		expect(formatWeekTitle(2026, 36, 'fi-FI')).toBe('36 · syys 2026')
 	})
 
-	it('formats month title with localized month name', () => {
-		expect(formatMonthYearTitle(2026, 8, 'Syyskuu')).toBe('Syyskuu 2026')
+	it('formats month title in the given locale', () => {
+		expect(formatMonthYearTitle(2026, 8, 'en-US')).toBe('September 2026')
+		expect(formatMonthYearTitle(2026, 8, 'fi-FI')).toBe('syyskuu 2026')
+	})
+})
+
+describe('Intl weekday and month names', () => {
+	it('returns weekdays Monday first, keeping the locale capitalisation', () => {
+		const en = Array.from({ length: 7 }, (_, i) =>
+			weekdayName(i, 'short', 'en-US'),
+		)
+		expect(en).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
+		expect(weekdayName(0, 'short', 'fi-FI')).toBe('ma')
+		expect(weekdayName(6, 'long', 'fi-FI')).toBe('sunnuntai')
+		expect(weekdayName(0, 'long', 'en-US')).toBe('Monday')
+	})
+
+	it('returns stand-alone month names', () => {
+		expect(monthName(0, 'long', 'en-US')).toBe('January')
+		expect(monthName(11, 'short', 'en-US')).toBe('Dec')
+		expect(monthName(8, 'long', 'fi-FI')).toBe('syyskuu')
+		expect(monthName(8, 'short', 'fi-FI')).toBe('syys')
+	})
+
+	it('uses the browser locale when locale is undefined', () => {
+		const browser = new Intl.DateTimeFormat(undefined, {
+			month: 'long',
+		}).format(new Date(2024, 2, 1))
+		expect(monthName(2)).toBe(browser)
 	})
 })

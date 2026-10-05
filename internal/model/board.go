@@ -36,6 +36,10 @@ type BoardState struct {
 	CreatableStates    []string      `json:"creatable_states,omitempty"`
 	DefaultCreateState string        `json:"default_create_state,omitempty"`
 	MCPInstructions    string        `json:"mcp_instructions,omitempty"`
+	// Locale and Translations carry the UI settings from config.toml to the
+	// live Web UI, which has no embedded snapshot config.
+	Locale       string            `json:"locale,omitempty"`
+	Translations map[string]string `json:"translations,omitempty"`
 }
 
 // FilterCriteria defines filtering parameters for task listing and board views.

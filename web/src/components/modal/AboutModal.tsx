@@ -9,6 +9,7 @@ import {
 	mode,
 } from '../../state/store'
 import { copyToClipboard } from '../../utils/clipboard'
+import { t, tf } from '../../utils/i18n'
 
 export function normalizeExternalURL(raw?: string): string {
 	if (!raw) return ''
@@ -162,7 +163,7 @@ export function AboutModal() {
 			class='modal modal-open z-50 bg-neutral/50 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4'
 			role='dialog'
 			aria-modal='true'
-			aria-label='About Jokateko and Open Source Licenses'
+			aria-label={t('arial_about_dialog')}
 			data-testid='about-modal'
 			onClick={(e) => {
 				if (e.target === e.currentTarget) closeModal()
@@ -189,7 +190,7 @@ export function AboutModal() {
 								<span class='badge badge-xs badge-ghost font-mono'>MIT</span>
 							</div>
 							<p class='text-xs/tight text-base-content/60'>
-								Local, Markdown-driven Kanban & Task Management
+								{t('about_tagline')}
 							</p>
 						</div>
 					</div>
@@ -198,7 +199,7 @@ export function AboutModal() {
 						type='button'
 						onClick={closeModal}
 						class='btn btn-sm btn-circle btn-ghost text-base-content/60 hover:text-base-content'
-						aria-label='Close modal'
+						aria-label={t('arial_close_modal')}
 						data-testid='about-modal-close'
 					>
 						<X class='size-4' />
@@ -217,7 +218,7 @@ export function AboutModal() {
 								: 'border-transparent text-base-content/60 hover:text-base-content'
 						}`}
 					>
-						About Project
+						{t('about_tab_project')}
 					</button>
 					<button
 						type='button'
@@ -229,7 +230,7 @@ export function AboutModal() {
 								: 'border-transparent text-base-content/60 hover:text-base-content'
 						}`}
 					>
-						<span>Open Source Licenses</span>
+						<span>{t('about_tab_licenses')}</span>
 						<span class='badge badge-xs badge-ghost font-mono opacity-80'>
 							{report.packages.length}
 						</span>
@@ -243,14 +244,10 @@ export function AboutModal() {
 							{/* Overview Card */}
 							<div class='rounded-2xl border border-base-200 bg-base-200/30 p-4 sm:p-5 flex flex-col gap-3'>
 								<h3 class='font-bold text-sm text-base-content'>
-									Zero-Dependency, Tasks-as-Code Architecture
+									{t('about_overview_title')}
 								</h3>
 								<p class='text-xs/relaxed sm:text-sm/relaxed text-base-content/80'>
-									Jokateko operates on a "Spec-First" philosophy, where
-									version-controlled Markdown files inside your repository are
-									the single source of truth. It compiles down to a single
-									auditable, zero-CGO binary with embedded Preact and Model
-									Context Protocol (MCP) support.
+									{t('about_overview_text')}
 								</p>
 								<div class='flex flex-wrap items-center gap-2 pt-1'>
 									<a
@@ -262,13 +259,15 @@ export function AboutModal() {
 										class='btn btn-xs sm:btn-sm btn-outline gap-1.5 text-xs'
 									>
 										<FolderGit2 class='size-3.5' />
-										GitHub Repository
+										{t('about_github_repo')}
 									</a>
 									<div class='badge badge-sm badge-ghost font-mono'>
 										Go: {build?.go_version || '1.27'}
 									</div>
 									<div class='badge badge-sm badge-ghost font-mono'>
-										Platform: {build?.platform || 'linux/amd64'}
+										{tf('about_platform', {
+											platform: build?.platform || 'linux/amd64',
+										})}
 									</div>
 								</div>
 							</div>
@@ -276,11 +275,10 @@ export function AboutModal() {
 							{/* Terminal Commands Guide */}
 							<div class='rounded-2xl border border-base-200 bg-base-200/30 p-4 sm:p-5 flex flex-col gap-2'>
 								<h3 class='font-bold text-sm text-base-content'>
-									Terminal CLI Commands
+									{t('about_cli_title')}
 								</h3>
 								<p class='text-xs text-base-content/70'>
-									You can also explore build metadata and licenses directly from
-									your command line:
+									{t('about_cli_text')}
 								</p>
 								<div class='bg-base-300/60 rounded-xl p-3 font-mono text-xs text-base-content/90 flex flex-col gap-1'>
 									<div>
@@ -302,10 +300,10 @@ export function AboutModal() {
 								<div class='flex items-center justify-between'>
 									<div class='flex items-center gap-2'>
 										<h3 class='font-bold text-sm text-base-content'>
-											Project License (MIT)
+											{t('about_project_license')}
 										</h3>
 										<span class='badge badge-xs badge-success font-semibold'>
-											OSI Approved
+											{t('about_osi_approved')}
 										</span>
 									</div>
 									<button
@@ -313,7 +311,7 @@ export function AboutModal() {
 										onClick={() => copyLicenseText(report.project.text)}
 										class='btn btn-xs btn-ghost text-xs'
 									>
-										{copiedText ? 'Copied!' : 'Copy License'}
+										{copiedText ? t('copied') : t('about_copy_license')}
 									</button>
 								</div>
 								<pre class='text-[11px] font-mono leading-relaxed bg-base-100 p-3 rounded-xl border border-base-200 overflow-x-auto whitespace-pre-wrap text-base-content/85'>
@@ -332,7 +330,7 @@ export function AboutModal() {
 										name='license-search'
 										type='search'
 										class='input input-sm w-full bg-base-200/60 focus:bg-base-100 text-xs'
-										placeholder='Search package name, license type...'
+										placeholder={t('about_license_search_placeholder')}
 										value={searchQuery}
 										onInput={(e) =>
 											setSearchQuery((e.target as HTMLInputElement).value)
@@ -351,7 +349,7 @@ export function AboutModal() {
 											ecosystemFilter === 'all' ? 'btn-primary' : 'btn-ghost'
 										}`}
 									>
-										All ({report.packages.length})
+										{tf('about_filter_all', { count: report.packages.length })}
 									</button>
 									<button
 										type='button'
@@ -361,7 +359,7 @@ export function AboutModal() {
 											ecosystemFilter === 'go' ? 'btn-primary' : 'btn-ghost'
 										}`}
 									>
-										Go ({goCount})
+										{tf('about_filter_go', { count: goCount })}
 									</button>
 									<button
 										type='button'
@@ -371,7 +369,7 @@ export function AboutModal() {
 											ecosystemFilter === 'npm' ? 'btn-primary' : 'btn-ghost'
 										}`}
 									>
-										Web ({npmCount})
+										{tf('about_filter_web', { count: npmCount })}
 									</button>
 								</div>
 							</div>
@@ -415,10 +413,16 @@ export function AboutModal() {
 															target='_blank'
 															rel='noopener noreferrer'
 															class='btn btn-xs btn-ghost btn-square text-base-content/60 hover:text-primary'
-															title='Open repository'
-															aria-label={`Open repository for ${pkg.name}`}
+															title={t('arial_open_repository')}
+															aria-label={tf('arial_open_repository_for', {
+																name: pkg.name,
+															})}
 														>
-															<span class='sr-only'>{`Open repository for ${pkg.name}`}</span>
+															<span class='sr-only'>
+																{tf('arial_open_repository_for', {
+																	name: pkg.name,
+																})}
+															</span>
 															<ExternalLink class='size-3.5' />
 														</a>
 													)}
@@ -431,7 +435,9 @@ export function AboutModal() {
 															data-testid='license-view-text-btn'
 															class='btn btn-xs btn-ghost text-xs text-primary'
 														>
-															{isExpanded ? 'Hide License' : 'View License'}
+															{isExpanded
+																? t('about_hide_license')
+																: t('about_view_license')}
 														</button>
 													)}
 												</div>
@@ -442,14 +448,14 @@ export function AboutModal() {
 												<div class='pt-2 border-t border-base-200/80 animate-fadeIn'>
 													<div class='flex items-center justify-between pb-1.5 text-xs text-base-content/60'>
 														<span class='font-semibold text-[11px] uppercase tracking-wider'>
-															Full License Text
+															{t('about_full_license_text')}
 														</span>
 														<button
 															type='button'
 															onClick={() => copyLicenseText(pkg.text || '')}
 															class='link link-hover text-[11px]'
 														>
-															{copiedText ? 'Copied!' : 'Copy'}
+															{copiedText ? t('copied') : t('copy')}
 														</button>
 													</div>
 													<pre class='text-[10px] font-mono leading-relaxed bg-base-200/50 p-3 rounded-lg border border-base-200 overflow-x-auto max-h-48 whitespace-pre-wrap text-base-content/85'>
@@ -463,7 +469,7 @@ export function AboutModal() {
 
 								{filteredPackages.length === 0 && (
 									<div class='py-12 text-center text-xs text-base-content/50 border border-dashed border-base-200 rounded-2xl'>
-										No dependencies match "{searchQuery}"
+										{tf('about_no_dependencies_match', { query: searchQuery })}
 									</div>
 								)}
 							</div>

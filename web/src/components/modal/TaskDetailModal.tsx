@@ -16,25 +16,10 @@ import {
 } from '../../state/store'
 import { copyToClipboard } from '../../utils/clipboard'
 import { countCriteria, setCriterionChecked } from '../../utils/criteria'
+import { formatBrowserDateTime } from '../../utils/date'
+import { t, tf, uiLocale } from '../../utils/i18n'
 import { isDoneStatus } from '../../utils/status'
 import { PriorityBadge, TagBadge, TargetDateBadge } from '../common/Badge'
-
-function formatDateTime(isoStr?: string) {
-	if (!isoStr) return ''
-	try {
-		const d = new Date(isoStr)
-		if (Number.isNaN(d.getTime())) return isoStr
-		return d.toLocaleDateString(undefined, {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit',
-		})
-	} catch {
-		return isoStr
-	}
-}
 
 /**
  * Locally edited body: server-rendered body_html no longer matches, so drop it
@@ -57,6 +42,7 @@ export function TaskDetailModal() {
 function TaskDetailDialog({ task }: { task: Task }) {
 	const isLive = mode.value === 'live'
 	const cols = config.value.board.columns
+	const locale = uiLocale()
 	const [isDeleting, setIsDeleting] = useState(false)
 	const [idCopied, setIdCopied] = useState(false)
 	const bodyRef = useRef<HTMLDivElement>(null)
@@ -200,7 +186,7 @@ function TaskDetailDialog({ task }: { task: Task }) {
 	}
 
 	async function handleDelete() {
-		if (!confirm(`Are you sure you want to delete task "${task.title}"?`)) {
+		if (!confirm(tf('task_confirm_delete', { title: task.title }))) {
 			return
 		}
 		setIsDeleting(true)
@@ -223,7 +209,9 @@ function TaskDetailDialog({ task }: { task: Task }) {
 			closeModal()
 		} catch (err) {
 			alert(
-				`Failed to delete task: ${err instanceof Error ? err.message : String(err)}`,
+				tf('task_delete_failed', {
+					error: err instanceof Error ? err.message : String(err),
+				}),
 			)
 		} finally {
 			setIsDeleting(false)
@@ -299,7 +287,7 @@ function TaskDetailDialog({ task }: { task: Task }) {
 			class='modal modal-open z-50 bg-neutral/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4'
 			role='dialog'
 			aria-modal='true'
-			aria-label={`Task Details: ${task.title}`}
+			aria-label={tf('arial_task_details', { title: task.title })}
 			data-testid='task-detail-modal'
 			onClick={(e) => {
 				if (e.target === e.currentTarget) {
@@ -331,7 +319,9 @@ function TaskDetailDialog({ task }: { task: Task }) {
 								style={{
 									backgroundColor: currentColumn?.color || '#94a3b8',
 								}}
-								title={`Column: ${currentColumn?.name || task.status}`}
+								title={tf('task_column_badge', {
+									column: currentColumn?.name || task.status,
+								})}
 							>
 								<span
 									class='size-1.5 shrink-0 rounded-full bg-slate-900/30'
@@ -347,9 +337,12 @@ function TaskDetailDialog({ task }: { task: Task }) {
 							{task.total_criteria !== undefined && task.total_criteria > 0 && (
 								<span
 									class='badge badge-xs badge-outline text-[10px] font-mono text-base-content/70 px-1.5 py-0.5'
-									title='Acceptance criteria progress'
+									title={t('arial_criteria_progress')}
 								>
-									{task.completed_criteria ?? 0} / {task.total_criteria} done
+									{tf('task_criteria_done', {
+										completed: task.completed_criteria ?? 0,
+										total: task.total_criteria,
+									})}
 								</span>
 							)}
 
@@ -359,8 +352,12 @@ function TaskDetailDialog({ task }: { task: Task }) {
 									type='button'
 									onClick={() => navigateTo(`milestone/${task.milestone}`)}
 									class='badge badge-xs badge-ghost hover:badge-primary text-[10px] cursor-pointer transition-all hover:shadow-2xs'
-									title={`Filter board by milestone: ${task.milestone}`}
-									aria-label={`Go to milestone ${task.milestone}`}
+									title={tf('arial_filter_by_milestone', {
+										milestone: task.milestone,
+									})}
+									aria-label={tf('arial_go_to_milestone', {
+										milestone: task.milestone,
+									})}
 									data-testid='task-modal-milestone-badge'
 								>
 									{task.milestone}
@@ -380,8 +377,10 @@ function TaskDetailDialog({ task }: { task: Task }) {
 								type='button'
 								onClick={handleCopyId}
 								class='font-mono text-xs text-base-content/50 hover:text-base-content hover:bg-base-200/60 px-1.5 py-0.5 rounded transition-colors ml-auto sm:ml-0'
-								title={idCopied ? 'Copied to clipboard!' : 'Click to copy ID'}
-								aria-label={`Copy task ID ${task.id}`}
+								title={
+									idCopied ? t('arial_id_copied') : t('arial_click_to_copy_id')
+								}
+								aria-label={tf('arial_copy_task_id', { id: task.id })}
 							>
 								<span class="inline-grid [grid-template-areas:'stack'] items-center justify-center">
 									<span class='[grid-area:stack] invisible'>{task.id}</span>
@@ -390,7 +389,7 @@ function TaskDetailDialog({ task }: { task: Task }) {
 											idCopied ? 'text-success font-semibold' : ''
 										}`}
 									>
-										{idCopied ? 'copied!' : task.id}
+										{idCopied ? t('id_copied') : task.id}
 									</span>
 								</span>
 							</button>
@@ -417,8 +416,14 @@ function TaskDetailDialog({ task }: { task: Task }) {
 							type='button'
 							onClick={() => setIsMaximized(!isMaximized)}
 							class='btn btn-sm btn-ghost btn-circle text-base-content/60 hover:text-base-content'
-							title={isMaximized ? 'Restore size' : 'Expand modal'}
-							aria-label={isMaximized ? 'Restore size' : 'Maximize modal'}
+							title={
+								isMaximized ? t('arial_restore_size') : t('arial_expand_modal')
+							}
+							aria-label={
+								isMaximized
+									? t('arial_restore_size')
+									: t('arial_maximize_modal')
+							}
 							data-testid='task-modal-maximize-btn'
 						>
 							{isMaximized ? (
@@ -431,7 +436,7 @@ function TaskDetailDialog({ task }: { task: Task }) {
 							type='button'
 							onClick={closeModal}
 							class='btn btn-sm btn-ghost btn-circle text-base-content/60 hover:text-base-content'
-							aria-label='Close task details'
+							aria-label={t('arial_close_task_details')}
 							data-testid='modal-close-button'
 						>
 							<X class='size-4' />
@@ -452,25 +457,25 @@ function TaskDetailDialog({ task }: { task: Task }) {
 					>
 						{task.created_at && (
 							<span data-testid='task-created-at'>
-								Created:{' '}
+								{t('task_created_label')}{' '}
 								<span class='font-mono text-base-content/70'>
-									{formatDateTime(task.created_at)}
+									{formatBrowserDateTime(task.created_at, locale)}
 								</span>
 							</span>
 						)}
 						{task.changed_at && (
 							<span data-testid='task-changed-at'>
-								Updated:{' '}
+								{t('task_updated_label')}{' '}
 								<span class='font-mono text-base-content/70'>
-									{formatDateTime(task.changed_at)}
+									{formatBrowserDateTime(task.changed_at, locale)}
 								</span>
 							</span>
 						)}
 						{task.target_at && (
 							<span data-testid='task-target-at'>
-								Target:{' '}
+								{t('task_target_label')}{' '}
 								<span class='font-mono text-base-content/70'>
-									{formatDateTime(task.target_at)}
+									{formatBrowserDateTime(task.target_at, locale)}
 								</span>
 							</span>
 						)}
@@ -483,7 +488,7 @@ function TaskDetailDialog({ task }: { task: Task }) {
 				{/* Section Header with edit spec button if editable */}
 				<div class='my-1 flex items-center justify-between'>
 					<span class='text-xs font-semibold uppercase tracking-wider text-base-content/50'>
-						Specification
+						{t('task_specification')}
 					</span>
 					{isEditable && (
 						<button
@@ -498,11 +503,11 @@ function TaskDetailDialog({ task }: { task: Task }) {
 							class='btn btn-ghost btn-xs text-primary'
 							aria-label={
 								isEditingBody
-									? 'Cancel editing specification'
-									: 'Edit specification'
+									? t('arial_cancel_edit_spec')
+									: t('arial_edit_spec')
 							}
 						>
-							{isEditingBody ? 'Cancel' : 'Edit Spec'}
+							{isEditingBody ? t('cancel') : t('task_edit_spec')}
 						</button>
 					)}
 				</div>
@@ -524,9 +529,9 @@ function TaskDetailDialog({ task }: { task: Task }) {
 							}
 							rows={8}
 							class='textarea textarea-bordered textarea-sm w-full font-mono text-xs rounded-lg'
-							placeholder='Task markdown body and acceptance criteria...'
+							placeholder={t('task_spec_placeholder')}
 							data-testid='task-body-editor'
-							aria-label='Task specification markdown editor'
+							aria-label={t('arial_spec_editor')}
 						/>
 						<div class='flex justify-end gap-2'>
 							<button
@@ -538,7 +543,7 @@ function TaskDetailDialog({ task }: { task: Task }) {
 								}}
 								class='btn btn-ghost btn-xs'
 							>
-								Cancel
+								{t('cancel')}
 							</button>
 							<button
 								type='button'
@@ -547,7 +552,7 @@ function TaskDetailDialog({ task }: { task: Task }) {
 								class='btn btn-primary btn-xs'
 								data-testid='save-body-button'
 							>
-								{isSavingBody ? 'Saving...' : 'Save Spec'}
+								{isSavingBody ? t('saving') : t('task_save_spec')}
 							</button>
 						</div>
 					</div>
@@ -566,9 +571,7 @@ function TaskDetailDialog({ task }: { task: Task }) {
 						<p class='whitespace-pre-wrap'>{task.body}</p>
 					</div>
 				) : (
-					<p class='text-xs text-base-content/40 italic'>
-						No body specification provided.
-					</p>
+					<p class='text-xs text-base-content/40 italic'>{t('task_no_body')}</p>
 				)}
 
 				{/* Add Note Section (only visible when in non-editable state) */}
@@ -579,10 +582,10 @@ function TaskDetailDialog({ task }: { task: Task }) {
 					>
 						<div class='flex items-center justify-between'>
 							<span class='text-xs font-semibold uppercase tracking-wider text-base-content/60'>
-								Add Note
+								{t('task_add_note')}
 							</span>
 							<span class='text-[11px] text-base-content/40'>
-								Markdown supported, use - [ ] for checklists
+								{t('task_note_hint')}
 							</span>
 						</div>
 						{addNoteError && (
@@ -599,9 +602,9 @@ function TaskDetailDialog({ task }: { task: Task }) {
 							}
 							rows={3}
 							class='textarea textarea-bordered textarea-sm w-full font-mono text-xs rounded-lg'
-							placeholder='Add progress notes or follow-up criteria (e.g. - [ ] Check edge cases)...'
+							placeholder={t('task_note_placeholder')}
 							data-testid='add-note-input'
-							aria-label='Add note text input'
+							aria-label={t('arial_add_note_input')}
 						/>
 						<div class='flex justify-end'>
 							<button
@@ -611,7 +614,7 @@ function TaskDetailDialog({ task }: { task: Task }) {
 								class='btn btn-primary btn-xs'
 								data-testid='add-note-button'
 							>
-								{isAddingNote ? 'Adding...' : 'Add Note'}
+								{isAddingNote ? t('task_adding_note') : t('task_add_note')}
 							</button>
 						</div>
 					</div>
@@ -621,7 +624,9 @@ function TaskDetailDialog({ task }: { task: Task }) {
 				{task.dependencies && task.dependencies.length > 0 && (
 					<div class='flex flex-col gap-1.5 border border-base-200 p-3 rounded-xl bg-base-200/20 mt-2'>
 						<h3 class='text-xs font-bold uppercase tracking-wider text-base-content/50'>
-							Dependencies ({task.dependencies.length})
+							{tf('task_dependencies_count', {
+								count: task.dependencies.length,
+							})}
 						</h3>
 						<ul class='space-y-1.5'>
 							{task.dependencies.map((depId) => {
@@ -645,13 +650,15 @@ function TaskDetailDialog({ task }: { task: Task }) {
 													activeTaskDetailId.value = depId
 												}}
 												class='font-medium text-primary hover:underline truncate text-left'
-												aria-label={`Open dependent task ${dep?.title || depId}`}
+												aria-label={tf('arial_open_dependency', {
+													title: dep?.title || depId,
+												})}
 											>
 												{dep ? dep.title : depId}
 											</button>
 										</div>
 										<span class='badge badge-xs badge-ghost font-mono'>
-											{dep ? dep.status : 'missing'}
+											{dep ? dep.status : t('task_dependency_missing')}
 										</span>
 									</li>
 								)
@@ -668,19 +675,19 @@ function TaskDetailDialog({ task }: { task: Task }) {
 							onClick={handleDelete}
 							disabled={isDeleting}
 							class='btn btn-error btn-outline btn-sm'
-							aria-label='Delete this task'
+							aria-label={t('arial_delete_task')}
 						>
-							{isDeleting ? 'Deleting...' : 'Delete'}
+							{isDeleting ? t('task_deleting') : t('task_delete')}
 						</button>
 
 						<button
 							type='button'
 							onClick={openEditModal}
 							class='btn btn-primary btn-sm'
-							aria-label='Edit this task'
+							aria-label={t('arial_edit_task')}
 							data-testid='edit-task-button'
 						>
-							Edit Task
+							{t('task_edit')}
 						</button>
 					</div>
 				)}

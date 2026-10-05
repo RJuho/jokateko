@@ -25,6 +25,7 @@ func TestBuildSnapshot(t *testing.T) {
 	ctx := t.Context()
 	cfg := config.Default(t.TempDir())
 	cfg.Project.Name = "Test Project"
+	cfg.Project.Locale = "fi-FI"
 
 	// Seed task
 	_ = st.UpsertTask(ctx, model.Task{
@@ -61,6 +62,9 @@ func TestBuildSnapshot(t *testing.T) {
 
 	if snap.Config.Project.Name != "Test Project" {
 		t.Errorf("expected project name 'Test Project', got %q", snap.Config.Project.Name)
+	}
+	if snap.Config.Project.Locale != "fi-FI" {
+		t.Errorf("expected project locale 'fi-FI', got %q", snap.Config.Project.Locale)
 	}
 	if len(snap.Tasks) != 1 || snap.Tasks[0].ID != "task-1" {
 		t.Errorf("expected 1 task, got %+v", snap.Tasks)
