@@ -40,3 +40,11 @@ This document outlines the command-line interface for the application. The tool 
 ### `mcp`
 **Usage:** `jokateko mcp`
 **Description:** Start *only* as an MCP `stdio` server without attempting to bind to the web UI port. If your primary `serve` daemon is already running, this command acts as a lightweight proxy, routing the AI agent's `stdio` traffic to the running daemon's HTTP port to prevent database and port lock conflicts. If the daemon is not running, it runs standalone in stdio mode with an internal in-memory SQLite store.
+
+---
+
+## Development Make Targets
+
+### `make cover`
+**Usage:** `make cover`
+**Description:** Runs the Go tests under `./cmd/...` and `./internal/...` with CGO disabled, writes a coverage profile to `coverage.out` (git-ignored), and prints the total statement coverage. Like `make test`, it first rebuilds the Web UI bundle when its sources changed and generates the license report if it is missing, because the code under test embeds both. Use `go tool cover -func=coverage.out` for per-function figures or `go tool cover -html=coverage.out` to browse uncovered lines.

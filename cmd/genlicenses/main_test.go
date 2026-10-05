@@ -25,6 +25,8 @@ func TestCleanURL(t *testing.T) {
 		{"ssh://git@github.com/owner/repo.git", "https://github.com/owner/repo"},
 		{"git@github.com:owner/repo.git", "https://github.com/owner/repo"},
 		{"https://valibot.dev", "https://valibot.dev"},
+		{"gitlab.com/group/sub/repo", "https://gitlab.com/group/sub/repo"},
+		{"not-a-url", "not-a-url"},
 	}
 
 	for _, tt := range tests {
