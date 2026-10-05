@@ -59,6 +59,8 @@ export async function startTestServer(options?: {
 	customStrategies?: CustomStrategy[]
 	customGlossary?: CustomGlossaryTerm[]
 	customMilestones?: CustomMilestone[]
+	// Writes extra workspace files after init, before the daemon starts
+	seed?: (dir: string) => void
 }): Promise<TestServerInstance> {
 	const dir = mkdtempSync(join(tmpdir(), 'jokateko-e2e-'))
 	const binaryPath = '/workspaces/jokateko/bin/jokateko'
@@ -158,6 +160,8 @@ status = "${m.status || 'open'}"
 			writeFileSync(mPath, content, 'utf8')
 		}
 	}
+
+	options?.seed?.(dir)
 
 	// 3. Launch daemon with port 0
 	let srvProc: any

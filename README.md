@@ -1,5 +1,7 @@
 # Jokateko
 
+![Jokateko board, calendar, task detail, strategy and glossary views in light and dark mode](.github/assets/cover.jpg)
+
 A local, Markdown-driven Kanban board for developers and their AI agents.
 
 Tasks, milestones, architecture strategies and glossary terms are plain Markdown files in your repository's `.jokateko/` folder. They are versioned, reviewed and merged like code. Jokateko indexes them, serves a live board in your browser, and gives AI agents the same data through a built-in MCP server.

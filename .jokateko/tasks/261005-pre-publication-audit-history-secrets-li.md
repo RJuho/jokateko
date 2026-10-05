@@ -1,13 +1,13 @@
 +++
 title = 'Pre-publication audit: history secrets, licenses and vulnerabilities'
-status = 'in_review'
+status = 'done'
 priority = 'critical'
 milestone = '261005-public-release-v010'
 tags = ['release', 'security']
-summary = 'Before the repo goes public, scan the full git history for secrets and personal data, confirm third-party license compliance, and get govulncheck and bun audit clean.'
+summary = 'The pre-publication audit is complete. The full history has no secrets or sensitive internal data, all shipped and historical third-party code is under licenses that allow redistribution, govulncheck is clean, and the one bun audit finding is not exploitable. The security issue the audit found is fixed.'
 dependencies = ['261005-repository-cleanup-and-portable-agent-to']
 created_at = '2026-10-05T10:59:00Z'
-changed_at = '2026-10-05T13:27:02Z'
+changed_at = '2026-10-05T14:12:06Z'
 +++
 
 ## Context
@@ -59,3 +59,12 @@ Decision: keep the full git history (103 commits, 3.3 MB). Removed files remain 
 ### [2026-10-05 13:27 UTC]
 
 Correction to the previous note: `make lint` first **failed** (gofmt alignment in `cmd/genlicenses/helpers_test.go` after the fixture edit). Fixed with `gofmt -w`; `make lint` and `go test ./cmd/genlicenses` now pass.
+
+## Completion Summary
+- **Completed At:** 2026-10-05T14:12:06Z
+
+### What Was Done
+gitleaks v8.30.1 (one-off `go run`, go.mod unchanged) scanned the full history: 109 commits, no leaks. A `git log -p` grep for emails, IPs, hosts, home paths and tokens found only the accepted maintainer address and public or example hosts. PLAN.md is purely technical. The vendored skills in history are under MIT or Apache-2.0. govulncheck has no findings. bun audit reports one low dompurify finding through mermaid. It is not reachable, because the shipped mermaid.min.js bundles DOMPurify 3.4.12, which is outside the affected range. Fixed `make generate` drift by adding `CAST(... AS TEXT)` in queries.sql, so sqlc output no longer has to be hand-edited. cmd/genlicenses now lists tailwindcss, daisyui and @tailwindcss/typography (13 packages). LICENSE and the licenses of all direct dependencies are MIT-compatible. The security review of the bind address, Cross-Origin, Host check, path traversal and CSP found one issue: raw HTML in Markdown runs script in static exports. It was filed and fixed as task 261005-stop-raw-html-in-markdown-from-running-s (done).
+
+### Why / Rationale
+Making the repo public cannot be undone in practice, and the decision was to keep the full history. So the whole history, not just the current tree, had to be checked for secrets, personal data and license compliance. Fixing `make generate` at the SQL source keeps the generated code reproducible. Listing the CSS frameworks gives full attribution for code that ships in the bundle. Filing the security finding as its own task let it block the release until it was fixed.

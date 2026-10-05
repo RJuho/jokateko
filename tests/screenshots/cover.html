@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>Jokateko Cover</title>
+<!--
+	Template for the README / GitHub social preview cover (1280×640).
+	`make screenshots` copies it to screenshots/cover.html with the captured
+	views filled in, then renders cover.png (2x) and cover-social.jpg (1x).
+-->
+<style>
+	:root {
+		--bg: #0b1022;
+		--bg-2: #141a36;
+		--ink: #f4f6ff;
+		--muted: #a9b1d6;
+		--accent: #8b5cf6;
+		--accent-2: #38bdf8;
+	}
+	* { box-sizing: border-box; margin: 0; }
+	html, body { width: 1280px; height: 640px; overflow: hidden; }
+	body {
+		position: relative;
+		background:
+			radial-gradient(900px 520px at 78% 40%, rgb(139 92 246 / 0.28), transparent 70%),
+			linear-gradient(135deg, var(--bg) 0%, var(--bg-2) 100%);
+		color: var(--ink);
+		font-family: Inter, 'Segoe UI', 'Helvetica Neue', 'Liberation Sans', Arial, sans-serif;
+	}
+
+	/* Tilted screenshot wall: starts behind the brand block and runs off the right edge */
+	.wall {
+		position: absolute;
+		left: 360px;
+		top: -150px;
+		display: flex;
+		gap: 28px;
+		transform: perspective(2200px) rotateX(16deg) rotateY(-18deg) rotateZ(-9deg);
+		transform-origin: 0 50%;
+	}
+	.col { display: flex; flex-direction: column; gap: 28px; }
+	.col:nth-child(2) { margin-top: -170px; }
+	.col:nth-child(3) { margin-top: -60px; }
+	.col img {
+		display: block;
+		width: 520px;
+		aspect-ratio: 1440 / 900;
+		object-fit: cover;
+		object-position: top left;
+		border-radius: 14px;
+		border: 1px solid rgb(255 255 255 / 0.14);
+		box-shadow: 0 30px 60px -20px rgb(0 0 0 / 0.65), 0 0 0 1px rgb(0 0 0 / 0.25);
+	}
+
+	/* Fades the wall out under the brand block so the logo stays readable */
+	.fade {
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(90deg, var(--bg) 0%, var(--bg) 30%, rgb(11 16 34 / 0.85) 42%, rgb(11 16 34 / 0) 62%);
+	}
+
+	.brand {
+		position: absolute;
+		left: 80px;
+		top: 50%;
+		transform: translateY(-50%);
+		width: 480px;
+	}
+	/* Placeholder until there is a real logo: replace this element with an <img> */
+	.logo {
+		display: grid;
+		place-items: center;
+		width: 112px;
+		height: 112px;
+		border-radius: 28px;
+		background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+		box-shadow: 0 20px 50px -12px rgb(139 92 246 / 0.6);
+		font-size: 68px;
+		font-weight: 800;
+		color: #fff;
+	}
+	h1 {
+		margin-top: 32px;
+		font-size: 72px;
+		font-weight: 800;
+		letter-spacing: -0.03em;
+		line-height: 1;
+	}
+	.tagline {
+		margin-top: 18px;
+		font-size: 26px;
+		line-height: 1.35;
+		color: var(--muted);
+	}
+	.chips { display: flex; gap: 10px; margin-top: 28px; }
+	.chips span {
+		padding: 7px 14px;
+		border-radius: 999px;
+		border: 1px solid rgb(255 255 255 / 0.16);
+		background: rgb(255 255 255 / 0.06);
+		font-size: 16px;
+		color: var(--ink);
+	}
+</style>
+</head>
+<body>
+	<div class="wall" id="wall"></div>
+	<div class="fade"></div>
+	<div class="brand">
+		<div class="logo" aria-hidden="true">J</div>
+		<h1>Jokateko</h1>
+		<p class="tagline">Markdown-driven Kanban for humans and AI agents</p>
+		<div class="chips"><span>Tasks-as-Code</span><span>MCP server</span><span>Single binary</span></div>
+	</div>
+<script>
+	// Filled in by tests/screenshots/capture.spec.ts; three columns, top to bottom
+	const shots = /*SHOTS*/[]
+	const wall = document.getElementById('wall')
+	for (let c = 0; c < 3; c++) {
+		const col = document.createElement('div')
+		col.className = 'col'
+		shots.filter((_, i) => i % 3 === c).forEach((src) => {
+			const img = document.createElement('img')
+			img.src = src
+			img.alt = ''
+			col.append(img)
+		})
+		wall.append(col)
+	}
+</script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-.PHONY: all build install test typecheck cover clean clean-cache generate install-tools install-ai-tools skills skills-update ui-build lint e2e-test lighthouse-test cross-compile docker-build devcontainer-build fuzz-markdown fuzz-api fuzz-mcp fuzz-all chaos-test
+.PHONY: all build install test typecheck cover clean clean-cache generate install-tools install-ai-tools skills skills-update ui-build lint e2e-test lighthouse-test screenshots cross-compile docker-build devcontainer-build fuzz-markdown fuzz-api fuzz-mcp fuzz-all chaos-test
 
 # Binary name, output directory and install location
 BINARY_NAME := jokateko
@@ -108,7 +108,7 @@ clean:
 # Reclaim disk space: Go build/test/fuzz caches and Playwright outputs
 clean-cache:
 	go clean -cache -testcache -fuzzcache
-	rm -rf test-results playwright-report web/test-results web/playwright-report lighthouse-report
+	rm -rf test-results playwright-report web/test-results web/playwright-report lighthouse-report screenshots
 
 # Run Playwright end-to-end tests (ensures the browser matching the pinned Playwright version; no-op if present)
 e2e-test: web/node_modules
@@ -119,6 +119,11 @@ e2e-test: web/node_modules
 lighthouse-test: web/node_modules build
 	bunx playwright install chromium
 	bunx playwright test --config playwright.lighthouse.config.ts
+
+# Capture README screenshots of a demo workspace and render the cover; output goes to screenshots/
+screenshots: web/node_modules build
+	bunx playwright install chromium
+	bunx playwright test --config playwright.screenshots.config.ts
 
 # Cross-compile static zero-CGO binaries across Linux, macOS, and Windows
 cross-compile: $(UI_OUT) $(LICENSES)

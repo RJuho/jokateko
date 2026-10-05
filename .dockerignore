@@ -9,6 +9,7 @@ dist-kanban
 playwright-report
 test-results
 lighthouse-report
+screenshots
 coverage.out
 web/playwright-report
 web/test-results

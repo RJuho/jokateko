@@ -1,13 +1,13 @@
 +++
 title = 'Repository cleanup and portable agent tooling'
-status = 'in_review'
+status = 'done'
 priority = 'medium'
 milestone = '261005-public-release-v010'
 tags = ['housekeeping', 'release']
-summary = 'Tidy the repository root and make the AI-agent tooling work in any fresh clone: fix dangling skill symlinks, generalize AGENTS.md, and justify or remove each root-level file.'
+summary = 'The repository root is tidied and the AI-agent tooling now works in a fresh clone. `make skills` restores the skill symlinks, AGENTS.md is generalized, and every root-level file was reviewed and either kept or removed.'
 dependencies = ['261005-migrate-docs-into-strategies-and-glossar']
 created_at = '2026-10-05T10:58:36Z'
-changed_at = '2026-10-05T11:53:45Z'
+changed_at = '2026-10-05T14:11:16Z'
 +++
 
 ## Context
@@ -55,3 +55,12 @@ Decision (2026-10-05, maintainer): keep `host = "0.0.0.0"` in this repo's `.joka
 **Verification:** `make test` OK, `make e2e-test` 55/55, `make build` OK. Fresh clone (HEAD + this diff): `make skills`, `make build`, `make test` all OK.
 
 **Flaky test seen (not caused by this change; no Go code changed):** `TestProxy_MultiCycleFailoverAndReconnect` (`internal/proxy/proxy_test.go:406`, "cycle 3: expected at least 3 local engine closes, got: 2") failed once in the first full `make test`. It then passed 30/30 alone, 10/10 at package level, and in two full-suite runs. It looks timing-dependent under parallel load, like the earlier `TestProxy_LegacyInitializeSurvivesSwitches` hang. Candidate follow-up task.
+
+## Completion Summary
+- **Completed At:** 2026-10-05T14:11:16Z
+
+### What Was Done
+Added `make skills` (pinned `bunx skills@1.7.0 experimental_install`) and `make skills-update`. The devcontainer runs `make skills` in postCreateCommand. AGENTS.md is generalized: no `/home/bun` paths, uses `make install`/`INSTALL_DIR`, says In Review (`in_review`), lists the full set of tools. `.jokateko/config.toml` keeps `host = "0.0.0.0"` with a comment saying it is for devcontainer access only and has no auth. It uses port 8080 with matching CORS origins, and the devcontainer forwards 8080. `install-ai-tools` is labelled optional. `tools.go` was removed because it was redundant. `.dockerignore` was extended. The other root files were kept, with reasons recorded in Notes. CONTRIBUTING.md documents `make skills`. Verified: `make test`, `make e2e-test` (55/55) and `make build` pass. A fresh clone runs `make skills`, `make build` and `make test` successfully, and `git status` stays clean.
+
+### Why / Rationale
+The agent tooling stays in the repo as a dogfooding showcase, so it has to work without the devcontainer's existing state. The tracked `.claude/skills` symlinks pointed into a gitignored directory and were broken in every clone. Keeping 0.0.0.0 was the maintainer's decision so the host can reach `jokateko serve` inside the devcontainer; the comment and SECURITY.md warn about the exposure. Each root file is either justified or removed, which keeps the public repository easy to audit.
