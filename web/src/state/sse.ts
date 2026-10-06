@@ -9,6 +9,7 @@ import {
 	connectionStatus,
 	fetchLiveBoard,
 	fetchLiveEntities,
+	fetchLiveMilestones,
 	removeGlossaryTerm,
 	removeMilestone,
 	removeStrategy,
@@ -27,9 +28,12 @@ let eventSource: EventSource | null = null
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let reconnectDelay = 1000
 let isExplicitlyClosed = false
-// True once a connection was lost; the next successful open must re-sync
-// state because events emitted while disconnected were never received.
-let needsResync = false
+let milestoneRefreshTimer: ReturnType<typeof setTimeout> | null = null
+
+// Coalesces task events into one milestone refetch: milestone progress and
+// target timeframe are derived from tasks on the server, and task events carry
+// only the task.
+const MILESTONE_REFRESH_DELAY_MS = 100
 
 export function startSSE(endpoint = '/api/events'): void {
 	if (eventSource) {
@@ -50,11 +54,11 @@ export function startSSE(endpoint = '/api/events'): void {
 	eventSource.onopen = () => {
 		connectionStatus.value = 'connected'
 		reconnectDelay = 1000
-		if (needsResync) {
-			needsResync = false
-			fetchLiveBoard()
-			fetchLiveEntities()
-		}
+		// Re-sync on every open, including the first: the server registers the
+		// subscriber before the stream opens, so this snapshot plus the events
+		// that follow cover changes made before connecting or while disconnected.
+		fetchLiveBoard()
+		fetchLiveEntities()
 	}
 
 	eventSource.onerror = () => {
@@ -62,7 +66,6 @@ export function startSSE(endpoint = '/api/events'): void {
 			return
 		}
 		connectionStatus.value = 'disconnected'
-		needsResync = true
 		stopSSE(false)
 		scheduleReconnect(endpoint)
 	}
@@ -77,6 +80,7 @@ export function startSSE(endpoint = '/api/events'): void {
 	})
 
 	eventSource.addEventListener('task.deleted', (e) => {
+		scheduleMilestoneRefresh()
 		try {
 			const parsed = JSON.parse(e.data)
 			const res = v.safeParse(EntityIdSchema, parsed)
@@ -172,6 +176,10 @@ export function stopSSE(explicit = true): void {
 			clearTimeout(reconnectTimer)
 			reconnectTimer = null
 		}
+		if (milestoneRefreshTimer) {
+			clearTimeout(milestoneRefreshTimer)
+			milestoneRefreshTimer = null
+		}
 		connectionStatus.value = 'disconnected'
 	}
 
@@ -193,7 +201,18 @@ function scheduleReconnect(endpoint: string): void {
 	}, reconnectDelay)
 }
 
+function scheduleMilestoneRefresh(): void {
+	if (milestoneRefreshTimer) {
+		return
+	}
+	milestoneRefreshTimer = setTimeout(() => {
+		milestoneRefreshTimer = null
+		fetchLiveMilestones()
+	}, MILESTONE_REFRESH_DELAY_MS)
+}
+
 function handleTaskPayload(rawData: string): void {
+	scheduleMilestoneRefresh()
 	try {
 		const parsed = JSON.parse(rawData)
 		const res = v.safeParse(TaskSchema, parsed)

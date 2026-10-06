@@ -503,14 +503,11 @@ export async function fetchLiveBoard(): Promise<boolean> {
 	}
 }
 
-export async function fetchLiveEntities(): Promise<void> {
+// Milestones are fetched on their own after task changes, because their
+// progress and target timeframe are derived from tasks on the server.
+export async function fetchLiveMilestones(): Promise<void> {
 	try {
-		const [msRes, stratRes, glossRes] = await Promise.all([
-			fetch('/api/milestones'),
-			fetch('/api/strategies'),
-			fetch('/api/glossary'),
-		])
-
+		const msRes = await fetch('/api/milestones')
 		if (msRes.ok) {
 			const msData = await msRes.json()
 			const parsed = v.safeParse(v.array(MilestoneSchema), msData)
@@ -518,6 +515,18 @@ export async function fetchLiveEntities(): Promise<void> {
 				milestones.value = parsed.output
 			}
 		}
+	} catch (err) {
+		console.warn('Failed to fetch live milestones:', err)
+	}
+}
+
+export async function fetchLiveEntities(): Promise<void> {
+	try {
+		const [, stratRes, glossRes] = await Promise.all([
+			fetchLiveMilestones(),
+			fetch('/api/strategies'),
+			fetch('/api/glossary'),
+		])
 
 		if (stratRes.ok) {
 			const stratData = await stratRes.json()
