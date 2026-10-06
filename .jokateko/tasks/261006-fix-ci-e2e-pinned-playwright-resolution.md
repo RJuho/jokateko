@@ -1,12 +1,12 @@
 +++
 title = 'Fix CI e2e: pinned Playwright resolution and repo-relative test paths'
-status = 'in_review'
+status = 'done'
 priority = 'critical'
 milestone = '261005-public-release-v010'
 tags = ['ci', 'release']
-summary = 'make e2e-test fails in CI before any test runs: bunx pulls a second Playwright copy, specs hardcode /workspaces/jokateko paths, and the binary is not built yet. Make the e2e run independent of local devcontainer state.'
+summary = 'make e2e-test no longer depends on local devcontainer state. It uses the lockfile-pinned Playwright through a Makefile-managed root link, builds the binary first, and the tests resolve paths from the repo root. CI is green.'
 created_at = '2026-10-06T13:50:25Z'
-changed_at = '2026-10-06T13:52:53Z'
+changed_at = '2026-10-06T14:02:11Z'
 +++
 
 ## Problem
@@ -22,7 +22,7 @@ In CI (checkout at `/__w/jokateko/jokateko`) every spec fails with "Playwright T
 - [x] `e2e-test` depends on `build`
 - [x] No absolute `/workspaces/jokateko` paths left in tests; a shared `tests/e2e/helpers/paths.ts` derives them from the repo root
 - [x] `make e2e-test` passes after the root symlink is removed, and from a checkout outside `/workspaces/jokateko`
-- [ ] CI run is green after push (human)
+- [x] CI run is green after push (human)
 
 ## Notes
 
@@ -31,3 +31,14 @@ In CI (checkout at `/__w/jokateko/jokateko`) every spec fails with "Playwright T
 Implemented. Makefile: `PLAYWRIGHT := web/node_modules/.bin/playwright`; a new `node_modules` target (`ln -sfn web/node_modules`); `e2e-test` now depends on `node_modules build`; `lighthouse-test` and `screenshots` depend on `node_modules`. Tests: new `tests/e2e/helpers/paths.ts` (`REPO_ROOT`, `WEB_DIR`, `BINARY_PATH` from `__dirname`), used in test-server.ts, static-export*.spec.ts and valibot-resilience.spec.ts. Workflows unchanged: the step order now works because `e2e-test` builds first.
 
 Verified: after removing the root symlink, `make e2e-test` recreated it and 60/60 passed. A fresh `git worktree` in a scratch dir outside /workspaces also passed 60/60. `make lint test` is green. The CI run after push is still open (human).
+
+## Completion Summary
+- **Completed At:** 2026-10-06T14:02:11Z
+
+### What Was Done
+- Makefile: `PLAYWRIGHT := web/node_modules/.bin/playwright` replaces `bunx playwright` in e2e-test, lighthouse-test and screenshots. A new `node_modules` target runs `ln -sfn web/node_modules node_modules`, and those targets depend on it. e2e-test also depends on `build`.
+- New tests/e2e/helpers/paths.ts exports REPO_ROOT, WEB_DIR and BINARY_PATH, derived from `__dirname`. It replaces the hardcoded /workspaces/jokateko paths in test-server.ts, static-export.spec.ts, static-export-xss.spec.ts, static-export-mermaid.spec.ts and valibot-resilience.spec.ts.
+- Verified: 60/60 without the root link, 60/60 from a worktree outside /workspaces, `make lint test` green, and the GitHub CI run green after pushing 6e4a4e3.
+
+### Why / Rationale
+The root configs and specs import @playwright/test from the repo root, so they need a root node_modules that points at the same pinned install the CLI uses. Otherwise bunx fetches a second copy and the module instances clash. Making the link a Makefile target keeps a single install in web/ and makes the setup reproducible. Calling the pinned CLI directly prevents silent version drift. Deriving paths from the file location makes the tests work in any checkout (CI uses /__w/...). Building inside e2e-test matches lighthouse-test and screenshots, and fixes the workflow step order without editing the workflows.
