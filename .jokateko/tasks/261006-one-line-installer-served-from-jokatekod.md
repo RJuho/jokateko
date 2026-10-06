@@ -1,12 +1,12 @@
 +++
 title = 'One-line installer served from jokateko.dev'
-status = 'in_review'
+status = 'done'
 priority = 'high'
 milestone = '261005-public-release-v010'
 tags = ['ci', 'release']
-summary = 'Add a POSIX install.sh for Linux and macOS that downloads the release binary, verifies its SHA-256 and installs it without sudo. Serve it at https://jokateko.dev/install.sh via GitHub Pages, deployed by the release workflow.'
+summary = '`curl -fsSL https://jokateko.dev/install.sh | sh` installs the release binary on Linux and macOS after checking its SHA-256, without sudo. The script is served by GitHub Pages, which the release workflow publishes for stable tags.'
 created_at = '2026-10-06T15:37:15Z'
-changed_at = '2026-10-06T16:11:40Z'
+changed_at = '2026-10-06T17:15:10Z'
 +++
 
 ## Context
@@ -78,3 +78,17 @@ Reverted to release-tied publishing, on the maintainer's call (it also suits fut
 - Manual redeploy: Actions → Pages → Run workflow, with a tag selected under "Use workflow from".
 
 Human setup still needed: the `github-pages` environment only allows deploys from `main` by default, which rejects tag-triggered deploys. In Repo → Settings → Environments → github-pages → Deployment branches and tags, add the tag rule `v*`. Keep `main` too if you want manual runs from it.
+
+## Completion Summary
+- **Completed At:** 2026-10-06T17:15:10Z
+
+### What Was Done
+- `site/install.sh` (POSIX sh, run through `main()`): detects OS/arch (native arm64 under Rosetta), downloads from GitHub Releases with no API calls, verifies against `checksums.txt`, installs atomically to `~/.local/bin` (or `JOKATEKO_INSTALL_DIR`), and prints a PATH hint. `JOKATEKO_VERSION` pins a tag and `JOKATEKO_DOWNLOAD_URL` sets a mirror. `site/CNAME` is `jokateko.dev`.
+- `tests/install/run.sh` and `make test-install`: 6 checks under dash against cross-compiled assets.
+- release.yml: "Verify Installer" runs before publishing; `install.sh` is attached as a release asset; prereleases start as drafts (immutable releases); a `pages` job for stable tags calls the reusable `pages.yml` (`workflow_call` and `workflow_dispatch`), which deploys `site/`.
+- README install section, CHANGELOG and CONTRIBUTING updated.
+- Human setup done: jokateko.dev DNS and TLS, Pages source set to Actions, immutable releases on, `v*` tag rule on the github-pages environment.
+- Verified live: the jokateko.dev script installed `v0.1.0-rc1` with `JOKATEKO_VERSION` pinned, and the plain one-liner worked after the rc was marked as the latest release.
+
+### Why / Rationale
+Binaries stay on GitHub Releases, which are served from GitHub's download servers with no bandwidth limit for public repos. The `releases/latest/download` link isn't subject to the GitHub API's hourly limit for anonymous requests. GitHub Pages can't send HTTP redirects, so the custom domain serves the script itself. Publishing Pages only from the release workflow keeps the live script and future docs in step with a released version, never with unreleased `main`. A separate reusable `pages.yml` leaves room for the Astro docs build. Checksum verification, the `main()` wrapper against truncated downloads, a no-sudo install and no shell-profile edits follow the project's security-first approach to distributed assets.
