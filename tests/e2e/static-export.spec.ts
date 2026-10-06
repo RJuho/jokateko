@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { BINARY_PATH } from './helpers/paths'
 
 test.describe('Static Export & Offline Execution E2E', () => {
 	let dir
@@ -10,7 +11,7 @@ test.describe('Static Export & Offline Execution E2E', () => {
 
 	test.beforeAll(async () => {
 		dir = mkdtempSync(join(tmpdir(), 'jokateko-static-'))
-		const binaryPath = '/workspaces/jokateko/bin/jokateko'
+		const binaryPath = BINARY_PATH
 
 		// 1. Initialize workspace
 		await new Promise((resolve, reject) => {

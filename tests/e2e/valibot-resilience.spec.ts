@@ -2,10 +2,11 @@ import { expect, test } from '@playwright/test'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { WEB_DIR } from './helpers/paths'
 
 test.describe('Valibot Schema Resilience & Error Boundary E2E', () => {
 	const templateHtml = readFileSync(
-		'/workspaces/jokateko/web/dist/index.html',
+		join(WEB_DIR, 'dist', 'index.html'),
 		'utf8',
 	)
 

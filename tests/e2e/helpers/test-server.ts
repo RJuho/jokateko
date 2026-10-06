@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { BINARY_PATH } from './paths'
 
 export interface TestServerInstance {
 	dir: string
@@ -63,7 +64,7 @@ export async function startTestServer(options?: {
 	seed?: (dir: string) => void
 }): Promise<TestServerInstance> {
 	const dir = mkdtempSync(join(tmpdir(), 'jokateko-e2e-'))
-	const binaryPath = '/workspaces/jokateko/bin/jokateko'
+	const binaryPath = BINARY_PATH
 
 	// 1. Initialize workspace via jokateko init
 	await new Promise<void>((resolve, reject) => {

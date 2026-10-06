@@ -3,8 +3,9 @@ import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { BINARY_PATH } from './helpers/paths'
 
-const binaryPath = '/workspaces/jokateko/bin/jokateko'
+const binaryPath = BINARY_PATH
 const TASK_ID = 'task-xss'
 
 function runBinary(args) {

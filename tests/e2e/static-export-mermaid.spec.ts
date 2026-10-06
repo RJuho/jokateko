@@ -3,13 +3,14 @@ import { spawn } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { BINARY_PATH, WEB_DIR } from './helpers/paths'
 
-const binaryPath = '/workspaces/jokateko/bin/jokateko'
+const binaryPath = BINARY_PATH
 const mermaidRuntime = JSON.parse(
-	readFileSync('/workspaces/jokateko/web/dist/mermaid.json', 'utf8'),
+	readFileSync(join(WEB_DIR, 'dist', 'mermaid.json'), 'utf8'),
 )
 const mermaidMinJs = readFileSync(
-	'/workspaces/jokateko/web/node_modules/mermaid/dist/mermaid.min.js',
+	join(WEB_DIR, 'node_modules', 'mermaid', 'dist', 'mermaid.min.js'),
 )
 const CDN_PATTERN = /^https:\/\/cdn\.jsdelivr\.net\/npm\/mermaid@.*\/dist\/mermaid\.min\.js$/
 const TASK_ID = 'task-diagram'

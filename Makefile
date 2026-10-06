@@ -29,6 +29,9 @@ UI_OUT := web/dist/index.html.gz
 # Generated, git-tracked license report; regenerated only if missing (use `make generate` to refresh)
 LICENSES := internal/version/licenses.json
 
+# Lockfile-pinned Playwright CLI (bunx could fetch a second copy that clashes with @playwright/test)
+PLAYWRIGHT := web/node_modules/.bin/playwright
+
 all: test build
 
 # Install development and code generation tools
@@ -64,6 +67,10 @@ generate:
 web/node_modules: web/package.json web/bun.lock
 	cd web && bun install --frozen-lockfile
 	@touch $@
+
+# Root link so the repo-root Playwright configs and tests resolve @playwright/test from web/
+node_modules: web/node_modules
+	ln -sfn web/node_modules $@
 
 $(UI_OUT): $(UI_SRC) web/node_modules
 	cd web && bun run build
@@ -110,20 +117,20 @@ clean-cache:
 	go clean -cache -testcache -fuzzcache
 	rm -rf test-results playwright-report web/test-results web/playwright-report lighthouse-report screenshots
 
-# Run Playwright end-to-end tests (ensures the browser matching the pinned Playwright version; no-op if present)
-e2e-test: web/node_modules
-	bunx playwright install chromium
-	bunx playwright test
+# Run Playwright end-to-end tests against a fresh build (ensures the browser matching the pinned Playwright version; no-op if present)
+e2e-test: node_modules build
+	$(PLAYWRIGHT) install chromium
+	$(PLAYWRIGHT) test
 
 # Run Lighthouse audits of every Web UI view over Playwright Chromium (CDP); reports go to lighthouse-report/
-lighthouse-test: web/node_modules build
-	bunx playwright install chromium
-	bunx playwright test --config playwright.lighthouse.config.ts
+lighthouse-test: node_modules build
+	$(PLAYWRIGHT) install chromium
+	$(PLAYWRIGHT) test --config playwright.lighthouse.config.ts
 
 # Capture README screenshots of a demo workspace and render the cover; output goes to screenshots/
-screenshots: web/node_modules build
-	bunx playwright install chromium
-	bunx playwright test --config playwright.screenshots.config.ts
+screenshots: node_modules build
+	$(PLAYWRIGHT) install chromium
+	$(PLAYWRIGHT) test --config playwright.screenshots.config.ts
 
 # Cross-compile static zero-CGO binaries across Linux, macOS, and Windows
 cross-compile: $(UI_OUT) $(LICENSES)

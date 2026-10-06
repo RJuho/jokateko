@@ -5,9 +5,9 @@ priority = 'critical'
 milestone = '261005-public-release-v010'
 tags = ['release']
 summary = 'Human-driven final gate: cut a release candidate, verify binaries, Docker image and README instructions end to end, then tag v0.1.0 and flip the repository to public.'
-dependencies = ['261005-dependabot-config-and-changelog-for-v010', '261005-harden-ci-and-release-workflows-for-a-pu', '261005-pre-publication-audit-history-secrets-li', '261005-write-contributingmd-and-securitymd', '261005-write-public-readme-and-fold-in-commands', '261005-stop-raw-html-in-markdown-from-running-s']
+dependencies = ['261005-dependabot-config-and-changelog-for-v010', '261005-harden-ci-and-release-workflows-for-a-pu', '261005-pre-publication-audit-history-secrets-li', '261005-stop-raw-html-in-markdown-from-running-s', '261005-write-contributingmd-and-securitymd', '261005-write-public-readme-and-fold-in-commands', '261006-fix-ci-e2e-pinned-playwright-resolution']
 created_at = '2026-10-05T10:59:07Z'
-changed_at = '2026-10-05T12:18:45Z'
+changed_at = '2026-10-06T13:50:28Z'
 +++
 
 ## Context
