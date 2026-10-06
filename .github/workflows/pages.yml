@@ -1,0 +1,40 @@
+name: Pages
+
+# Publishes site/ to https://jokateko.dev (install.sh at the root). Called by the release workflow
+# after a stable release is published, so the site always matches a released version. Run it by
+# hand with a tag selected under "Use workflow from" to redeploy that release's site.
+on:
+  workflow_call:
+  workflow_dispatch:
+
+# One deployment at a time; let a running deployment finish rather than cancel it midway
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read  # check out the tagged sources
+      pages: write    # deploy to GitHub Pages
+      id-token: write # verify the deployment origin
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

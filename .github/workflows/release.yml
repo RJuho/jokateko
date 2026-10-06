@@ -67,31 +67,17 @@ jobs:
             site/install.sh
           generate_release_notes: true
 
-  # Serve site/ (install.sh) at https://jokateko.dev for stable releases only, after the release
-  # exists, so the script and the `latest` binaries it downloads always come from the same release.
+  # Publish the site (install.sh) for stable releases only, after the release exists, so the
+  # script and the `latest` binaries it downloads always come from the same release.
   pages:
-    name: Publish Installer to GitHub Pages
-    runs-on: ubuntu-latest
+    name: Publish GitHub Pages
     needs: binaries
     if: ${{ !contains(github.ref_type == 'tag' && github.ref_name || inputs.version, '-') }}
     permissions:
-      pages: write    # deploy to GitHub Pages
-      id-token: write # verify the deployment origin
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Upload site
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: site
-
-      - name: Deploy to GitHub Pages
-        id: deploy
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
 
   devcontainer:
     name: Build & Publish Devcontainer Image

@@ -6,7 +6,7 @@ milestone = '261005-public-release-v010'
 tags = ['ci', 'release']
 summary = 'Add a POSIX install.sh for Linux and macOS that downloads the release binary, verifies its SHA-256 and installs it without sudo. Serve it at https://jokateko.dev/install.sh via GitHub Pages, deployed by the release workflow.'
 created_at = '2026-10-06T15:37:15Z'
-changed_at = '2026-10-06T16:00:23Z'
+changed_at = '2026-10-06T16:11:40Z'
 +++
 
 ## Context
@@ -57,3 +57,24 @@ Domain checked 2026-10-06:
 - `https://jokateko.dev/install.sh` returns 404 from GitHub.com. This is expected: nothing is deployed until the first stable tag runs the `pages` job.
 
 Open: the certificate doesn't cover `www.jokateko.dev`, so HTTPS there fails with a name mismatch. The install URL uses the apex, so the installer isn't affected. To fix: remove and re-add the custom domain in Pages settings so GitHub requests a certificate for both names.
+
+### [2026-10-06 16:09 UTC]
+
+Changed on the maintainer's request: Pages has its own workflow, `.github/workflows/pages.yml`, and is no longer part of the release workflow.
+- Trigger: push to `main` touching `site/**`, `tests/install/**` or the workflow file, or `workflow_dispatch`.
+- The `test` job runs `make test-install` in the devcontainer image (cross-compile plus the 6 installer checks). `deploy` runs only if it passes and uploads `site/` with upload-pages-artifact and deploy-pages.
+- Concurrency group `pages` without cancel-in-progress, so a running deployment finishes.
+- `site/` is the Pages root: `site/install.sh` is served at `https://jokateko.dev/install.sh`. When the Astro docs site arrives, move `install.sh` and `CNAME` to Astro's `public/` folder so the URL stays the same.
+- release.yml keeps "Verify Installer" and the `install.sh` release asset; its `pages` job is removed.
+
+Trade-off accepted: the live script now follows `main`, not the latest release. It always downloads `releases/latest`, so it works as long as `main` doesn't rely on release assets that haven't been published yet.
+
+### [2026-10-06 16:11 UTC]
+
+Reverted to release-tied publishing, on the maintainer's call (it also suits future docs releases):
+- `pages.yml` is now a reusable workflow (`workflow_call` and `workflow_dispatch`) holding only the deploy job. It's the home for the future Astro build step.
+- release.yml's `pages` job calls it after `binaries`, for stable tags only, with `contents: read`, `pages: write` and `id-token: write`.
+- The installer is still tested by "Verify Installer" in the release `binaries` job before anything is published.
+- Manual redeploy: Actions → Pages → Run workflow, with a tag selected under "Use workflow from".
+
+Human setup still needed: the `github-pages` environment only allows deploys from `main` by default, which rejects tag-triggered deploys. In Repo → Settings → Environments → github-pages → Deployment branches and tags, add the tag rule `v*`. Keep `main` too if you want manual runs from it.
