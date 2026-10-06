@@ -10,6 +10,7 @@ import {
 } from '../../state/store'
 import { copyToClipboard } from '../../utils/clipboard'
 import { t, tf } from '../../utils/i18n'
+import { logoSrc } from '../../utils/logo'
 
 export function normalizeExternalURL(raw?: string): string {
 	if (!raw) return ''
@@ -176,9 +177,13 @@ export function AboutModal() {
 				{/* Modal Top Header */}
 				<div class='flex items-center justify-between px-5 py-4 border-b border-base-200 bg-base-100 shrink-0'>
 					<div class='flex items-center gap-2.5'>
-						<div class='size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold font-mono text-sm border border-primary/20 shadow-2xs'>
-							J
-						</div>
+						<img
+							src={logoSrc}
+							alt=''
+							aria-hidden='true'
+							class='size-8 object-contain'
+							data-testid='about-modal-logo'
+						/>
 						<div class='flex flex-col'>
 							<div class='flex items-center gap-2'>
 								<h2 class='text-base/tight font-bold text-base-content sm:text-lg'>

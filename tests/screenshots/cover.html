@@ -7,7 +7,7 @@
 <!--
 	Template for the README / GitHub social preview cover (1280×640).
 	`make screenshots` copies it to screenshots/cover.html with the captured
-	views filled in, then renders cover.png (2x) and cover-social.jpg (1x).
+	views and web/src/logo.svg filled in, then renders cover.png (2x) and cover-social.jpg (1x).
 -->
 <style>
 	:root {
@@ -15,15 +15,13 @@
 		--bg-2: #141a36;
 		--ink: #f4f6ff;
 		--muted: #a9b1d6;
-		--accent: #8b5cf6;
-		--accent-2: #38bdf8;
 	}
 	* { box-sizing: border-box; margin: 0; }
 	html, body { width: 1280px; height: 640px; overflow: hidden; }
 	body {
 		position: relative;
 		background:
-			radial-gradient(900px 520px at 78% 40%, rgb(139 92 246 / 0.28), transparent 70%),
+			radial-gradient(900px 520px at 78% 40%, rgb(75 157 243 / 0.26), transparent 70%),
 			linear-gradient(135deg, var(--bg) 0%, var(--bg-2) 100%);
 		color: var(--ink);
 		font-family: Inter, 'Segoe UI', 'Helvetica Neue', 'Liberation Sans', Arial, sans-serif;
@@ -67,18 +65,12 @@
 		transform: translateY(-50%);
 		width: 480px;
 	}
-	/* Placeholder until there is a real logo: replace this element with an <img> */
-	.logo {
-		display: grid;
-		place-items: center;
-		width: 112px;
-		height: 112px;
-		border-radius: 28px;
-		background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
-		box-shadow: 0 20px 50px -12px rgb(139 92 246 / 0.6);
-		font-size: 68px;
-		font-weight: 800;
-		color: #fff;
+	/* Soft glow keeps the dark bottom of the logo gradient visible on the navy background */
+	.logo svg {
+		display: block;
+		width: 150px;
+		height: auto;
+		filter: drop-shadow(0 0 28px rgb(75 157 243 / 0.45));
 	}
 	h1 {
 		margin-top: 32px;
@@ -108,7 +100,7 @@
 	<div class="wall" id="wall"></div>
 	<div class="fade"></div>
 	<div class="brand">
-		<div class="logo" aria-hidden="true">J</div>
+		<div class="logo" aria-hidden="true"><!--LOGO--></div>
 		<h1>Jokateko</h1>
 		<p class="tagline">Markdown-driven Kanban for humans and AI agents</p>
 		<div class="chips"><span>Tasks-as-Code</span><span>MCP server</span><span>Single binary</span></div>

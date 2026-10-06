@@ -4,6 +4,7 @@ import {
 	openAboutModal,
 } from '../../state/store'
 import { t } from '../../utils/i18n'
+import { logoSrc } from '../../utils/logo'
 
 export function Footer() {
 	const build = config.value.build
@@ -27,9 +28,16 @@ export function Footer() {
 					href='https://github.com/RJuho/jokateko'
 					target='_blank'
 					rel='noopener noreferrer'
-					class='link link-hover font-medium text-base-content/80 hover:text-primary transition-colors'
+					class='link link-hover inline-flex items-center gap-1 font-medium text-base-content/80 hover:text-primary transition-colors'
 					aria-label={t('arial_github_repo')}
 				>
+					<img
+						src={logoSrc}
+						alt=''
+						aria-hidden='true'
+						class='h-3.5 w-auto'
+						data-testid='footer-logo'
+					/>
 					Jokateko
 				</a>
 				<span class='badge badge-xs badge-ghost font-mono opacity-80'>

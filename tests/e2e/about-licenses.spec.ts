@@ -30,6 +30,9 @@ test.describe("About & Licenses Modal E2E", () => {
 
 		// 3. Verify About tab content
 		await expect(page.getByRole("heading", { name: "Jokateko", exact: true })).toBeVisible();
+		const modalLogo = modal.locator('[data-testid="about-modal-logo"]');
+		await expect(modalLogo).toBeVisible();
+		await expect.poll(() => modalLogo.evaluate((img) => img.naturalWidth)).toBeGreaterThan(0);
 		await expect(page.getByText("Zero-Dependency, Tasks-as-Code Architecture")).toBeVisible();
 		await expect(page.getByText("Project License (MIT)")).toBeVisible();
 		await expect(modal.locator("pre").first()).toContainText("Permission is hereby granted, free of charge");
@@ -99,5 +102,15 @@ test.describe("About & Licenses Modal E2E", () => {
 
 		await page.keyboard.press("Escape");
 		await expect(modal).not.toBeVisible();
+	});
+
+	test("footer shows the logo next to the project link", async ({ page }) => {
+		await page.goto(server.url);
+
+		const logo = page.locator('[data-testid="app-footer"] [data-testid="footer-logo"]');
+		await expect(logo).toBeVisible();
+		// The SVG data URI decoded (a CSP block or bad markup leaves naturalWidth at 0)
+		await expect.poll(() => logo.evaluate((img) => img.naturalWidth)).toBeGreaterThan(0);
+		await expect(logo).toHaveAttribute("alt", "");
 	});
 });

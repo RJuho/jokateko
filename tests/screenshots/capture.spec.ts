@@ -69,7 +69,9 @@ test.describe('README screenshots', () => {
 		const template = readFileSync(join(__dirname, 'cover.html'), 'utf8')
 		const shots = VIEWS.map((v) => `views/${fileName(v)}`)
 		const coverPath = join(OUT_DIR, 'cover.html')
-		writeFileSync(coverPath, template.replace('/*SHOTS*/[]', JSON.stringify(shots)), 'utf8')
+		const logo = readFileSync(join(__dirname, '../../web/src/logo.svg'), 'utf8')
+		const html = template.replace('/*SHOTS*/[]', JSON.stringify(shots)).replace('<!--LOGO-->', logo)
+		writeFileSync(coverPath, html, 'utf8')
 
 		const context = await browser.newContext({
 			viewport: { width: COVER_WIDTH, height: COVER_HEIGHT },
