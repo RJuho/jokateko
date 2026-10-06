@@ -1,4 +1,4 @@
-.PHONY: all build install test typecheck cover clean clean-cache generate install-tools install-ai-tools skills skills-update ui-build lint e2e-test lighthouse-test screenshots cross-compile docker-build devcontainer-build fuzz-markdown fuzz-api fuzz-mcp fuzz-all chaos-test
+.PHONY: all build install test typecheck cover clean clean-cache generate install-tools install-ai-tools skills skills-update ui-build lint e2e-test test-install lighthouse-test screenshots cross-compile docker-build devcontainer-build fuzz-markdown fuzz-api fuzz-mcp fuzz-all chaos-test
 
 # Binary name, output directory and install location
 BINARY_NAME := jokateko
@@ -141,6 +141,10 @@ cross-compile: $(UI_OUT) $(LICENSES)
 		GOOS=$$os GOARCH=$$arch $(GO_BUILD) -o $(BIN_DIR)/$(BINARY_NAME)-$$os-$$arch$$ext ./cmd/jokateko; \
 	done
 	cd $(BIN_DIR) && sha256sum $(BINARY_NAME)-* > checksums.txt
+
+# Test site/install.sh end to end against freshly cross-compiled release assets
+test-install: cross-compile
+	sh tests/install/run.sh
 
 # Build devcontainer image locally
 devcontainer-build:

@@ -17,7 +17,23 @@ Tasks, milestones, architecture strategies and glossary terms are plain Markdown
 
 ## Install
 
-**Release binary.** Download your platform's binary (`linux`/`darwin` × `amd64`/`arm64`, or `windows-amd64.exe`) from [Releases](https://github.com/RJuho/jokateko/releases) and verify it:
+**Install script (Linux, macOS).**
+
+```sh
+curl -fsSL https://jokateko.dev/install.sh | sh
+```
+
+The script downloads the latest release binary for your OS and architecture from GitHub Releases, checks its SHA-256 against the release's `checksums.txt`, and installs it to `~/.local/bin` without sudo. Set `JOKATEKO_VERSION=v0.1.0` to pin a version, or `JOKATEKO_INSTALL_DIR` to install somewhere else. To read the script before running it:
+
+```sh
+curl -fsSLO https://jokateko.dev/install.sh
+less install.sh
+sh install.sh
+```
+
+To uninstall, delete the binary: `rm ~/.local/bin/jokateko`.
+
+**Release binary (any platform, including Windows).** Download your platform's binary (`linux`/`darwin` × `amd64`/`arm64`, or `windows-amd64.exe`) from [Releases](https://github.com/RJuho/jokateko/releases) and verify it:
 
 ```sh
 curl -LO https://github.com/RJuho/jokateko/releases/latest/download/jokateko-linux-amd64

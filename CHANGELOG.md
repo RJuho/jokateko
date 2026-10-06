@@ -18,6 +18,7 @@ First public release.
 - **Static export** (`jokateko build`): the whole board as one self-contained HTML file, with Mermaid from a pinned CDN (SRI), bundled, or off.
 - **Validation** (`jokateko parse`): config, frontmatter, references and dependency cycles, with rule IDs and exit codes for CI.
 - **One binary:** pure Go without CGO and with the web UI embedded, for Linux and macOS (amd64/arm64) and Windows (amd64), plus a `FROM scratch` Docker image. `about` and `licenses` list third-party licenses.
+- **Install script:** `curl -fsSL https://jokateko.dev/install.sh | sh` installs the release binary on Linux and macOS after checking its SHA-256, without sudo.
 
 ### Security
 

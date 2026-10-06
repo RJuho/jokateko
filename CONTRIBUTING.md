@@ -16,6 +16,7 @@ Thanks for helping! Jokateko is developed with Jokateko: the plan, the architect
 | `test` · `cover` | Go tests with `CGO_ENABLED=0`; `cover` also writes `coverage.out` and prints total coverage |
 | `lint` | `gofmt` check and `go vet` |
 | `e2e-test` · `lighthouse-test` | Playwright end-to-end tests; Lighthouse audits of every view (reports in `lighthouse-report/`) |
+| `test-install` | Cross-compiles the release binaries and runs `site/install.sh` against them (checksum, install, failure cases) |
 | `screenshots` | README screenshots of a demo workspace and the cover image built from them (output in `screenshots/`; copy `cover.jpg` and `cover-social.jpg` to `.github/assets/cover.jpg` and `social-preview.jpg` to update them) |
 | `generate` | Regenerate sqlc queries, TypeScript types and license data |
 | `fuzz-markdown` · `fuzz-api` · `fuzz-mcp` · `fuzz-all` | Go fuzzing (`FUZZTIME=10s` by default) |
