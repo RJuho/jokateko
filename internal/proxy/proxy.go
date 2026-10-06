@@ -611,14 +611,16 @@ func (r *Runner) switchToProxy(ctx context.Context) error {
 	r.isProxy = true
 	r.localEngine = nil
 	r.proxyConnects.Add(1)
+	// Close the old engine before publishing proxy mode, so a reader that sees
+	// proxy mode also sees the engine closed and counted.
+	if oldEngine != nil {
+		oldEngine.Close()
+		r.localCloses.Add(1)
+	}
 	r.mu.Unlock()
 
 	if oldConn != nil {
 		_ = oldConn.Close()
-	}
-	if oldEngine != nil {
-		oldEngine.Close()
-		r.localCloses.Add(1)
 	}
 
 	port := r.cfg.Server.Port
