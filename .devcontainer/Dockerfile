@@ -1,5 +1,5 @@
 # Pinned by version and digest (updated by Dependabot)
-FROM oven/bun:1.4.2-slim@sha256:cb3bbbb08e13a4a2ff400f24c7a2a1d5efa83f6ef8544d52d95a519631e2fc61
+FROM oven/bun:1.4.3-slim@sha256:14a223fa35747ec728bce300ef85888bc5f7958164d15bbba6a54b22b52a3288
 
 # Core build utilities and non-opinionated developer CLI tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
