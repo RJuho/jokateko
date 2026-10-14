@@ -4,6 +4,10 @@ All notable changes to Jokateko are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Added
+
+- **Online board:** each stable release publishes Jokateko's own board, exported by the release binary with `jokateko build`, at https://jokateko.dev/jokateko/.
+
 ## [0.1.0] - TBD
 
 First public release.

@@ -67,8 +67,9 @@ jobs:
             site/install.sh
           generate_release_notes: true
 
-  # Publish the site (install.sh) for stable releases only, after the release exists, so the
-  # script and the `latest` binaries it downloads always come from the same release.
+  # Publish the site (install.sh, plus the board at /jokateko/ exported by this release's binary)
+  # for stable releases only, after the release exists, so the script and the `latest` binaries
+  # it downloads always come from the same release.
   pages:
     name: Publish GitHub Pages
     needs: binaries
@@ -78,6 +79,9 @@ jobs:
       pages: write
       id-token: write
     uses: ./.github/workflows/pages.yml
+    with:
+      # `env` is not available here; same expression as VERSION above
+      version: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}
 
   devcontainer:
     name: Build & Publish Devcontainer Image

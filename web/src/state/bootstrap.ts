@@ -29,11 +29,13 @@ export function parseSnapshotContent(content: string | null | undefined): {
 		return null
 	}
 
+	// An unfilled placeholder is a comment; JSON payloads may still mention the token in task text
 	const trimmed = content.trim()
 	if (
 		trimmed === ''
 		|| trimmed === PAYLOAD_PLACEHOLDER
-		|| trimmed.includes('JOKATEKO_PAYLOAD_PLACEHOLDER')
+		|| (trimmed.startsWith('/*')
+			&& trimmed.includes('JOKATEKO_PAYLOAD_PLACEHOLDER'))
 	) {
 		return null
 	}
