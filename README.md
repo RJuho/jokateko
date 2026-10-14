@@ -97,7 +97,7 @@ Jokateko binds to `127.0.0.1` by default and has **no authentication**. Do not e
 
 ## This repository uses Jokateko
 
-Jokateko's own board, architecture strategies and glossary live in [`.jokateko/`](.jokateko/). Run `jokateko serve` in a clone or `jokateko build` to browse them, and start with the [architecture strategy](.jokateko/strategies/architecture.md).
+Jokateko's own board, architecture strategies and glossary live in [`.jokateko/`](.jokateko/). Browse them online at [jokateko.dev/jokateko](https://jokateko.dev/jokateko/) (exported from the latest release), or run `jokateko serve` in a clone or `jokateko build`, and start with the [architecture strategy](.jokateko/strategies/architecture.md).
 
 ## Contributing and license
 

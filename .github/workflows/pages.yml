@@ -1,10 +1,16 @@
 name: Pages
 
-# Publishes site/ to https://jokateko.dev (install.sh at the root). Called by the release workflow
-# after a stable release is published, so the site always matches a released version. Run it by
-# hand with a tag selected under "Use workflow from" to redeploy that release's site.
+# Publishes site/ to https://jokateko.dev (install.sh at the root) together with Jokateko's own
+# board, exported by the released binary to https://jokateko.dev/jokateko/. Called by the release
+# workflow after a stable release is published, so the site always matches a released version.
+# Run it by hand with a tag selected under "Use workflow from" to redeploy that release's site.
 on:
   workflow_call:
+    inputs:
+      version:
+        description: 'Release tag whose binary exports the board (default: the calling ref)'
+        type: string
+        required: false
   workflow_dispatch:
 
 # One deployment at a time; let a running deployment finish rather than cancel it midway
@@ -29,6 +35,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The installer from this checkout fetches the published release binary and verifies its
+      # checksum, so the board export below doubles as an end-to-end check of the release.
+      - name: Install release binary
+        env:
+          JOKATEKO_VERSION: ${{ inputs.version || github.ref_name }}
+          JOKATEKO_INSTALL_DIR: ${{ runner.temp }}/bin
+        run: sh site/install.sh
+
+      # One Pages deployment replaces the whole site, so the board goes into the same artifact
+      - name: Export Jokateko board
+        run: |
+          "$RUNNER_TEMP/bin/jokateko" build -dir . -out site/jokateko -mermaidjs=cdn
+          grep -q 'id="jokateko-data"' site/jokateko/index.html
 
       - name: Upload site
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

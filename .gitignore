@@ -12,6 +12,7 @@
 *.dylib
 bin/
 dist-kanban/
+site/jokateko/
 
 # Test binary, built with `go test -c`
 *.test

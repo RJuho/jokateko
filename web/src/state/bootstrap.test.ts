@@ -74,6 +74,32 @@ describe('Bootstrap Loader & Error Boundary', () => {
 		expect(result.snapshot?.tasks[0].priority).toBe('medium') // default value applied
 	})
 
+	it('boots into Static mode when snapshot text mentions the placeholder token', () => {
+		const snapshot = {
+			config: {
+				project: { name: 'Test Project', description: 'Desc' },
+				board: {
+					columns: [{ id: 'c1', name: 'Col 1', color: '#123456' }],
+				},
+			},
+			tasks: [],
+			milestones: [],
+			strategies: [],
+			glossary: [
+				{
+					id: 'g1',
+					term: 'Snapshot injection',
+					definition: `Replaces ${PAYLOAD_PLACEHOLDER} with JSON`,
+				},
+			],
+		}
+
+		const doc = createMockDocument(JSON.stringify(snapshot))
+		const result = bootstrap(doc, { checkStorage: false })
+		expect(result.mode).toBe('static')
+		expect(result.snapshot?.config.project.name).toBe('Test Project')
+	})
+
 	it('handles malformed JSON syntax gracefully with diagnostic error', () => {
 		const doc = createMockDocument('{ invalid json')
 		const result = bootstrap(doc)
